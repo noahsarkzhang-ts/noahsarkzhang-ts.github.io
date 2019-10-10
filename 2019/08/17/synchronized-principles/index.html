@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized">
+<meta name="keywords" content="synchronized,偏向锁,轻量级锁,重量级锁">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Synchronized 原理">
+<meta property="og:url" content="http://yoursite.com/2019/08/17/synchronized-principles/index.html">
+<meta property="og:site_name" content="船长的博客">
+<meta property="og:description" content="之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/Synchronized-lock-classify.jpeg">
+<meta property="og:image" content="http://yoursite.com/images/synchronized-overview.jpg">
+<meta property="og:image" content="http://yoursite.com/images/methord-header.jpg">
+<meta property="og:image" content="http://yoursite.com/images/monitor-object.jpg">
+<meta property="og:image" content="http://yoursite.com/images/Lock-Record.png">
+<meta property="og:updated_time" content="2019-10-10T01:16:50.601Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Synchronized 原理">
+<meta name="twitter:description" content="之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized">
+<meta name="twitter:image" content="http://yoursite.com/images/Synchronized-lock-classify.jpeg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/08/17/synchronized-principles/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Synchronized 原理 | 船长的博客</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">船长的博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/08/17/synchronized-principles/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="船长的博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Synchronized 原理
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-08-17 18:11:20" itemprop="dateCreated datePublished" datetime="2019-08-17T18:11:20+08:00">2019-08-17</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-10-10 09:16:50" itemprop="dateModified" datetime="2019-10-10T09:16:50+08:00">2019-10-10</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/并发编程/" itemprop="url" rel="index"><span itemprop="name">并发编程</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/08/17/synchronized-principles/#comments" itemprop="discussionUrl">
+                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/2019/08/17/synchronized-principles/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized进行了种种优化，为了减少获得锁和释放锁所带来的性能消耗，提高性能，引入了“轻量级锁”和“偏向锁”。<br>引入“轻量级锁”和“偏向锁”之后，synchronized锁有四种状态，即之前的“无锁”和“重量级锁”，再加上现在这两种，这四种状态有不同的使用场景，如下图所示：<br><img src="/images/Synchronized-lock-classify.jpeg" alt="Synchronized-lock-classify" title="Synchronized-lock-classify"></p>
+<h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h2><p>synchronized锁一共有4种状态，级别从低到高依次是：无锁、偏向锁、轻量级锁和重量级锁。锁状态只能升级不能降级，转换升级的整体流程如下所示：<br><img src="/images/synchronized-overview.jpg" alt="synchronized-overview" title="synchronized-overview"></p>
+<p><strong>重要的概念：</strong></p>
+<ul>
+<li>对象头：在Java中，每一个对象都可以作为锁，锁的相关信息存储在每一个对象头的Mark Word（标记字段）中；</li>
+<li>偏向锁：在无锁状态下，如果系统支持偏向锁（默认支持），线程使用CAS修改Mark Word的thread id字段，如果修改成功则获得偏向锁。</li>
+<li>轻量级锁：如果获取偏向锁失败，当前线程会向VM线程提交撤销偏向锁的任务，提交任务后，当前线程会被阻塞，直到任务结束后才会被VM线程唤醒。VM线程执行撤销任务，这时候JVM会进入安全点，所有运行的java线程都会被阻塞（包括获取偏向锁的线程）。在VM线程中，会检查获取锁的线程的状态，如果线程已经不活动或不在同步块中，则将锁状态改为无锁状态；如果线程还在同步块中，则将锁状态升级为轻量级锁，之前获取偏向锁的线程持有轻量级锁。执行完操作之后唤醒被阻塞的当前线程，且退出安全点，所有阻塞在安全点上的线程也会被唤醒；</li>
+<li>重量级锁：当前线程被唤醒之后，如果锁是无锁状态，则直接获取锁，否则膨胀为重量级锁。在膨胀过程中，会执行以下操作：1）分配monitor对象；2）锁的_owner设置为之前获取锁的线程；3）将当前线程加入到monitor等待队列中，并阻塞当前线程。</li>
+</ul>
+<h2 id="2-相关概念"><a href="#2-相关概念" class="headerlink" title="2.相关概念"></a>2.相关概念</h2><h3 id="2-1-Java对象头"><a href="#2-1-Java对象头" class="headerlink" title="2.1 Java对象头"></a>2.1 Java对象头</h3><p>在上面的内容讲到，在Java中任何对象都可以作为锁，锁的相关信息都保存在Java的对象头中，我们以Hotspot虚拟机为例，Hotspot的对象头主要包括两部分数据：Mark Word（标记字段）、Klass Pointer（类型指针）。<br><strong>Mark Word：</strong> 默认存储对象的HashCode，分代年龄和锁标志位信息。这些信息都是与对象自身定义无关的数据，所以Mark Word被设计成一个非固定的数据结构以便在极小的空间内存存储尽量多的数据。它会根据对象的状态复用自己的存储空间，也就是说在运行期间Mark Word里存储的数据会随着锁标志位的变化而变化。在32位系统上Mark Word长度为32bit，64位系统上长度为64bit，在32位系统上各状态的格式如下所示：<br><img src="/images/methord-header.jpg" alt="methord-header" title="methord-header"><br>锁信息存于对象的Mark Word中，当对象状态为偏向锁（biasable）时，Mark Word存储的是偏向的线程ID；当状态为轻量级锁（lightweight locked）时，Mark Word存储的是指向线程栈中Lock Record的指针；当状态为重量级锁（inflated）时，为指向堆中的monitor对象的指针。</p>
+<p><strong>Klass Point：</strong> 对象指向它的类元数据的指针，虚拟机通过这个指针来确定这个对象是哪个类的实例。</p>
+<h3 id="2-2-Monitor对象"><a href="#2-2-Monitor对象" class="headerlink" title="2.2 Monitor对象"></a>2.2 Monitor对象</h3><p>在“重量级”锁中，每一个锁都持有一个monitor对象，等同于ReentrantLock中AQS对象，实现等待队列的管理、线程的等待及唤醒等功能，同样地，线程的等待及唤醒借助于操作系统的futex来实现。在上面一节中，如果是重量级锁状态下，Mark Word中存储了Monitor对象的引用，从而建立起了对象锁与monitor对象的映射关系，其关系如下所示：<br><img src="/images/monitor-object.jpg" alt="monitor-object" title="monitor-object"><br>一个monitor对象包括这么几个关键字段：_cxq，_EntryList ，_WaitSet，_owner。其中_cxq ，_EntryList ，_WaitSet都是由ObjectWaiter的链表结构，_owner指向持有锁的线程。<br>当一个线程尝试获得锁时(lock)，如果该锁已经被占用，则会将该线程封装成一个ObjectWaiter对象插入到_cxq的队列头部，然后阻塞当前线程。当持有锁的线程释放锁(unlock)时，会根据不同的策略取_cxq或_EntryList的中的对象来进行唤醒。<br>如果一个线程在同步块中调用了Object#wait方法，会创建对应的ObjectWaiter并加入到WaitSet中，然后释放锁。当wait的线程被notify之后，会将对应的ObjectWaiter从_WaitSet移动到_EntryList中。</p>
+<h3 id="2-3-安全点（safepoint）"><a href="#2-3-安全点（safepoint）" class="headerlink" title="2.3 安全点（safepoint）"></a>2.3 安全点（safepoint）</h3><p>在第一章中讲到偏向锁的撤销是在VM线程中执行，所有的Java线程都进入安全点，即所有线程都被阻塞（stop the world），从而保证对持有锁的线程的更改是原子的。那么安全点是什么？怎么保证所有的线程都暂停？</p>
+<p>safepoint安全点顾名思义是指一些特定的位置，当线程运行到这些位置时，线程的一些状态可以被确定(the thread’s representation of it’s Java machine state is well described)，比如记录OopMap的状态，从而确定GC Root的信息，使JVM可以安全的进行一些操作，比如开始GC。<br>safepoint指的特定位置主要有:</p>
+<ol>
+<li>循环的末尾 (防止大循环的时候一直不进入safepoint，而其他线程在等待它进入safepoint)</li>
+<li>方法返回前</li>
+<li>调用方法的call之后</li>
+<li>抛出异常的位置</li>
+</ol>
+<p>safepoint使用场景主要有：</p>
+<ol>
+<li>Garbage collection pauses</li>
+<li>Code deoptimization</li>
+<li>Flushing code cache</li>
+<li>Class redefinition (e.g. hot swap or instrumentation)</li>
+<li><strong>Biased lock revocation</strong></li>
+<li>Various debug operation (e.g. deadlock check or stacktrace dump</li>
+</ol>
+<p>JVM有两种执行方式：解释型和编译型(JIT)，JVM要保证这两种执行方式下safepoint都能工作。</p>
+<p>在JIT执行方式下，JIT编译的时候直接把safepoint的检查代码加入了生成的本地代码，当JVM需要让Java线程进入safepoint的时候，只需要设置一个标志位，让Java线程运行到safepoint的时候主动检查这个标志位，如果标志被设置，那么线程被阻塞，如果没有被设置，那么继续执行。</p>
+<p>例如hotspot在x86中为轮询safepoint会生成一条类似于“test %eax,0x160100”的指令，JVM需要进入gc前，先把0x160100设置为不可读，那所有线程执行到检查0x160100的test指令后都会被阻塞。</p>
+<p>在解释器执行方式下，JVM会设置一个2字节的dispatch tables,解释器执行的时候会经常去检查这个dispatch tables，当有safepoint请求的时候，就会让线程去进行safepoint检查。</p>
+<h2 id="3-锁实现"><a href="#3-锁实现" class="headerlink" title="3. 锁实现"></a>3. 锁实现</h2><h3 id="3-1-无锁"><a href="#3-1-无锁" class="headerlink" title="3.1 无锁"></a>3.1 无锁</h3><p>无锁没有对资源进行锁定，所有的线程通过CAS操作来获取锁，同时只有一个线程获取成功。</p>
+<h3 id="3-2-偏向锁"><a href="#3-2-偏向锁" class="headerlink" title="3.2 偏向锁"></a>3.2 偏向锁</h3><p>在JDK1.6中为了<strong>提高一个对象在一段很长的时间内都只被一个线程用做锁对象场景下的性能</strong>，引入了偏向锁，在第一次获得锁时，会有一个CAS操作，之后该线程再获取锁，只需要判断线程id与Mark Word中的thread id一致即可。</p>
+<p><strong>对象创建</strong></p>
+<p>当JVM启用了偏向锁模式（1.6以上默认开启），当新创建一个对象的时候，如果该对象所属的class没有关闭偏向锁模式（什么时候会关闭一个class的偏向模式下文会说，默认所有class的偏向模式都是是开启的），那新创建对象的Mark Word将是可偏向状态，此时Mark Word中的thread id为0，表示未偏向任何线程，也叫做匿名偏向(anonymously biased)。</p>
+<p><strong>加锁过程</strong></p>
+<p>case 1：当该对象第一次被线程获得锁的时候，发现是匿名偏向状态，则会用CAS指令，将Mark Word中的thread id由0改成当前线程Id。如果成功，则代表获得了偏向锁，继续执行同步块中的代码。否则，将偏向锁撤销，升级为轻量级锁。如下代码所示：<a href="http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/9ce27f0a4683/src/share/vm/interpreter/bytecodeInterpreter.cpp#l1881" target="_blank" rel="noopener">bytecodeInterpreter.cpp#l1881</a><br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// try to bias towards thread in case object is anonymously biased</span></span><br><span class="line">markOop header = (markOop) ((<span class="keyword">uintptr_t</span>) mark </span><br><span class="line">        &amp; ((<span class="keyword">uintptr_t</span>)markOopDesc::biased_lock_mask_in_place</span><br><span class="line">        | <span class="keyword">uintptr_t</span>)markOopDesc::age_mask_in_place</span><br><span class="line">        | epoch_mask_in_place));</span><br><span class="line"><span class="keyword">if</span> (hash != markOopDesc::no_hash) &#123;</span><br><span class="line">    header = header-&gt;copy_set_hash(hash);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将线程id设置为当前线程id</span></span><br><span class="line">markOop new_header = (markOop) ((<span class="keyword">uintptr_t</span>) header | thread_ident);</span><br><span class="line"><span class="comment">// debugging hint</span></span><br><span class="line">DEBUG_ONLY(entry-&gt;lock()-&gt;set_displaced_header((markOop) (<span class="keyword">uintptr_t</span>) <span class="number">0xdeaddead</span>);)</span><br><span class="line"><span class="comment">// 执行CAS操作，操作成功即可获得偏向锁</span></span><br><span class="line"><span class="keyword">if</span> (Atomic::cmpxchg_ptr((<span class="keyword">void</span>*)new_header, lockee-&gt;mark_addr(), header) == header) &#123;</span><br><span class="line">    <span class="keyword">if</span> (PrintBiasedLockingStatistics)</span><br><span class="line">		(* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 失败则升级到轻量级锁</span></span><br><span class="line">     CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);</span><br><span class="line">&#125;</span><br><span class="line">success = <span class="literal">true</span>;</span><br></pre></td></tr></table></figure></p>
+<p>case 2：当被偏向的线程再次进入同步块时，发现锁对象偏向的就是当前线程，在通过一些额外的检查后，会往当前线程的栈中添加一条Displaced Mark Word为空的Lock Record中，然后继续执行同步块的代码，因为操纵的是线程私有的栈，因此不需要用到CAS指令；由此可见偏向锁模式下，当被偏向的线程再次尝试获得锁时，仅仅进行几个简单的操作就可以了，在这种情况下，synchronized关键字带来的性能开销基本可以忽略。</p>
+<p>case 3：当其他线程进入同步块时，发现已经有偏向的线程了，则会进入到撤销偏向锁的逻辑里，一般来说，会在safepoint中去查看偏向的线程是否还存活，如果存活且还在同步块中则将锁升级为轻量级锁，原偏向的线程继续拥有锁，当前线程则走入到锁升级的逻辑里；如果偏向的线程已经不存活或者不在同步块中，则将对象头的Mark Word改为无锁状态（unlocked），之后再升级为轻量级锁。</p>
+<p>由此可见，偏向锁升级的时机为：当锁已经发生偏向后，只要有另一个线程尝试获得偏向锁，则该偏向锁就会升级成轻量级锁。</p>
+<p><strong>解锁过程</strong></p>
+<p>当有其他线程尝试获得锁时，是根据遍历偏向线程的Lock Record来确定该线程是否还在执行同步块中的代码。因此偏向锁的解锁很简单，仅仅将栈中的最近一条Lock Record的obj字段设置为null。需要注意的是，偏向锁的解锁步骤中并不会修改对象头中的thread id。</p>
+<p>偏向锁在JDK 6及以后的JVM里是默认启用的。可以通过JVM参数关闭偏向锁：-XX:-UseBiasedLocking=false，关闭之后程序默认会进入轻量级锁状态。</p>
+<p><strong>Lock Record</strong></p>
+<p>当前线程每一次进入同步块时都会分配一个Lock Record对象，并将该对象的obj字段指向锁对象，并在解锁的时候将该字段设置为null。在VM线程中执行撤销操作时判断该字段即可知道是否还在同步块中，代码：<a href="http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/9ce27f0a4683/src/share/vm/interpreter/bytecodeInterpreter.cpp#l1816" target="_blank" rel="noopener">bytecodeInterpreter.cpp#l1816</a></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 设置Lock Record对象</span></span><br><span class="line">CASE(_monitorenter): &#123;</span><br><span class="line">    <span class="comment">// lockee为锁对象</span></span><br><span class="line">    oop lockee = STACK_OBJECT(<span class="number">-1</span>);</span><br><span class="line">    <span class="comment">// derefing's lockee ought to provoke implicit null check</span></span><br><span class="line">    CHECK_NULL(lockee);</span><br><span class="line">    <span class="comment">// find a free monitor or one already allocated for this object</span></span><br><span class="line">    <span class="comment">// if we find a matching object then we need a new monitor</span></span><br><span class="line">    <span class="comment">// since this is recursive enter</span></span><br><span class="line">	</span><br><span class="line">    <span class="comment">// 找到一个空闲的Lock Record对象</span></span><br><span class="line">    BasicObjectLock* limit = istate-&gt;monitor_base();</span><br><span class="line">    BasicObjectLock* most_recent = (BasicObjectLock*) istate-&gt;stack_base();</span><br><span class="line">    BasicObjectLock* entry = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">while</span> (most_recent != limit ) &#123;</span><br><span class="line">        <span class="keyword">if</span> (most_recent-&gt;obj() == <span class="literal">NULL</span>) entry = most_recent;</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (most_recent-&gt;obj() == lockee) <span class="keyword">break</span>;</span><br><span class="line">        most_recent++;</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">    <span class="keyword">if</span> (entry != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="comment">// 将obj字段指向lockee</span></span><br><span class="line">        entry-&gt;set_obj(lockee);</span><br><span class="line">		... <span class="comment">// 略</span></span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	... <span class="comment">// 略</span></span><br><span class="line">	</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 解锁清空Lock Record对象</span></span><br><span class="line">CASE(_monitorexit): &#123;</span><br><span class="line">    oop lockee = STACK_OBJECT(<span class="number">-1</span>);</span><br><span class="line">    CHECK_NULL(lockee);</span><br><span class="line">	</span><br><span class="line">    <span class="comment">// derefing's lockee ought to provoke implicit null check</span></span><br><span class="line">    <span class="comment">// find our monitor slot</span></span><br><span class="line">    BasicObjectLock* limit = istate-&gt;monitor_base();</span><br><span class="line">    BasicObjectLock* most_recent = (BasicObjectLock*) istate-&gt;stack_base();</span><br><span class="line">    <span class="keyword">while</span> (most_recent != limit ) &#123;</span><br><span class="line">        <span class="keyword">if</span> ((most_recent)-&gt;obj() == lockee) &#123;</span><br><span class="line">            BasicLock* lock = most_recent-&gt;lock();</span><br><span class="line">            markOop header = lock-&gt;displaced_header();</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 设置Lock Record对象obj为空，退出同步块</span></span><br><span class="line">            most_recent-&gt;set_obj(<span class="literal">NULL</span>);</span><br><span class="line">            <span class="keyword">if</span> (!lockee-&gt;mark()-&gt;has_bias_pattern()) &#123;</span><br><span class="line">              <span class="keyword">bool</span> call_vm = UseHeavyMonitors;</span><br><span class="line">              <span class="comment">// If it isn't recursive we either must swap old header or call the runtime</span></span><br><span class="line">              <span class="keyword">if</span> (header != <span class="literal">NULL</span> || call_vm) &#123;</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 轻量级锁逻辑：lockee不指向Lock Record对象，说明锁升级为重量级锁，否则将锁设置为无锁状态</span></span><br><span class="line">                <span class="keyword">if</span> (call_vm || Atomic::cmpxchg_ptr(header, lockee-&gt;mark_addr(), lock) != lock) &#123;</span><br><span class="line">                  <span class="comment">// restore object for the slow case</span></span><br><span class="line">                  most_recent-&gt;set_obj(lockee);</span><br><span class="line">                  <span class="comment">// 膨胀为重量级锁</span></span><br><span class="line">                  CALL_VM(InterpreterRuntime::monitorexit(THREAD, most_recent), handle_exception);</span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            UPDATE_PC_AND_TOS_AND_CONTINUE(<span class="number">1</span>, <span class="number">-1</span>);</span><br><span class="line">          &#125;</span><br><span class="line">          most_recent++;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="3-3-轻量级锁"><a href="#3-3-轻量级锁" class="headerlink" title="3.3 轻量级锁"></a>3.3 轻量级锁</h3><p>JVM的开发者发现在很多情况下，在Java程序运行时，同步块中的代码都是不存在竞争的，不同的线程交替的执行同步块中的代码。这种情况下，用重量级锁是没必要的。因此JVM引入了轻量级锁的概念。</p>
+<p>线程在执行同步块之前，JVM会先在当前的线程的栈帧中创建一个Lock Record，其包括一个用于存储对象头中的 mark word（官方称之为Displaced Mark Word）以及一个指向对象的指针。下图右边的部分就是一个Lock Record。<br><img src="/images/Lock-Record.png" alt="Lock-Record" title="Lock-Record"></p>
+<p><strong>加锁过程：</strong></p>
+<ol>
+<li>在线程栈中创建一个Lock Record，将其obj（即上图的Object reference）字段指向锁对象；</li>
+<li>直接通过CAS指令将Lock Record的地址存储在对象头的Mark Word中，如果对象处于无锁状态则修改成功，代表该线程获得了轻量级锁。如果失败，进入到步骤3；</li>
+<li>如果是当前线程已经持有该锁了，代表这是一次锁重入。设置Lock Record第一部分（Displaced Mark Word）为null，起到了一个重入计数器的作用。然后结束；</li>
+<li>走到这一步说明发生了竞争，需要膨胀为重量级锁。</li>
+</ol>
+<p><strong>释放锁过程：</strong></p>
+<ol>
+<li>遍历线程栈,找到所有obj字段等于当前锁对象的Lock Record；</li>
+<li>如果Lock Record的Displaced Mark Word为null，代表这是一次重入，将obj设置为null后continue；</li>
+<li>如果Lock Record的Displaced Mark Word不为null，则利用CAS指令将对象头的Mark Word恢复成为Displaced Mark Word。如果成功，则continue，否则膨胀为重量级锁。</li>
+</ol>
+<h3 id="3-4-重量级锁"><a href="#3-4-重量级锁" class="headerlink" title="3.4 重量级锁"></a>3.4 重量级锁</h3><p>重量级锁是我们常说的传统意义上的锁，其利用操作系统底层的同步机制去实现Java中的线程同步。重量级锁的状态下，对象的Mark Word为指向一个堆中monitor对象的指针，在上面的内容已经讲过。<br>monitor对象包括三个链表：_cxq，_EntryList及_WaitSet，被阻塞的线程封装为ObjectWaiter对象，而<strong>ObjectWaiter对象存在于WaitSet、EntryList、cxq等集合中，或者正在这些集合中移动</strong>，那么ObjectWaiter是怎么移动的？下面的内容将进行分析。</p>
+<p><strong>wait方法</strong></p>
+<ol>
+<li>当前线程封装成ObjectWaiter对象，状态为TS_WAIT；</li>
+<li>ObjectWaiter对象被放入_WaitSet中；</li>
+<li>释放锁；</li>
+<li>当前线程挂起；</li>
+</ol>
+<p><strong>monitorenter竞争锁</strong></p>
+<ol>
+<li>偏向锁逻辑：判断是否偏向锁，不是则执行轻量级锁逻辑；</li>
+<li>轻量级锁逻辑：如果是无锁状态，就通过CAS去竞争锁，否则判断重入，如果不是当前线程持有锁，执行锁膨胀；</li>
+<li>重量级锁逻辑：构造OjectMonitor对象，通过CAS去设置owner，如果失败就将线程加入_cxq队列的首位；</li>
+<li>执行无限循环，竞争锁成功就退出循环，竞争失败线程挂起，等待被唤醒后继续竞争；</li>
+</ol>
+<p>代码如下：</p>
+<p><a href="http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/9ce27f0a4683/src/share/vm/runtime/objectMonitor.cpp#l502" target="_blank" rel="noopener">objectMonitor.cpp#l502</a></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> ATTR ObjectMonitor::EnterI (TRAPS) &#123;</span><br><span class="line">    Thread * Self = THREAD ;</span><br><span class="line">    ... <span class="comment">// 略</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 封装ObjectWaiter对象</span></span><br><span class="line">    <span class="function">ObjectWaiter <span class="title">node</span><span class="params">(Self)</span> </span>;</span><br><span class="line">    Self-&gt;_ParkEvent-&gt;reset() ;</span><br><span class="line">    node._prev   = (ObjectWaiter *) <span class="number">0xBAD</span> ;</span><br><span class="line">    node.TState  = ObjectWaiter::TS_CXQ ;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 加入到_cxq队首</span></span><br><span class="line">    ObjectWaiter * nxt ;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        node._next = nxt = _cxq ;</span><br><span class="line">        <span class="keyword">if</span> (Atomic::cmpxchg_ptr (&amp;node, &amp;_cxq, nxt) == nxt) <span class="keyword">break</span> ;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Interference - the CAS failed because _cxq changed.  Just retry.</span></span><br><span class="line">        <span class="comment">// As an optional optimization we retry the lock.</span></span><br><span class="line">        <span class="keyword">if</span> (TryLock (Self) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            assert (_succ != Self         , <span class="string">"invariant"</span>) ;</span><br><span class="line">            assert (_owner == Self        , <span class="string">"invariant"</span>) ;</span><br><span class="line">            assert (_Responsible != Self  , <span class="string">"invariant"</span>) ;</span><br><span class="line">            <span class="keyword">return</span> ;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    TEVENT (Inflated enter - Contention) ;</span><br><span class="line">    <span class="keyword">int</span> nWakeups = <span class="number">0</span> ;</span><br><span class="line">    <span class="keyword">int</span> RecheckInterval = <span class="number">1</span> ;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (TryLock (Self) &gt; <span class="number">0</span>) <span class="keyword">break</span> ;</span><br><span class="line">        assert (_owner != Self, <span class="string">"invariant"</span>) ;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> ((SyncFlags &amp; <span class="number">2</span>) &amp;&amp; _Responsible == <span class="literal">NULL</span>) &#123;</span><br><span class="line">           Atomic::cmpxchg_ptr (Self, &amp;_Responsible, <span class="literal">NULL</span>) ;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// park self</span></span><br><span class="line">        <span class="keyword">if</span> (_Responsible == Self || (SyncFlags &amp; <span class="number">1</span>)) &#123;</span><br><span class="line">            TEVENT (Inflated enter - park TIMED) ;</span><br><span class="line">            Self-&gt;_ParkEvent-&gt;park ((jlong) RecheckInterval) ;</span><br><span class="line">            <span class="comment">// Increase the RecheckInterval, but clamp the value.</span></span><br><span class="line">            RecheckInterval *= <span class="number">8</span> ;</span><br><span class="line">            <span class="keyword">if</span> (RecheckInterval &gt; <span class="number">1000</span>) RecheckInterval = <span class="number">1000</span> ;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            TEVENT (Inflated enter - park UNTIMED) ;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 阻塞当前线程</span></span><br><span class="line">            Self-&gt;_ParkEvent-&gt;park() ;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (TryLock(Self) &gt; <span class="number">0</span>) <span class="keyword">break</span> ;</span><br><span class="line"></span><br><span class="line">       ... <span class="comment">// 略</span></span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">	... <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>notify方法</strong></p>
+<ol>
+<li>执行过wait方法的线程都在队列_WaitSet中，此处从_WaitSet中取出第一个；</li>
+<li>根据Policy的不同，将这个线程放入_EntryList或者_cxq队列中的起始或末尾位置。</li>
+</ol>
+<p>Policy逻辑如下：</p>
+<ol>
+<li>Policy == 0：放入_EntryList队列的排头位置；</li>
+<li>Policy == 1：放入_EntryList队列的末尾位置；</li>
+<li>Policy == 2：_EntryList队列为空就放入_EntryList，否则放入_cxq队列的排头位置；</li>
+<li>Policy == 3：放入_cxq队列中，末尾位置；</li>
+<li>Policy等于其他值，立即唤醒ObjectWaiter对应的线程。</li>
+</ol>
+<p><strong>monitorexit释放锁</strong></p>
+<ol>
+<li>偏向锁逻辑，此处不是；</li>
+<li>轻量级锁逻辑，此处不是，执行锁膨胀；</li>
+<li>重量级锁逻辑，根据QMode的不同，将ObjectWaiter从_cxq或者_EntryList中取出后唤醒；</li>
+<li>唤醒的线程会继续执行挂起前的代码。</li>
+</ol>
+<p>QMode逻辑如下：</p>
+<ol>
+<li>QMode = 2，并且_cxq非空：取_cxq队列排头位置的ObjectWaiter对象，调用ExitEpilog方法，该方法会唤醒ObjectWaiter对象的线程，此处会立即返回，后面的代码不会执行了；</li>
+<li>QMode = 3，并且_cxq非空，把_cxq队列首元素放入_EntryList的尾部，执行第5步；</li>
+<li>QMode = 4，并且_cxq非空，把_cxq队列首元素放入_EntryList的头部，执行第5步；</li>
+<li>QMode = 0，执行第5步；</li>
+<li>如果_EntryList的首元素非空，就取出来调用ExitEpilog方法，该方法会唤醒ObjectWaiter对象的线程，然后立即返回；如果_EntryList的首元素为空，就取_cxq的首元素，放入_EntryList，然后再从_EntryList中取出来执行ExitEpilog方法，然后立即返回，以上操作，均是执行过ExitEpilog方法然后立即返回，如果取出的元素为空，就执行循环继续取。</li>
+</ol>
+<p><strong>总结：</strong> 通过设置Policy及QMode，可以实现不同的调度逻辑。</p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>总的来说synchronized的重量级锁和ReentrantLock的实现上还是有很多相似的，包括其数据结构、挂起线程方式等等，底层都是基于操作系统的futex实现。如果没有什么特殊要求使用synchronized即可。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://github.com/farmerjohngit/myblog/issues/12" target="_blank" rel="noopener">1. 死磕Synchronized底层实现–概论</a></p>
+<p><a href="https://blog.csdn.net/boling_cavalry/article/details/77793224" target="_blank" rel="noopener">2. Java的wait()、notify()学习三部曲之一：JVM源码分析</a></p>
+<p><a href="https://tech.meituan.com/2018/11/15/java-lock.html" target="_blank" rel="noopener">3. 不可不说的Java“锁”事</a></p>
+<p><a href="https://blog.csdn.net/iter_zc/article/details/41847887" target="_blank" rel="noopener">4. 聊聊JVM（六）理解JVM的safepoint</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/synchronized/" rel="tag"># synchronized</a>
+          
+            <a href="/tags/偏向锁/" rel="tag"># 偏向锁</a>
+          
+            <a href="/tags/轻量级锁/" rel="tag"># 轻量级锁</a>
+          
+            <a href="/tags/重量级锁/" rel="tag"># 重量级锁</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/07/29/principles-of-java-lock/" rel="next" title="Java ReentrantLock实现原理">
+                <i class="fa fa-chevron-left"></i> Java ReentrantLock实现原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/09/01/synchronousqueue-principles/" rel="prev" title="SynchronousQueue 原理">
+                SynchronousQueue 原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">6</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">32</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1.概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-相关概念"><span class="nav-number">2.</span> <span class="nav-text">2.相关概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Java对象头"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 Java对象头</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-Monitor对象"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Monitor对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-安全点（safepoint）"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 安全点（safepoint）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-锁实现"><span class="nav-number">3.</span> <span class="nav-text">3. 锁实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-无锁"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 无锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-偏向锁"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 偏向锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-轻量级锁"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 轻量级锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-重量级锁"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 重量级锁</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-总结"><span class="nav-number">4.</span> <span class="nav-text">4. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">noahsark</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  
+  
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(function (item) {
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'fgYwvtOuPnolT3gijJdLNm0x-gzGzoHsz',
+        appKey: 'wS7jQ6VIB62rCFztcYIXWOQi',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        meta:guest,
+        pageSize:'10' || 10,
+        visitor: false
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
