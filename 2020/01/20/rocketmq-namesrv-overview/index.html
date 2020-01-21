@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，">
+<meta name="keywords" content="rocketmq,namesrv">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RocketMQ系列：NameServer概览">
+<meta property="og:url" content="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/index.html">
+<meta property="og:site_name" content="船长的博客">
+<meta property="og:description" content="NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/rocketmq-namesrv-overview.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rocketmq-namesrv-netty.jpg">
+<meta property="og:updated_time" content="2020-01-21T07:11:26.005Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RocketMQ系列：NameServer概览">
+<meta name="twitter:description" content="NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，">
+<meta name="twitter:image" content="http://yoursite.com/images/rocketmq-namesrv-overview.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>RocketMQ系列：NameServer概览 | 船长的博客</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">船长的博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="船长的博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">RocketMQ系列：NameServer概览
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-01-20 18:27:30" itemprop="dateCreated datePublished" datetime="2020-01-20T18:27:30+08:00">2020-01-20</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2020-01-21 15:11:26" itemprop="dateModified" datetime="2020-01-21T15:11:26+08:00">2020-01-21</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/rocketmq系列/" itemprop="url" rel="index"><span itemprop="name">rocketmq系列</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2020/01/20/rocketmq-namesrv-overview/#comments" itemprop="discussionUrl">
+                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/2020/01/20/rocketmq-namesrv-overview/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。<br><img src="/images/rocketmq-namesrv-overview.jpg" alt="rocketmq-namesrv-overview" title="rocketmq-namesrv-overview"><br>NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，如同步调用，异步调用及单向调用（发出请求不需要响应数据）；c）响应超时处理；d）IO事件处理。3）业务层，实现请求处理器及事件监听器注册接口，处理NameServer相关的数据，如broker地址及保活信息、topic队列信息及服务器过滤信息。</p>
+<ul>
+<li><p>通信层：Netty 使用 Reactors 的多线程模型，MainReactor 负责客户端的连接请求，并将请求转交给 SubReactor，SubReactor 负责相应通道的 IO 读写请求。在这里，BossGroup 承担MainReactor的角色，一般只需要一个线程即可（一个 EventLoop 实质就是一个线程），Work Group 承担 SubReactor 的角色，在RomcketMQ中默认是三个线程。从上面的关系可以看出，EventLoopGroup 包含多个 EventLoop，而一个 EventLoop 代表了一个独立的事件循环，循环等待 IO 事件，一般由一个线程来处理，一个 EventLoop 可以同时处理多个 tcp 连接（Channel），同时一个 Channel 所有事件只能在一个 EventLoop 中处理，一个 Channel 一旦分配给一个 EventLoop 之后将不会改变这种关联关系。在 Netty 中事件处理使用了责任链的模式，将事件处理分为不同的处理单元，让数据以水流的方式在管道中流动处理，每一个阀门都有一个独立的处理逻辑，这些处理单元包括但不限此，如数据的编/解码、数据的转换、空闲连接的检测及数据的消费，在 Netty 中，这些处理单元叫做 Handler 对象。每一个 Handler 对象存储在 ChannelHandlerContext 对象中，再将 ChannelHandlerContext 对象串连起来，形成一个双向链表。根据处理事件的不同，Handler 对象可以分为出站或入站对象，入站代表读事件，出站代表了写事件，所以，访问 ChannelHandlerContext 链表也分为出站和入站两种，入站从链首开始，正向访问，而出站则从链尾开始，反向访问。 在 ChannelPipeline 对象中，存储 ChannelHandlerContext 链表的链首及链尾对象，每一个 Channel 对象都会关联一个 ChannelPipeline 对象，在处理事件的时候，可方便调用相应的 Handler 对象，上层应用只要定义相应的 Handle对象 到Netty中即可。下图是 EventLoop 处理事件的流程。<br><img src="/images/rocketmq-namesrv-netty.jpg" alt="rocketmq-namesrv-netty" title="rocketmq-namesrv-netty"><br>可以看到，EventLoop 主要处理三件事：1）在多路复用器 Selector 上调用 select 方法，监听所有的 Channel的 IO 事件；2）执行 IO 处理流程，调用 ChannelHandlerContext 链表，执行业务处理；3）执行提交的任务，在 EventLoop 中，可以处理定时任务，在处理完业务逻辑之后，会调用已经到期的任务执行。定时任务存放在一个优先级队列（scheduleTaskQueue队列，实现类为PriorityQueue队列）中，按照时间进行排序，执行任务前会将已经到期的任务移到 taskQueue 队列中，然后依次执行 taskQueue 队列中的所有任务。</p>
+</li>
+<li><p>服务层：定义了四个基本功能，1）统一请求处理流程，每一个命令可以注册一个处理器（Processor对象）及处理线程池，不同业务请求可以由不同的线程池处理，这样有做到业务隔离和提高并发处理能力；2）定义了三种调用方式，分别是同步调用、异步调用及单向调用（发出请求不需要响应数据），同步调用及异步调用都是使用 Future 对象来实现，区别在于：同步调用需要在 Future 对象上等待一个超时时间，而异步调用只需定义一个回调方法即可；3）响应超时处理，在异步调用中，调用结束之后程序已经返回了，响应的数据需要在另外一个线程处理，为了方便响应数据找到对应的请求，需要构造一个 Future 对象存储到响应结果表中，请求及响应数据包含相同的请求序号，可以方便地从表中检索到 Future 对象，调用对应的回调函数。在这里，有一个问题，如果一直没有响应怎么办？这就需要一个线程定时扫描响应结果表，将已经超时的请求移除响应结果表；4）IO事件处理，主要包括连接、空闲、关闭及异常事件，上层应用注册事件监听器（ChannelEventListener）来处理相关的事件。</p>
+</li>
+<li><p>业务层：业务层维护了 broker 地址及保活信息、topic 队列信息及服务器过滤信息，Broker 定期向 NameServer 发送心跳信息，心跳信息中就包含了这些信息，另外生产者和消费者也会向 NameServer查询Broker及topic的信息，业务层通过向服务层注册请求处理器（Processor对象）及事件监听器（ChannelEventListener对象），来处理心跳、查询等请求。</p>
+</li>
+</ul>
+<p>通过上面的分析可以看出，NameServer 在设计结构比较清晰，在业务处理过程中，使用了异步的处理方式，大大提高了服务器的处理能力。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/rocketmq/" rel="tag"># rocketmq</a>
+          
+            <a href="/tags/namesrv/" rel="tag"># namesrv</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/12/08/java-stream-pipeline/" rel="next" title="Java Stream Pipeline">
+                <i class="fa fa-chevron-left"></i> Java Stream Pipeline
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">15</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">44</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">noahsark</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  
+  
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(function (item) {
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'fgYwvtOuPnolT3gijJdLNm0x-gzGzoHsz',
+        appKey: 'wS7jQ6VIB62rCFztcYIXWOQi',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        meta:guest,
+        pageSize:'10' || 10,
+        visitor: false
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
