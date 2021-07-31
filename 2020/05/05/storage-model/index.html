@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="概括来讲，存储引擎分为两大类：针对事务处理（OLTP）优化的结构，以及针对分析型（OLAP）的优化结构。它们典型的访问模式存在很大的差异：  OLTP系统通常面向用户，这意味着它们可能收到大量的请求。为了处理负载，应用程序通常在每个用户查询中只涉及小量的记录。应用程序基于某种键来请求记录，而存储引擎使用索引来查找所请求的数据。磁盘寻道时间往往是瓶颈。 由于不直接面对最终用户，数据仓库和类似的分析系">
+<meta name="keywords" content="b-tree,sstables,lsm-tree,wal,索引">
+<meta property="og:type" content="article">
+<meta property="og:title" content="存储引擎">
+<meta property="og:url" content="http://yoursite.com/2020/05/05/storage-model/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="概括来讲，存储引擎分为两大类：针对事务处理（OLTP）优化的结构，以及针对分析型（OLAP）的优化结构。它们典型的访问模式存在很大的差异：  OLTP系统通常面向用户，这意味着它们可能收到大量的请求。为了处理负载，应用程序通常在每个用户查询中只涉及小量的记录。应用程序基于某种键来请求记录，而存储引擎使用索引来查找所请求的数据。磁盘寻道时间往往是瓶颈。 由于不直接面对最终用户，数据仓库和类似的分析系">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/lsm-tree.jpg">
+<meta property="og:image" content="http://yoursite.com/images/lsm-tree-combine.jpg">
+<meta property="og:image" content="http://yoursite.com/images/b-tree.jpg">
+<meta property="og:image" content="http://yoursite.com/images/b-tree-index.jpg">
+<meta property="og:image" content="http://yoursite.com/images/b-tree-split.jpg">
+<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="存储引擎">
+<meta name="twitter:description" content="概括来讲，存储引擎分为两大类：针对事务处理（OLTP）优化的结构，以及针对分析型（OLAP）的优化结构。它们典型的访问模式存在很大的差异：  OLTP系统通常面向用户，这意味着它们可能收到大量的请求。为了处理负载，应用程序通常在每个用户查询中只涉及小量的记录。应用程序基于某种键来请求记录，而存储引擎使用索引来查找所请求的数据。磁盘寻道时间往往是瓶颈。 由于不直接面对最终用户，数据仓库和类似的分析系">
+<meta name="twitter:image" content="http://yoursite.com/images/lsm-tree.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/05/05/storage-model/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>存储引擎 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/05/storage-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">存储引擎
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-05-05 16:20:33" itemprop="dateCreated datePublished" datetime="2020-05-05T16:20:33+08:00">2020-05-05</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/数据库/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>概括来讲，存储引擎分为两大类：针对事务处理（OLTP）优化的结构，以及针对分析型（OLAP）的优化结构。它们典型的访问模式存在很大的差异：</p>
+<ul>
+<li>OLTP系统通常面向用户，这意味着它们可能收到大量的请求。为了处理负载，应用程序通常在每个用户查询中只涉及小量的记录。应用程序基于某种键来请求记录，而存储引擎使用索引来查找所请求的数据。磁盘寻道时间往往是瓶颈。</li>
+<li>由于不直接面对最终用户，数据仓库和类似的分析系统相对并不太广为人知，它们主要由业务分析师使用。处理的查询请求数目远低于OLTP系统，但每个查询通常要求非常苛刻，需要在短时间内扫描百万条记录。磁盘带宽（不是寻道时间）通常是瓶颈，而面向列的存储对于这种工作负载成为日益流行的解决方案。<br>在OLTP方面，有两个主要流派的存储引擎：</li>
+<li>日志结构流派：它只允许追加方式更新文件和删除过时的文件，但不会修改已写入的文件。BitCask、SSTable、LST-Tree、LevelDB、Cassandra、HBase、Lucence等属于此类；</li>
+<li>原地更新流派：将磁盘视为可以覆盖的一组固定大小的页。B-Tree是这个哲学的最典型代表，它已用于所有主要的关系数据库，以及大量的非关系数据库。</li>
+</ul>
+<p>日志结构的存储引擎是一个相对较新的方案。其关键思想是系统地将磁盘上随机访问写入转为顺序写入，由于硬盘驱动器和SSD的性能特性，可以实现更高的写入吞吐量。下面将针对这两种存储引擎进行分析。</p>
+<h2 id="1-LSM-Tree"><a href="#1-LSM-Tree" class="headerlink" title="1. LSM-Tree"></a>1. LSM-Tree</h2><p>LSM-Tree(Log-Structured Merge Tree)广泛用于key-value存储引擎库中，如LevelDB和RocksDB，类似的存储引擎还用于Cassandra和HBase中，它的主要特征包括：1）数据顺序写入，不支持更新（更新及删除通过压缩合并数据段来实现）；2）数据写入操作内存表，数据异步写入磁盘；3）数据以SSTable段的形式写入磁盘，按照key进行排序，定期对数据段进行压缩合并；4）在内存中建立索引，由于数据段已经排序，只需要记录段首的记录即可。其结构如下所示：<br><img src="/images/lsm-tree.jpg" alt="lsm-tree" title="lsm-tree"></p>
+<p>LSM-Tree存储引擎数据存储于SSTables中，一个SSTables表示一个数据段，存储的是key-value值，且按照key进行排序，这种格式也称为排序字符串表。SSTables有两种形式，在内存中，采用的数据结构主要是树状数据结构，如红黑树或AVL树，进行内存排序；内存中的SSTables大于某个阈值时，顺序写入到磁盘中的日志文件中。</p>
+<p>LSM-Tree存储引擎的工作流程如下：</p>
+<ul>
+<li>当写入时，将其添加到内存中的平衡树数据结构中（例如红黑树）。这个内存中的树有时也被称为内存表；</li>
+<li>当内存表大于某个阈值（通常为几兆字节）时，将其作为SSTable文件写入到磁盘。由于树已经维护了按照key排序的key-value对，写磁盘可以比较高效。新的SSTable文件成为数据库的最新部分。当SSTable写磁盘的同时，写入可以继续添加到一个新的内存表实例；</li>
+<li>为了处理读请求，首先尝试在内存表中查找key,然后是最新的磁盘段文件，接下来是次新的磁盘段文件，以此类推，直到找到目标；</li>
+<li>后台进程周期性执行段合并及压缩过程，以合并多个段文件，并丢弃那些已经被覆盖或删除的值；</li>
+<li>每个写入操作都会立即追加到一个WAL日志文件中，它记录了操作的内容，它的目的是在数据库崩溃之后恢复内存表，每当将内存表写入SSTable时，相应的日志可以被丢弃。</li>
+</ul>
+<p>数据库运行一段时间之后，磁盘上会生成多个SSTable文件，一个key可以包含在多个SSTable文件中，即一个key可以有多个版本。后台进程使用合并排序算法周期性地合并数据段，如下图所示。并发读取多个输入段文件，比较每个文件的第一个key，把最小的key（根据排序文件）拷贝到输出文件，并重复这个过程，最后会产生一个新的按key排序的合并段文件。当多个段包含相同的key时，可以保留最新段的值，并丢弃旧段中的值。<br>在文件中查找特定的key时，不需要在内存中保存所有key的索引，因为段是排序的，只需要一个内存索引来记录段首的key，可以减少内存的占用，同时可以进行区间查询。由于读请求往往需要扫描请求范围内的多个key-value对，可以考虑将这些记录保存到一个磁盘块中并在写磁盘前将其压缩。然后内存索引的每个条目指向压缩块的开关。除了节省磁盘空间，压缩还减少了I/O带宽的占用。</p>
+<p><img src="/images/lsm-tree-combine.jpg" alt="lsm-tree-combine" title="lsm-tree-combine"></p>
+<p>查找数据库中某个不存在的key时，LSM-Tree算法可能很慢：在确定key不存在之前，必须先检查内存表，然后将段一直回溯访问到最旧的段文件（可能必须从磁盘多次读取），为了优化这种访问，存储引擎通常使用额外的布隆过滤器。</p>
+<h2 id="2-B-Tree"><a href="#2-B-Tree" class="headerlink" title="2. B-Tree"></a>2. B-Tree</h2><p>B-Tree是关系数据库中被广泛使用的索引结构，像SSTable一样，B-Tree留按照key排序的key-value对，这样可以实现高效的key-value查找和区间查询。从本质上来说，B-Tree具有非常不同的设计理念。<br>在LSM-Tree中，日志结构索引将数据库分解为可变大小的段，通常大小为几兆字节或更大，并且始终按顺序写入段。相比之下，B-Tree将数据库分解为固定大小的块或页，传统上大小为4 KB（有时更大），页是内部读/写的最小单元。这种设计更接近底层硬件，因为磁盘也是以固定大小的块排列。<br>每个页面都可以使用地址或位置进行标识，这样可以让一个页面引用另一个页面，类似指针，不过是指向磁盘地址，而不是内存，可以使用这些页面引用来构造一个树状页面，如下所示。<br><img src="/images/b-tree.jpg" alt="b-tree" title="b-tree"><br>某一页被指定为B-Tree的根，每当查找索引中的一个key时，总是从这里开始。该页面包含若干个key和对子页的引用。每个孩子都负责一个连续范围内的key,相邻引用之间的key可以指示这些范围之间的边界。<br>假定正在查找key 251,需要沿着200~300间的页引用，到达类似的页，它进一步将200~300范围分解成子范围。最终到达一个包含单个key的页(叶子页)，该页包含每个内联key的值或包含找到值的页的引用。<br>B-Tree中每一个页所包含的子页引用数量称为分支因子，例如在上图中，分支因子为6，在实际中，分支因子取决于存储页面引用和范围过界所需的空间总量，通常为几百个。<br>在正常情况下，数据库表一般只包含一个主键索引，如上图中以user_id为主键的索引。在主键索引中根据叶子结点中存储记录的内容还是引用，可以分为聚集索引和非聚集索引，而二级索引引用主键，如下图所示，在user_name上建立一个二级索引，它引用的值是主键。<br><img src="/images/b-tree-index.jpg" alt="b-tree-index" title="b-tree-index"></p>
+<p>如果更新B-Tree中原有的值，首先搜索包含该key的叶子页，更改该页的值，并将页定回到磁盘（对该页的任何引用仍然有效）。如果要添加新key，则需要找到其范围包含新key的页，并将其添加到该页，如果页中没有足够的可用空间来容纳新key，则将其分裂为两个半满的页，并且父页也需要更新以包含分裂之后的新key范围，如下图所示：<br><img src="/images/b-tree-split.jpg" alt="b-tree-split" title="b-tree-split"><br>该算法确保树保持平衡：具有n个key的B-Tree总是具有O(log n)的深度，大多数数据库可以适合3~4层的B-Tree，因此不需要遍历非常深的页面层次即可找到所需的页（分支因子为500的4 KB页的四级树可以存储高达256 TB）。</p>
+<p>为了使数据库能从崩溃中恢复，常见的B-Tree的实现需要支持磁盘上的额外的数据结构：预写日志（Write-ahead log,WAL），也称为重做日志。这是一个仅支持追加修改的文件，每一个B-Tree的修改必须先更新WAL然后再修改树本身的页。当数据库在崩溃后需要恢复时，该日志用于将B-Tree恢复到最近一致的状态。</p>
+<h2 id="3-对比B-Tree和LSM-Tree"><a href="#3-对比B-Tree和LSM-Tree" class="headerlink" title="3. 对比B-Tree和LSM-Tree"></a>3. 对比B-Tree和LSM-Tree</h2><p>根据经验，LSM-Tree通常对于写入更快，而B-Tree被认为对于读取更快。读取通常在LSM-Tree上较慢，主要是因为它们必须在不同的压缩阶段检查多个不同的数据结构和SSTable。</p>
+<h3 id="3-1-磁盘写入"><a href="#3-1-磁盘写入" class="headerlink" title="3.1 磁盘写入"></a>3.1 磁盘写入</h3><p>B-Tree索引必须至少写两次数据：一个写入预写日志，一次写入树的页本身（还可能发生页分裂）。即使该页中只有几个字节更改，也必须承受整个页的开销。另外，B-Tree存储引擎使用与磁盘类似的分页结构，存在磁盘的碎片化。<br>LSM-Tree数据通常是写入内存表，内存表达到一定阈值的时候再统一写入磁盘，对于磁盘上的SStable段文件由后台线程进行合并压缩，效率更高，同时也会减少磁盘碎片。相对B-Tree来说，具有更高的写入吞吐量。</p>
+<h3 id="3-2-事务支持"><a href="#3-2-事务支持" class="headerlink" title="3.2 事务支持"></a>3.2 事务支持</h3><p>B-Tree的优点则是每个键都恰好唯一对应于索引中的某个位置，而日志结构的存储引擎可能在不同的段中具有相同键的多个副本。如果数据库希望提供强大的事务语义，B-Tree显得更具吸引力：在许多关系数据库，事务隔离是通过键范围上的锁来实现的，并且在B-Tree索引中，这些锁可以直接定义到树中。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://book.douban.com/subject/30329536/" target="_blank" rel="noopener">1. 数据密集型应用系统设计</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/b-tree/" rel="tag"># b-tree</a>
+          
+            <a href="/tags/sstables/" rel="tag"># sstables</a>
+          
+            <a href="/tags/lsm-tree/" rel="tag"># lsm-tree</a>
+          
+            <a href="/tags/wal/" rel="tag"># wal</a>
+          
+            <a href="/tags/索引/" rel="tag"># 索引</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/04/25/non-functional-features-1/" rel="next" title="系统设计-非功能性特性">
+                <i class="fa fa-chevron-left"></i> 系统设计-非功能性特性
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/05/16/mysql-and-ignite-update-operation/" rel="prev" title="mysql和ignite更新性能对比">
+                mysql和ignite更新性能对比 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">118</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-LSM-Tree"><span class="nav-number">1.</span> <span class="nav-text">1. LSM-Tree</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-B-Tree"><span class="nav-number">2.</span> <span class="nav-text">2. B-Tree</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-对比B-Tree和LSM-Tree"><span class="nav-number">3.</span> <span class="nav-text">3. 对比B-Tree和LSM-Tree</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-磁盘写入"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 磁盘写入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-事务支持"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 事务支持</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

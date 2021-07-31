@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="不畏将来，不念过往">
+<meta name="keywords" content="Java">
+<meta property="og:type" content="website">
+<meta property="og:title" content="以太格">
+<meta property="og:url" content="http://yoursite.com/page/4/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="不畏将来，不念过往">
+<meta property="og:locale" content="zh-CN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="以太格">
+<meta name="twitter:description" content="不畏将来，不念过往">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/page/4/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left 
+  page-home">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+  <section id="posts" class="posts-expand">
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/07/redis-data-structure/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/07/07/redis-data-structure/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Redis 数据结构</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-07-07 17:59:05" itemprop="dateCreated datePublished" datetime="2019-07-07T17:59:05+08:00">2019-07-07</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>Redis中有丰富的数据结构，如简单动态字符串、链表、字典、跳跃表、整数集合及压缩列表，基于这些数据结构，封装了一套对象系统，供用户使用，这篇文章主要是对这些数据结构进行了一个总结及加深理解。</p>
+<h2 id="1-简单动态字符串（Simple-Dynamic-String-SDS）"><a href="#1-简单动态字符串（Simple-Dynamic-String-SDS）" class="headerlink" title="1.简单动态字符串（Simple Dynamic String,SDS）"></a>1.简单动态字符串（Simple Dynamic String,SDS）</h2><h3 id="1-1-作用"><a href="#1-1-作用" class="headerlink" title="1.1 作用"></a>1.1 作用</h3><p>SDS在Redis中用来表示字符串结构。</p>
+<h3 id="1-2-定义"><a href="#1-2-定义" class="headerlink" title="1.2 定义"></a>1.2 定义</h3><p>结构如下<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sdshdr</span> &#123;</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 记录buf数组的长度，即保存字符串的长度</span></span><br><span class="line">    <span class="keyword">int</span> len;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 记录buf数组中空闲的字节数量</span></span><br><span class="line">    <span class="keyword">int</span> <span class="built_in">free</span>; </span><br><span class="line"></span><br><span class="line">    <span class="comment">// 字节数组，用于保存字符串</span></span><br><span class="line">    <span class="keyword">char</span> buf[];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="1-3-实例"><a href="#1-3-实例" class="headerlink" title="1.3 实例"></a>1.3 实例</h3><p><img src="/images/sds.jpg" alt="sds" title="SDS"></p>
+<ul>
+<li>len：值为5，表示保存了5个字节长度的内容；</li>
+<li>free：值为5，表示这个SDS有5个字节的未分配的空间；</li>
+<li>buf：char类型的数组，最后一个字节存储了空字符’\0’，表示字符串结尾，这种做法遵循了C语言的规则，所以实际的长度应该是len+1，只不过系统帮我们添加了空字符。</li>
+</ul>
+<h3 id="1-4-内存分配机制"><a href="#1-4-内存分配机制" class="headerlink" title="1.4 内存分配机制"></a>1.4 内存分配机制</h3><p>通过未使用空间，SDS通过空间预分配和惰性空间释放两种机制来优化内存的使用。</p>
+<h4 id="1-4-1-空间预分配"><a href="#1-4-1-空间预分配" class="headerlink" title="1.4.1 空间预分配"></a>1.4.1 空间预分配</h4><ul>
+<li>初始是按需分配，len为实际长度，free为零；</li>
+<li>需要修改SDS时，如果SDS的长度（len的值）小于1MB，那么Redis分配和len同样大小的未使用空间，即free=len；如果SDS的长度大于等于1MB，那么将会分配1MB的未使用空间，即free=1MB。</li>
+</ul>
+<h4 id="1-4-2-惰性空间释放"><a href="#1-4-2-惰性空间释放" class="headerlink" title="1.4.2 惰性空间释放"></a>1.4.2 惰性空间释放</h4><p>惰性空间释放用于SDS字符串缩短时，Redis不会释放多余的剩余空间，字符串会从头开始存储，将剩余的未使用空间的长度存放到free字段。</p>
+<h3 id="1-5-特点"><a href="#1-5-特点" class="headerlink" title="1.5 特点"></a>1.5 特点</h3><ul>
+<li>常数复杂度获取字符串长度；</li>
+<li>使用长度len字段，杜绝缓冲区溢出；</li>
+<li>使用free字段，结合内存预分配策略，可以减少内存分配次数；</li>
+<li>buf是字节数组，可以安全存放任何二进制数据，不局限于字符串；</li>
+<li>buf数组中会插入空字符’\0’，可以部分兼容C字符串函数。</li>
+</ul>
+<h2 id="2-链表"><a href="#2-链表" class="headerlink" title="2. 链表"></a>2. 链表</h2><h3 id="2-1-作用"><a href="#2-1-作用" class="headerlink" title="2.1 作用"></a>2.1 作用</h3><p>List对象的一种底层实现（List也可以用压缩列表实现）。</p>
+<h3 id="2-2-定义"><a href="#2-2-定义" class="headerlink" title="2.2 定义"></a>2.2 定义</h3><p>链表节点结构如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">listNode</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">// 前置结点</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">listNode</span> *<span class="title">prev</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 后置结点</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">listNode</span> *<span class="title">next</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点的值</span></span><br><span class="line">    <span class="keyword">void</span> *value;</span><br><span class="line"> &#125; listNode;</span><br></pre></td></tr></table></figure></p>
+<p>这是一个典型的双向链表结点的定义，可以实现向前、向后查找。</p>
+<p>链表定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">list</span> &#123;</span></span><br><span class="line">    <span class="comment">// 头结点</span></span><br><span class="line">    listNode *head;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 尾结点</span></span><br><span class="line">    listNode *tail;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> len;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点复制函数</span></span><br><span class="line">    <span class="keyword">void</span> *(*dup) (<span class="keyword">void</span> *ptr);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点释放函数</span></span><br><span class="line">    <span class="keyword">void</span> *(*<span class="built_in">free</span>) (<span class="keyword">void</span> *ptr);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点对比函数</span></span><br><span class="line">    <span class="keyword">int</span> (*match) (<span class="keyword">void</span> *ptr,<span class="keyword">void</span> *key);</span><br><span class="line">&#125; <span class="built_in">list</span>;</span><br></pre></td></tr></table></figure></p>
+<p>链表定义了表头指针head、表尾指针tail及节点数量len，同时定义了三个函数指针，实现节点的复制、释放及对比功能。</p>
+<h3 id="2-3-实例"><a href="#2-3-实例" class="headerlink" title="2.3 实例"></a>2.3 实例</h3><p> <img src="/images/list.jpg" alt="list" title="list"><br>上图是有3个结点的链表示意图</p>
+<h2 id="3-字典"><a href="#3-字典" class="headerlink" title="3. 字典"></a>3. 字典</h2><h3 id="3-1-作用"><a href="#3-1-作用" class="headerlink" title="3.1 作用"></a>3.1 作用</h3><p>作为Redis字典对象的一种底层实现。</p>
+<h3 id="3-2-定义"><a href="#3-2-定义" class="headerlink" title="3.2 定义"></a>3.2 定义</h3><p>字典底层是基于哈希表来实现的。</p>
+<h4 id="3-2-1-哈希表"><a href="#3-2-1-哈希表" class="headerlink" title="3.2.1 哈希表"></a>3.2.1 哈希表</h4><ol>
+<li>哈希节点<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictEntry</span> &#123;</span></span><br><span class="line">    <span class="comment">// 键</span></span><br><span class="line">    <span class="keyword">void</span> *key;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 值</span></span><br><span class="line">    <span class="keyword">union</span> </span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">void</span> * val;</span><br><span class="line">        <span class="keyword">uint64_t</span> u64;</span><br><span class="line">        <span class="keyword">int64_t</span> s64;</span><br><span class="line">    &#125; v;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 指向下一个哈希结点，相同哈希值的key,value组成一个链表</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">dictEntry</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125; dictEntry;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>key字段保存着键值对中的键，而v字段键值对中的值，其值可以是一个指针，或者是一个uint64_t整数，又或者是一个int64_t整数。</p>
+<ol start="2">
+<li>哈希表<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictht</span> &#123;</span></span><br><span class="line">    <span class="comment">// 哈希表数组</span></span><br><span class="line">    dictEntry **table;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> size;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小掩码，用于计算索引值</span></span><br><span class="line">    <span class="comment">// 等于size-1</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> sizemask;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点的数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> used;</span><br><span class="line">&#125; dictht;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>哈希表实际上就是一个数组+链表的实现，具有相同哈希值的键值对放在同一个链表里面，解决键冲突的问题。</p>
+<h4 id="3-2-2-字典"><a href="#3-2-2-字典" class="headerlink" title="3.2.2 字典"></a>3.2.2 字典</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dict</span> &#123;</span></span><br><span class="line">    <span class="comment">// 类型特定函数</span></span><br><span class="line">    dictType *type;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 私有数据</span></span><br><span class="line">    <span class="keyword">void</span> *privdata;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表</span></span><br><span class="line">    dicht ht[<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="comment">// rehash索引</span></span><br><span class="line">    <span class="keyword">int</span> trehashidx;</span><br><span class="line">&#125; dict;</span><br></pre></td></tr></table></figure>
+<p>字典中有两个哈希表，ht[0]一个用于存放正常状态下的键值对，另外ht<a href="http://zhangtielei.com/posts/blog-redis-ziplist.html" target="_blank" rel="noopener">1</a>一个主要用于哈希表调整大小（rehash）时，存放rehash后的键值对。rehash结束之后，将ht[0]指向新的哈希表，ht<a href="http://zhangtielei.com/posts/blog-redis-ziplist.html" target="_blank" rel="noopener">1</a>赋值为null。<br>dictType字段指向了一组针对特定键值对类型的处理函数，通过这种方式，可以实现面向对象语言的多态特性，dictType定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictType</span> &#123;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 计算哈希值的函数</span></span><br><span class="line">    <span class="function"><span class="keyword">unsigned</span> <span class="title">int</span> <span class="params">(*hashFunction)</span><span class="params">(<span class="keyword">const</span> <span class="keyword">void</span> *key)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 复制键的函数</span></span><br><span class="line">    <span class="keyword">void</span> *(*keyDup)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *key);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 复制值的函数</span></span><br><span class="line">    <span class="keyword">void</span> *(*valDup)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *obj);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 对比键的函数</span></span><br><span class="line">    <span class="keyword">int</span> (*keyCompare)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *key1, <span class="keyword">const</span> <span class="keyword">void</span> *key2);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 销毁键的函数</span></span><br><span class="line">    <span class="keyword">void</span> (*keyDestructor)(<span class="keyword">void</span> *privdata, <span class="keyword">void</span> *key);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 销毁值的函数</span></span><br><span class="line">    <span class="keyword">void</span> (*valDestructor)(<span class="keyword">void</span> *privdata, <span class="keyword">void</span> *obj);</span><br><span class="line"></span><br><span class="line">&#125; dictType;</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-3-实例"><a href="#3-3-实例" class="headerlink" title="3.3 实例"></a>3.3 实例</h3><p> <img src="/images/dict.jpg" alt="list" title="list"> </p>
+<h2 id="4-跳跃表"><a href="#4-跳跃表" class="headerlink" title="4. 跳跃表"></a>4. 跳跃表</h2><h3 id="4-1-作用"><a href="#4-1-作用" class="headerlink" title="4.1 作用"></a>4.1 作用</h3><p>跳跃表（skiplist）是一种有序的数据结构，它通过在每一个节点中维持多个指向其他结点的指针，从而达到快速访问节点的目的。跳跃表支持平均O(logN)，最坏O(N)复杂度的节点查找，还可以通过顺序操作来批量节点。<br>在大部分情况下，跳跃表的效率可以和平衡树相媲美，并且因为跳跃表的实现比平衡树更简单，所以不少程序使用跳跃表来代替平衡树。<br>Redis使用跳跃表作为有序集合键的底层实现之一，如果一个有序集合包含的元素数量比较多，又或者有序集合中元素的成员是比较长的字符串时，Redis就会使用跳跃表来作为有序集合键的底层实现。</p>
+<h3 id="4-2-定义"><a href="#4-2-定义" class="headerlink" title="4.2 定义"></a>4.2 定义</h3><h4 id="4-2-1-跳跃表结点"><a href="#4-2-1-跳跃表结点" class="headerlink" title="4.2.1 跳跃表结点"></a>4.2.1 跳跃表结点</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistNode</span> &#123;</span></span><br><span class="line">    <span class="comment">// 后退指针</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistNode</span> *<span class="title">backword</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 分值</span></span><br><span class="line">    <span class="keyword">double</span> score;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 成员对象</span></span><br><span class="line">    robj *obj;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 层</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistLevel</span> &#123;</span></span><br><span class="line">        <span class="comment">// 前进指针</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistNode</span> *<span class="title">forward</span>;</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// 跨度</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> span;</span><br><span class="line"></span><br><span class="line">    &#125; level[];</span><br><span class="line"></span><br><span class="line">&#125; zskiplistNode;</span><br></pre></td></tr></table></figure>
+<ol>
+<li>层：跳跃表节点的level数组可以包含多个元素，每一个元素都包含一个指向其它结点的指针，程序通过这些层为加快访问其它结点的速度，一般来说，层的数量越多，访问其它结点的速度就越快。<br>每次创建一个新结点的时候，Redis都根据冥次定律（power law,越大的数出现的概念越小）随机生成一个介于1和32之间的值作为level分组的大小，这个大小就是层的“高度”。</li>
+<li>前进指针：每个层都有一个指向表尾方向的前进指针，用于从表头向表尾方向访问结点。</li>
+<li>跨度：用于记录两个节点间的距离。</li>
+<li>后退指针：用于从表尾向表头方向访问结点。</li>
+<li>分值和成员：节点的分值是一个double类型的浮点数，跳跃表中所有节点都按分值从小到大来排序。节点成员对象是一个指针，它指向一个字符串对象，而字符串则保存着一个SDS值。</li>
+</ol>
+<h4 id="4-2-2-跳跃表"><a href="#4-2-2-跳跃表" class="headerlink" title="4.2.2 跳跃表"></a>4.2.2 跳跃表</h4><p>zskiplist结构的定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">zskiplist</span> &#123;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 表头结点</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistNode</span> *<span class="title">header</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 表尾结点</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">zskiplistNode</span> *<span class="title">tail</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点的数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> length;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 结点中最大层数</span></span><br><span class="line">    <span class="keyword">int</span> level;</span><br><span class="line">&#125; zskiplist;</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-3-实例"><a href="#4-3-实例" class="headerlink" title="4.3 实例"></a>4.3 实例</h3><p> <img src="/images/skiplist.jpg" alt="skiplist" title="skiplist"><br>注：箭头上的数字表示跨度。</p>
+<h2 id="5-整数集合"><a href="#5-整数集合" class="headerlink" title="5. 整数集合"></a>5. 整数集合</h2><h3 id="5-1-作用"><a href="#5-1-作用" class="headerlink" title="5.1 作用"></a>5.1 作用</h3><p>整数集合（intset）是集合键的底层实现之一，当一个集合只包含整数值元素，且这个集合的元素数量不多时，Redis就会使用整数集合作为集合键的底层实现。</p>
+<h3 id="5-2-定义"><a href="#5-2-定义" class="headerlink" title="5.2 定义"></a>5.2 定义</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">intset</span> &#123;</span></span><br><span class="line">    <span class="comment">// 编码方式</span></span><br><span class="line">    <span class="keyword">uint32_t</span> encoding;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 元素的数量</span></span><br><span class="line">    <span class="keyword">uint32_t</span> length;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 保存元素的数组</span></span><br><span class="line">    <span class="keyword">int8_t</span> contents[];</span><br><span class="line">&#125; intset;</span><br></pre></td></tr></table></figure>
+<ol>
+<li>encoding：表示存储的整数类型，有int16_t,int32_t和int64_t，即16位、32位及64位的有符号整数。</li>
+<li>length：表示元素的数量。</li>
+<li>contents：字节数组，根据encoding的值使用不同的字节数来表示整数，如：int16_t使用2字节，int32_t使用4字节，int64_t使用8字节，另外，contents同时只会存储一种类型的整数。</li>
+</ol>
+<h3 id="5-3-实例"><a href="#5-3-实例" class="headerlink" title="5.3 实例"></a>5.3 实例</h3><p>  <img src="/images/intset.jpg" alt="intset" title="intset"><br>一个包含5个16位有符号整数值的整数集合</p>
+<h3 id="5-4-升级"><a href="#5-4-升级" class="headerlink" title="5.4 升级"></a>5.4 升级</h3><p>当新增加一个元素到整数集合中时，如果新元素的值超出了当前类型的范围时，就要对整数集合进行升级操作，执行的步骤如下:</p>
+<ol>
+<li>根据新元素的类型，扩展contents数组（分配一个新数组），并为新元素分配空间；</li>
+<li>将之前的数组元素转换为新元素的类型，并放置在数组中合适的位置上，保持元素的顺序不变；</li>
+<li>将新元素添加到数组里面。</li>
+</ol>
+<h3 id="5-5-降级"><a href="#5-5-降级" class="headerlink" title="5.5 降级"></a>5.5 降级</h3><p>整数集合不支持降级操作，一旦对数组进行了升级，编码就会保持升级后的状态。
+ </p>
+<h2 id="6-压缩列表"><a href="#6-压缩列表" class="headerlink" title="6. 压缩列表"></a>6. 压缩列表</h2><h3 id="6-1-作用"><a href="#6-1-作用" class="headerlink" title="6.1 作用"></a>6.1 作用</h3><p>压缩列表（ziplist）是列表键和哈希键的底层实现之一。当一个列表键只包含少量列表项，且每个列表项要么是小整数值，要么是长度比较短的字符串，那么Redis就使用压缩列表做列表键的底层实现。<br>另外，当一个哈希键只包含少量键值对，且每个键值对的键和值要么是小整数值，要么是长度比较短的字符串，那么Redis就会使用压缩列表来做哈希键的底层实现。</p>
+<h3 id="6-2-定义"><a href="#6-2-定义" class="headerlink" title="6.2 定义"></a>6.2 定义</h3><p>Redis官方对于ziplist的定义是：</p>
+<blockquote>
+<p>The ziplist is a specially encoded dually linked list that is designed to be very memory efficient. It stores both strings and integer values, where integers are encoded as actual integers instead of a series of characters. It allows push and pop operations on either side of the list in O(1) time.</p>
+</blockquote>
+<p>ziplist是一个经过特殊编码的双向链表，它的设计目标就是为了提高存储效率。ziplist可以用于存储字符串或整数，其中整数是按真正的二进制表示进行编码的，而不是编码成字符串序列。它能以O(1)的时间复杂度在表的两端提供push和pop操作。<br>ziplist的数据类型，没有使用结构体struct来表达，就是简单的unsigned char *。这是因为ziplist本质上就是一块连续内存，内部组成结构又是一个高度动态的设计（变长编码），也没法用一个固定的数据结构来表达。<br>一个压缩列表可以包含任意多个节点（entry），每个节点可以保存一个字节数组或者一个整数值，其结构如下：</p>
+<ol>
+<li>zlbytes: 32bit，表示ziplist表占用的字节总数（也包括zlbytes本身占用的4个字节）；</li>
+<li>zltail: 32bit，表示ziplist表中最后一项（entry）在ziplist中的偏移字节数。zltail的存在，使得可以很方便地找到最后一项（不用遍历整个ziplist），从而可以在ziplist尾端快速地执行push或pop操作；</li>
+<li>zllen: 16bit， 表示ziplist中数据项（entry）的个数。zllen字段因为只有16bit，所以可以表达的最大值为2^16-1。这里需要特别注意的是，如果ziplist中数据项个数超过了16bit能表达的最大值，ziplist仍然可以来表示。那怎么表示呢？这里做了这样的规定：如果zllen小于等于2^16-2（也就是不等于2^16-1），那么zllen就表示ziplist中数据项的个数；否则，也就是zllen等于16bit全为1的情况，那么zllen就不表示数据项个数了，这时候要想知道ziplist中数据项总数，那么必须对ziplist从头到尾遍历各个数据项，才能计算出来；</li>
+<li>entry: 表示真正存放数据的数据项，长度不定。一个数据项（entry）也有它自己的内部结构；</li>
+<li>zlend: ziplist最后1个字节，是一个结束标记，值固定等于FF(255)。</li>
+</ol>
+<h4 id="6-2-1-压缩列表结点"><a href="#6-2-1-压缩列表结点" class="headerlink" title="6.2.1 压缩列表结点"></a>6.2.1 压缩列表结点</h4><p><strong>1.previous_entry_length</strong></p>
+<p>它有两种可能，要么是1个字节，要么是5个字节：<br>1）如果前一个数据项占用字节数小于254，那么previous_entry_length就只用一个字节来表示，这个字节的值就是前一个数据项的占用字节数。</p>
+<p>2）如果前一个数据项占用字节数大于等于254，那么previous_entry_length就用5个字节来表示，其中第1个字节的值是254（作为这种情况的一个标记），而后面4个字节组成一个整型值，来真正存储前一个数据项的占用字节数。</p>
+<p><strong>2. encoding</strong></p>
+<p>根据第1个字节的不同，总共分为9种情况，前3种是存储字符串，后6种是存储整数：</p>
+<p>1）|00pppppp| - 1 byte：第1个字节最高两个bit是00，那么encoding字段只有1个字节，剩余的6个bit用来表示长度值，最高可以表示63 (2^6-1)；<br>2）|01pppppp|qqqqqqqq| - 2 bytes：第1个字节最高两个bit是01，那么encoding字段占2个字节，总共有14个bit用来表示长度值，最高可以表示16383 (2^14-1)；</p>
+<p>3）|10__|qqqqqqqq|rrrrrrrr|ssssssss|tttttttt| - 5 bytes：第1个字节最高两个bit是10，那么encoding字段占5个字节，总共使用32个bit来表示长度值（6个bit舍弃不用），最高可以表示2^32-1。需要注意的是：在前三种情况下，content都是按字符串来存储的；</p>
+<p>4）|11000000| - 1 byte：encoding字段占用1个字节，值为0xC0，后面的数据content存储为2个字节的int16_t类型；</p>
+<p>5）|11010000| - 1 byte：encoding字段占用1个字节，值为0xD0，后面的数据content存储为4个字节的int32_t类型；</p>
+<p>6）|11100000| - 1 byte：encoding字段占用1个字节，值为0xE0，后面的数据content存储为8个字节的int64_t类型；</p>
+<p>7）|11110000| - 1 byte：encoding字段占用1个字节，值为0xF0，后面的数据content存储为3个字节长的整数；</p>
+<p>8）|11111110| - 1 byte：encoding字段占用1个字节，值为0xFE，后面的数据content存储为1个字节的整数；</p>
+<p>9）|1111xxxx| - - (xxxx的值在0001和1101之间)：这是一种特殊情况，xxxx从1到13一共13个值，这时就用这13个值来表示真正的数据。注意，这里是表示真正的数据，而不是数据长度。也就是说，在这种情况下，后面不再需要一个单独的content字段来表示真正的数据了，而是encoding和content合二为一。</p>
+<h3 id="6-3-连锁更新"><a href="#6-3-连锁更新" class="headerlink" title="6.3 连锁更新"></a>6.3 连锁更新</h3><p>每一节点的previous_entry_length属性都记录了前一节点的长度：</p>
+<ul>
+<li>如果前一个节点的长度小于254字节，那么previous_entry_length需要用1个字节来保存长度值；</li>
+<li>如果前一个节点的长度大于等于254字节，那么previous_entry_length需要用5个字节业保存长度值。<br>如果压缩列表里只好有多个连续的、长度介于250字节至253字节之间的节点，在添加或删除结点时，可能会引发连锁更新，即引起多次的空间扩展操作。</li>
+</ul>
+<h3 id="6-4-实例"><a href="#6-4-实例" class="headerlink" title="6.4 实例"></a>6.4 实例</h3><p><img src="/images/ziplist.jpg" alt="ziplist" title="ziplist"> </p>
+<p><strong>参考：</strong></p>
+<hr>
+<p>1.Redis设计与实现</p>
+<p><a href="http://zhangtielei.com/posts/blog-redis-ziplist.html" target="_blank" rel="noopener">2.Redis内部数据结构详解(4)——ziplist</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/19/build-cas-server/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/19/build-cas-server/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">搭建CAS服务器</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-19 20:57:44" itemprop="dateCreated datePublished" datetime="2019-05-19T20:57:44+08:00">2019-05-19</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/cas/" itemprop="url" rel="index"><span itemprop="name">cas</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><strong>环境说明：</strong><br>JDK：1.8.0_111<br>Tomcat：8.5.40<br>Cas-Server：5.3.9<br>Template：thymeleaf</p>
+<p>搭建一个基本的CAS服务器过程如下：</p>
+<ul>
+<li>下载CAS Overlay template，以5.3.9版本为例：<br>地址为：<a href="https://github.com/apereo/cas-overlay-template/tree/5.3" target="_blank" rel="noopener">https://github.com/apereo/cas-overlay-template/tree/5.3</a></li>
+<li>配置SSL环境；</li>
+<li>自定义登录页面；</li>
+<li>自定义用户鉴权；</li>
+<li>加入验证码；</li>
+<li>自定义登录错误信息；</li>
+</ul>
+<h2 id="1、下载CAS-overlay-template"><a href="#1、下载CAS-overlay-template" class="headerlink" title="1、下载CAS overlay template"></a>1、下载CAS overlay template</h2><p>使用5.3的分支，命令如下：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> -b 5.3 https://github.com/apereo/as-overlay-template.git</span><br></pre></td></tr></table></figure></p>
+<p>使用CAS overlay template的好处就是将用户修改的代码与官方CAS代码隔离开，在打包时通过maven overlay技术将用户代码与官方CAS代码合并打包，同名文件会被覆盖。这样做的目的是方便代码的维护及升级。在实例中使用的是官方5.3.9的包，overlay配置如下：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">plugin</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.maven.plugins<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>maven-war-plugin<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.6<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">warName</span>&gt;</span>cas<span class="tag">&lt;/<span class="name">warName</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">failOnMissingWebXml</span>&gt;</span>false<span class="tag">&lt;/<span class="name">failOnMissingWebXml</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">recompressZippedFiles</span>&gt;</span>false<span class="tag">&lt;/<span class="name">recompressZippedFiles</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">archive</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">compress</span>&gt;</span>false<span class="tag">&lt;/<span class="name">compress</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">manifestFile</span>&gt;</span>$&#123;manifestFileToUse&#125;<span class="tag">&lt;/<span class="name">manifestFile</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">archive</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">overlays</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">overlay</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apereo.cas<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>cas-server-webapp$&#123;app.server&#125;<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">overlay</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">overlays</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">plugin</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>在上面的配置文件中是以org.apereo.cas: cas-server-webapp-tomcat:5.3.9为模板（在项目中app.server为-tomcat），将工程中的文件与该war进行合并，最终输出为cas.war的包。</p>
+<h2 id="2、配置SSL环境"><a href="#2、配置SSL环境" class="headerlink" title="2、配置SSL环境"></a>2、配置SSL环境</h2><h3 id="2-1-生成证书"><a href="#2-1-生成证书" class="headerlink" title="2.1 生成证书"></a>2.1 生成证书</h3><p>在下载的工程目录中有一个build.cmd的命令，可以使用bulid gencert生成证书，在该命令中域名默认为cas.example.org，可根据需要进行更改，以默认域名为例，配置如下：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">@rem Call this script with DNAME and CERT_SUBJ_ALT_NAMES already <span class="built_in">set</span> to override</span><br><span class="line">@<span class="keyword">if</span> <span class="string">"%DNAME%"</span> == <span class="string">""</span> <span class="built_in">set</span> DNAME=CN=cas.example.org,OU=Example,OU=Org,C=US</span><br></pre></td></tr></table></figure></p>
+<p>生成的thekeystore文件默认是在当前盘的\etc\cas目录下。</p>
+<h3 id="2-2-在hosts文件中配置域名与地址"><a href="#2-2-在hosts文件中配置域名与地址" class="headerlink" title="2.2 在hosts文件中配置域名与地址"></a>2.2 在hosts文件中配置域名与地址</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1 cas.example.org</span><br></pre></td></tr></table></figure>
+<h3 id="2-3-在工程中配置开启SSL"><a href="#2-3-在工程中配置开启SSL" class="headerlink" title="2.3 在工程中配置开启SSL"></a>2.3 在工程中配置开启SSL</h3><p>在application.properties配置文件中配置如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">server.ssl.enabled=true</span><br><span class="line">server.ssl.key-store=file:e:/etc/cas/thekeystore</span><br><span class="line">server.ssl.key-store-password=changeit</span><br><span class="line">server.ssl.key-password=changeit</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>server.ssl.enabled：表示是否开启SSL</li>
+<li>server.ssl.key-store, server.ssl.key-store-password, server.ssl.key-passwords可以在生成证书时指定，这里使用默认即可。</li>
+</ul>
+<p><strong>说明：</strong> 文件在resources目录下，默认为空，可以往里面添加内容，覆盖默认的配置。</p>
+<h3 id="2-4-在Service文件中设置HTTPS"><a href="#2-4-在Service文件中设置HTTPS" class="headerlink" title="2.4 在Service文件中设置HTTPS"></a>2.4 在Service文件中设置HTTPS</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"@class"</span> : <span class="string">"org.apereo.cas.services.RegexRegisteredService"</span>,</span><br><span class="line">  <span class="attr">"serviceId"</span> : <span class="string">"^(https|imaps|http)://*"</span>,</span><br><span class="line">  <span class="attr">"name"</span> : <span class="string">"BASE"</span>,</span><br><span class="line">  <span class="attr">"id"</span> : <span class="number">1000</span>,</span><br><span class="line">  <span class="attr">"description"</span> : <span class="string">"BASE"</span>,</span><br><span class="line">  <span class="attr">"evaluationOrder"</span> : <span class="number">10</span>,</span><br><span class="line">  <span class="attr">"theme"</span> : <span class="string">"base"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在ServiceId中配置支持的协议，可以根据需要添加或删除协议类型，默认的service文件是HTTPSandIMAPS-10000001.json文件，要对其进行修改，可以将它拷贝到工程/resources/services/目录下。</p>
+<p><strong>说明：</strong> Service是一个很强大的功能，可以配置对特定的URL使用不同的验证逻辑，使用不同的主题，这对于自定义登录页面很有用，可以达到不同的URL可以有不同的登录页面。</p>
+<h3 id="2-5-在tomcat中配置证书"><a href="#2-5-在tomcat中配置证书" class="headerlink" title="2.5 在tomcat中配置证书"></a>2.5 在tomcat中配置证书</h3><p>在server.xml中对证书进行配置，使得tomcat支持SSL：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Connector</span> <span class="attr">port</span>=<span class="string">"8443"</span> <span class="attr">protocol</span>=<span class="string">"org.apache.coyote.http11.Http11Protocol"</span></span></span><br><span class="line"><span class="tag">               <span class="attr">maxThreads</span>=<span class="string">"150"</span> <span class="attr">SSLEnabled</span>=<span class="string">"true"</span> <span class="attr">scheme</span>=<span class="string">"https"</span> <span class="attr">secure</span>=<span class="string">"true"</span></span></span><br><span class="line"><span class="tag">               <span class="attr">clientAuth</span>=<span class="string">"false"</span> <span class="attr">sslProtocol</span>=<span class="string">"TLS"</span> <span class="attr">keystoreFile</span>=<span class="string">"E:/etc/cas/thekeystore"</span> <span class="attr">keystorePass</span>=<span class="string">"changeit"</span>  /&gt;</span></span><br></pre></td></tr></table></figure></p>
+<h2 id="3、自定义登录页面"><a href="#3、自定义登录页面" class="headerlink" title="3、自定义登录页面"></a>3、自定义登录页面</h2><p>在这里结合service及theme来实现自定义登录页面，这样做的好处是不同的theme可以隔离，添加一个主题或删除一个主题，对目录进行操作即可。</p>
+<h3 id="3-1-添加Service"><a href="#3-1-添加Service" class="headerlink" title="3.1 添加Service"></a>3.1 添加Service</h3><p>在resources/services目录下新建一个service文件，如BASE-1000.json，文件内容如下：<br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"@class"</span> : <span class="string">"org.apereo.cas.services.RegexRegisteredService"</span>,</span><br><span class="line">  <span class="attr">"serviceId"</span> : <span class="string">"^(https|imaps|http)://*"</span>,</span><br><span class="line">  <span class="attr">"name"</span> : <span class="string">"BASE"</span>,</span><br><span class="line">  <span class="attr">"id"</span> : <span class="number">1000</span>,</span><br><span class="line">  <span class="attr">"description"</span> : <span class="string">"BASE"</span>,</span><br><span class="line">  <span class="attr">"evaluationOrder"</span> : <span class="number">10</span>,</span><br><span class="line">  <span class="attr">"theme"</span> : <span class="string">"base"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>@class：验证逻辑，默认即可</li>
+<li>serviceId：配置url的正则表达式，url匹配则使用该service。</li>
+<li>name：名称</li>
+<li>id：唯一标识id,不能冲突</li>
+<li>description：描述</li>
+<li>evaluationOrder：定义验证的顺序</li>
+<li>theme：使用的主题</li>
+</ul>
+<h3 id="3-2-定义JS-CSS等文件"><a href="#3-2-定义JS-CSS等文件" class="headerlink" title="3.2 定义JS,CSS等文件"></a>3.2 定义JS,CSS等文件</h3><p>在static目录下新建themes/base目录，需要以theme名称命名，所使用的静态文件统一放在该目录下，如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static</span><br><span class="line">└─themes</span><br><span class="line">    └─base</span><br><span class="line">        ├─css</span><br><span class="line">        ├─fonts</span><br><span class="line">        ├─images</span><br><span class="line">        └─js</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-3-定义theme属性文件"><a href="#3-3-定义theme属性文件" class="headerlink" title="3.3 定义theme属性文件"></a>3.3 定义theme属性文件</h3><p>在resources下新建以theme名称命名的属性文件，如base.properties，在该文件中定义文件路径，方便在模板中引用，如下所示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">cas.standard.css.file=/css/cas.css</span><br><span class="line"># base theme</span><br><span class="line">cas.ico.shortcut=/themes/base/images/favicon.ico</span><br><span class="line">cas.css.bootstrap=/themes/base/css/bootstrap.min.css</span><br><span class="line">cas.css.font=/themes/base/css/font-awesome.min.css</span><br><span class="line">cas.css.animate=/themes/base/css/animate.min.css</span><br><span class="line">cas.css.style=/themes/base/css/style.min.css</span><br><span class="line">cas.css.whole=/themes/base/css/whole.css</span><br><span class="line">cas.css.login=/themes/base/css/login.css</span><br><span class="line">cas.css.layer=/themes/base/js/plugins/layer/skin/layer.css</span><br><span class="line">cas.css.layer.ext=/themes/base/js/plugins/layer/skin/layer.ext.css</span><br><span class="line">cas.page.title=BASE CAS Server</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-4-定义模板文件"><a href="#3-4-定义模板文件" class="headerlink" title="3.4 定义模板文件"></a>3.4 定义模板文件</h3><p>在resources下新建templates/base目录，在该目录下存放登录页面casLoginView.html，目录如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">templates</span><br><span class="line">└─base</span><br><span class="line">     └─ casLoginView.html</span><br></pre></td></tr></table></figure></p>
+<p>casLoginView.html文件为登录页面文件，可以根据需要，使用定制的css,js及字体文件，这些文件在 theme属性文件中定义，在模板文件中可以直接使用，如下所示：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"shortcut icon"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.ico.shortcut')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.bootstrap')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.font')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.animate')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.style')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.whole')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.login')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.layer')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.layer.ext')&#125;&#125;"</span> /&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>注意：</strong> 定制登录页面主要是修改相应的样式，表单的name,id及其它属性不要改变。</p>
+<h3 id="3-5-修改系统默认的主题"><a href="#3-5-修改系统默认的主题" class="headerlink" title="3.5 修改系统默认的主题"></a>3.5 修改系统默认的主题</h3><p>将base主题修改为系统默认主题，在application.properties文件中加入下面的配置：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># defaultThemeName</span><br><span class="line">cas.theme.defaultThemeName=base</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-6-定义登录成功之后的页面"><a href="#3-6-定义登录成功之后的页面" class="headerlink" title="3.6 定义登录成功之后的页面"></a>3.6 定义登录成功之后的页面</h3><p>登录成功之后，CAS跳转到默认页面，在实际项目中可以对跳转页面进行更改，在application.properties中加入如下配置：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># Defines a default URL to which CAS may redirect if there is no service</span><br><span class="line"># provided in the authentication request.</span><br><span class="line">cas.view.defaultRedirectUrl=https://www.github.com</span><br></pre></td></tr></table></figure></p>
+<h2 id="4、自定义用户鉴权"><a href="#4、自定义用户鉴权" class="headerlink" title="4、自定义用户鉴权"></a>4、自定义用户鉴权</h2><p>在这里不使用系统自带的JDBC认证方式，而是自定义验证逻辑，需要继承AuthenticationHandler类，并注册到系统当中去。<br>在CAS系统中，鉴权的逻辑路径如下所示：<br>DefaultAuthenticationTransactionManager –&gt;<br>PolicyBasedAuthenticationManager –&gt;<br>AuthenticationEventExecutionPlan –&gt;<br>AuthenticationEventExecutionPlanConfigurer –&gt;<br>AuthenticationHandler<br>系统中可以注册多个AuthenticationHandler，AuthenticationHandler通过AuthenticationEventExecutionPlanConfigurer类注入到AuthenticationManager中。这里有个疑问，AuthenticationEventExecutionPlanConfigurer是如何将AuthenticationHandler注册到AuthenticationManager中的? 在CasCoreAuthenticationConfiguration类中，看到如下代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ConditionalOnMissingBean</span>(</span><br><span class="line">    name = &#123;<span class="string">"authenticationEventExecutionPlan"</span>&#125;</span><br><span class="line">)</span><br><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> AuthenticationEventExecutionPlan <span class="title">authenticationEventExecutionPlan</span><span class="params">(List&lt;AuthenticationEventExecutionPlanConfigurer&gt; configurers)</span> </span>&#123;</span><br><span class="line">    DefaultAuthenticationEventExecutionPlan plan = <span class="keyword">new</span> DefaultAuthenticationEventExecutionPlan();</span><br><span class="line">    configurers.forEach((c) -&gt; &#123;</span><br><span class="line">        String name = StringUtils.removePattern(c.getClass().getSimpleName(), <span class="string">"\\$.+"</span>);</span><br><span class="line">        LOGGER.debug(<span class="string">"Configuring authentication execution plan [&#123;&#125;]"</span>, name);</span><br><span class="line">        c.configureAuthenticationExecutionPlan(plan);</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> plan;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这里可以看到，通过Spring容器自动收集所有的AuthenticationEventExecutionPlanConfigurer类，并执行configureAuthenticationExecutionPlan方法，在该方法中，将AuthenticationHandler注册到AuthenticationEventExecutionPlan中，代码如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configureAuthenticationExecutionPlan</span><span class="params">(AuthenticationEventExecutionPlan plan)</span> </span>&#123;</span><br><span class="line">    plan.registerAuthenticationHandler(usernamePasswordCaptchaAuthenticationHandler());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>最终将AuthenticationEventExecutionPlan注入到PolicyBasedAuthenticationManager类中，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ConditionalOnMissingBean</span>(</span><br><span class="line">    name = &#123;<span class="string">"casAuthenticationManager"</span>&#125;</span><br><span class="line">)</span><br><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> AuthenticationManager <span class="title">casAuthenticationManager</span><span class="params">(@Qualifier(<span class="string">"authenticationEventExecutionPlan"</span>)</span> AuthenticationEventExecutionPlan authenticationEventExecutionPlan) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> PolicyBasedAuthenticationManager(authenticationEventExecutionPlan, <span class="keyword">this</span>.casProperties.getPersonDirectory().isPrincipalResolutionFailureFatal(), <span class="keyword">this</span>.applicationEventPublisher);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可见，通过AuthenticationEventExecutionPlanConfigurer 类将AuthenticationHandler注册到AuthenticationEventExecutionPlan类中，而AuthenticationManager只要持有AuthenticationEventExecutionPlan类的引用即可。</p>
+<p>综上所述，要实现自定义验证逻辑，只需要生成<strong>AuthenticationEventExecutionPlanConfigurer</strong>和<strong>AuthenticationHandler</strong>的子类，并注册到spring容器中。</p>
+<h3 id="4-1-生成AuthenticationHandler子类"><a href="#4-1-生成AuthenticationHandler子类" class="headerlink" title="4.1 生成AuthenticationHandler子类"></a>4.1 生成AuthenticationHandler子类</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UsernamePasswordCaptchaAuthenticationHandler</span> <span class="keyword">extends</span> <span class="title">AbstractPreAndPostProcessingAuthenticationHandler</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> UserService userService;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> CasCustomProperties casCustomProperties;</span><br><span class="line"></span><br><span class="line">       <span class="function"><span class="keyword">public</span> <span class="title">UsernamePasswordCaptchaAuthenticationHandler</span><span class="params">(String name, ServicesManager servicesManager, PrincipalFactory principalFactory, Integer order)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(name, servicesManager, principalFactory, order);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> AuthenticationHandlerExecutionResult <span class="title">doAuthentication</span><span class="params">(Credential credential)</span> <span class="keyword">throws</span> GeneralSecurityException, PreventedException </span>&#123;</span><br><span class="line"></span><br><span class="line">        String requestCaptcha = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 自定义逻辑</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> createHandlerResult(credential, <span class="keyword">this</span>.principalFactory.createPrincipal(username));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">supports</span><span class="params">(Credential credential)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> credential <span class="keyword">instanceof</span> UsernamePasswrodCaptchaCredential</span><br><span class="line">                || credential <span class="keyword">instanceof</span> RememberMeUsernamePasswordCaptchaCredential;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>UsernamePasswordCaptchaAuthenticationHandler继承了AbstractPreAndPostProcessingAuthenticationHandler类，可以在该AuthenticationHandle引用业务代码，如UserService，实现用户的查询及验证功能。doAuthentication方法是鉴权的核心方法，在该方法中，可以自定义返回的用户信息。supports方法主要是判断该AuthenticationHandle所支持的Credential类型，CAS会将登录页面表单字段映射为一个Credential对象，默认是UsernamePasswordCredential类。每一个AuthenticationHandle支持的Credential对象不一样，执行的逻辑也不一样的，通过该方法，可以决定AuthenticationHandle是否被执行。<br>另外，AuthenticationHandle在系统中可能有多个，在UsernamePasswordCaptchaAuthenticationHandler构造函数中，要求传入一个int类型的order值，这个参数决定了AuthenticationHandle执行的顺序。</p>
+<h3 id="4-2-生成AuthenticationEventExecutionPlanConfigurer类"><a href="#4-2-生成AuthenticationEventExecutionPlanConfigurer类" class="headerlink" title="4.2 生成AuthenticationEventExecutionPlanConfigurer类"></a>4.2 生成AuthenticationEventExecutionPlanConfigurer类</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span>(<span class="string">"casCaptchaConfiguration"</span>)</span><br><span class="line"><span class="meta">@EnableConfigurationProperties</span>(&#123;CasConfigurationProperties<span class="class">.<span class="keyword">class</span>&#125;)</span></span><br><span class="line"><span class="class"><span class="title">public</span> <span class="title">class</span> <span class="title">CasCaptchaConfiguration</span> <span class="keyword">implements</span> <span class="title">AuthenticationEventExecutionPlanConfigurer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> CasConfigurationProperties casProperties;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="meta">@Qualifier</span>(<span class="string">"servicesManager"</span>)</span><br><span class="line">    <span class="keyword">private</span> ServicesManager servicesManager;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="meta">@Qualifier</span>(<span class="string">"userService"</span>)</span><br><span class="line">    <span class="keyword">private</span> UserService userService;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> AuthenticationHandler <span class="title">usernamePasswordCaptchaAuthenticationHandler</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        UsernamePasswordCaptchaAuthenticationHandler handler = <span class="keyword">new</span> UsernamePasswordCaptchaAuthenticationHandler(</span><br><span class="line">                UsernamePasswordCaptchaAuthenticationHandler<span class="class">.<span class="keyword">class</span>.<span class="title">getSimpleName</span>(),</span></span><br><span class="line"><span class="class">                <span class="title">servicesManager</span>,</span></span><br><span class="line"><span class="class">                <span class="title">new</span> <span class="title">DefaultPrincipalFactory</span>(),</span></span><br><span class="line"><span class="class">                1)</span>;</span><br><span class="line">        handler.setUserService(userService);</span><br><span class="line">        <span class="keyword">return</span> handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configureAuthenticationExecutionPlan</span><span class="params">(AuthenticationEventExecutionPlan plan)</span> </span>&#123;</span><br><span class="line">        plan.registerAuthenticationHandler(usernamePasswordCaptchaAuthenticationHandler());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>CasCaptchaConfiguration类继承了AuthenticationEventExecutionPlanConfigurer类，主要是生成UsernamePasswordCaptchaAuthenticationHandler类，并将UsernamePasswordCaptchaAuthenticationHandler注册到AuthenticationEventExecutionPlan类中。</p>
+<h3 id="4-3-将CasCaptchaConfiguration类注册到Spirng容器中"><a href="#4-3-将CasCaptchaConfiguration类注册到Spirng容器中" class="headerlink" title="4.3 将CasCaptchaConfiguration类注册到Spirng容器中"></a>4.3 将CasCaptchaConfiguration类注册到Spirng容器中</h3><p>通过Springboot的AutoConfiguration机制，将CasCaptchaConfiguration类注册到Spring容器中，在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.CasCaptchaConfiguration</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-4-实现业务方法"><a href="#4-4-实现业务方法" class="headerlink" title="4.4 实现业务方法"></a>4.4 实现业务方法</h3><p>在上面的内容中，提到将业务逻辑加入到UsernamePasswordCaptchaAuthenticationHandler类中，如UserService，加入的方式相对简单略过不表。</p>
+<h2 id="5、加入验证码"><a href="#5、加入验证码" class="headerlink" title="5、加入验证码"></a>5、加入验证码</h2><p>加入验证码，包含如下步骤：</p>
+<ul>
+<li>修改登录页面，加入验证码字段；</li>
+<li>创建包含验证码字段的Credential对象；</li>
+<li>修改webflow中绑定的Credential对象；</li>
+<li>后台生成验证码；</li>
+<li>修改AuthenticationHandler对象，加入验证码逻辑；</li>
+</ul>
+<h3 id="5-1-修改登录页面，加入验证码字段"><a href="#5-1-修改登录页面，加入验证码字段" class="headerlink" title="5.1 修改登录页面，加入验证码字段"></a>5.1 修改登录页面，加入验证码字段</h3><p>修改casLoginView.html文件，表单中加入验证码字段，如下所示：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"verify"</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"verify_box"</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">input</span> <span class="attr">class</span>=<span class="string">"form-control"</span> <span class="attr">placeholder</span>=<span class="string">"验证码"</span> <span class="attr">id</span>=<span class="string">"captcha"</span> <span class="attr">name</span>=<span class="string">"captcha"</span> <span class="attr">autocomplete</span>=<span class="string">"off"</span> <span class="attr">maxlength</span>=<span class="string">"4"</span> <span class="attr">tabindex</span>=<span class="string">"3"</span> /&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"ver_img"</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">img</span> <span class="attr">alt</span>=<span class="string">"required"</span> <span class="attr">onclick</span>=<span class="string">"this.src='captcha.jpg?'+Math.random()"</span> <span class="attr">src</span>=<span class="string">"captcha.jpg"</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="5-2-创建包含验证码字段的Credential对象"><a href="#5-2-创建包含验证码字段的Credential对象" class="headerlink" title="5.2 创建包含验证码字段的Credential对象"></a>5.2 创建包含验证码字段的Credential对象</h3><p>生成<strong>RememberMeUsernamePasswordCaptchaCredential</strong>和<strong>UsernamePasswrodCaptchaCredential</strong>对象，它们分别继承自RememberMeUsernamePasswordCredential和UsernamePasswordCredential，在对象中都加入了String类型的captcha字段，以<strong>RememberMeUsernamePasswordCaptchaCredential</strong>为例：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RememberMeUsernamePasswordCaptchaCredential</span> <span class="keyword">extends</span> <span class="title">RememberMeUsernamePasswordCredential</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Size</span>(min = <span class="number">5</span>,max = <span class="number">5</span>, message = <span class="string">"require captcha"</span>)</span><br><span class="line">    <span class="keyword">private</span> String captcha;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getCaptcha</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> captcha;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setCaptcha</span><span class="params">(String captcha)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.captcha = captcha;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> HashCodeBuilder()</span><br><span class="line">                .appendSuper(<span class="keyword">super</span>.hashCode())</span><br><span class="line">                .append(<span class="keyword">this</span>.captcha)</span><br><span class="line">                .toHashCode();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="5-3-修改webflow中绑定的Credential对象"><a href="#5-3-修改webflow中绑定的Credential对象" class="headerlink" title="5.3 修改webflow中绑定的Credential对象"></a>5.3 修改webflow中绑定的Credential对象</h3><p>修改默认的Credential对象，首先需要获取登录流程的Flow对象，然后创建ID为credential的FlowVariable对象，其绑定的对象便是自定义的Credential对象。由于ID相同的FlowVariable对象不会重复创建，如果默认的Credential对象先创建，则自定义Credential对象将不会在创建，为了避免这种情况的发现，必须保证自定义Credential对象先创建。</p>
+<h4 id="5-3-1-生成CasWebflowConfigurer对象"><a href="#5-3-1-生成CasWebflowConfigurer对象" class="headerlink" title="5.3.1 生成CasWebflowConfigurer对象"></a>5.3.1 生成CasWebflowConfigurer对象</h4><p>CasWebflowConfigurer对象主要是用来获取Flow对象，并绑定自定义Credential对象，如代码如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">DefaultCaptchaWebflowConfigurer</span> <span class="keyword">extends</span> <span class="title">AbstractCasWebflowConfigurer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">DefaultCaptchaWebflowConfigurer</span><span class="params">(FlowBuilderServices flowBuilderServices, FlowDefinitionRegistry flowDefinitionRegistry, ApplicationContext applicationContext, CasConfigurationProperties casProperties)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(flowBuilderServices, flowDefinitionRegistry, applicationContext, casProperties);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">doInitialize</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        Flow flow = <span class="keyword">this</span>.getLoginFlow();</span><br><span class="line">        <span class="keyword">if</span> (flow != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (casProperties.getTicket().getTgt().getRememberMe().isEnabled()) &#123;</span><br><span class="line">                createFlowVariable(flow, CasWebflowConstants.VAR_ID_CREDENTIAL, RememberMeUsernamePasswordCaptchaCredential<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> ViewState state = getState(flow, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM, ViewState<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> BinderConfiguration cfg = getViewStateBinderConfiguration(state);</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"rememberMe"</span>, <span class="keyword">null</span>, <span class="keyword">false</span>));</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"captcha"</span>, <span class="keyword">null</span>, <span class="keyword">true</span>));</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                createFlowVariable(flow, CasWebflowConstants.VAR_ID_CREDENTIAL, UsernamePasswrodCaptchaCredential<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> ViewState state = getState(flow, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM, ViewState<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> BinderConfiguration cfg = getViewStateBinderConfiguration(state);</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"captcha"</span>, <span class="keyword">null</span>, <span class="keyword">true</span>));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在<strong>doInitialize</strong>方法中会绑定<strong>RememberMeUsernamePasswordCaptchaCredential</strong>或<strong>UsernamePasswrodCaptchaCredential</strong>对象。</p>
+<h4 id="5-3-2-生成Spring配置对象CaptchaWebflowConfiguration"><a href="#5-3-2-生成Spring配置对象CaptchaWebflowConfiguration" class="headerlink" title="5.3.2 生成Spring配置对象CaptchaWebflowConfiguration"></a>5.3.2 生成Spring配置对象CaptchaWebflowConfiguration</h4><p>CaptchaWebflowConfiguration是一个普通的Configuration对象，用于生成DefaultCaptchaWebflowConfigurer对象并注册到Spring容器中，并通过@AutoConfigureBefore(value = CasWebflowContextConfiguration.class)注解来保证在CasWebflowContextConfiguration配置对象之前执行，在CasWebflowContextConfiguration中有默认的CasWebflowConfigurer对象，该对象会绑定默认的Credential对象。</p>
+<h4 id="5-3-3-自动加载CaptchaWebflowConfiguration对象"><a href="#5-3-3-自动加载CaptchaWebflowConfiguration对象" class="headerlink" title="5.3.3 自动加载CaptchaWebflowConfiguration对象"></a>5.3.3 自动加载CaptchaWebflowConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.CaptchaWebflowConfiguration</span><br></pre></td></tr></table></figure></p>
+<h3 id="5-4-后台生成验证码"><a href="#5-4-后台生成验证码" class="headerlink" title="5.4 后台生成验证码"></a>5.4 后台生成验证码</h3><h4 id="5-4-1-引入依赖"><a href="#5-4-1-引入依赖" class="headerlink" title="5.4.1 引入依赖"></a>5.4.1 引入依赖</h4><p>引入com.google.code.kaptcha:kaptcha:2.3类，在pom.xml中加入依赖：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.google.code.kaptcha<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>kaptcha<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.3<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<h4 id="5-4-2-配置生成验证码的Servlet对象"><a href="#5-4-2-配置生成验证码的Servlet对象" class="headerlink" title="5.4.2 配置生成验证码的Servlet对象"></a>5.4.2 配置生成验证码的Servlet对象</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">KaptchaConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ServletRegistrationBean <span class="title">kaptchaServlet</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        KaptchaServlet servlet = <span class="keyword">new</span> KaptchaServlet();</span><br><span class="line"></span><br><span class="line">        ServletRegistrationBean registration = <span class="keyword">new</span> ServletRegistrationBean(servlet);</span><br><span class="line">        registration.addUrlMappings(<span class="string">"/captcha.jpg"</span>);</span><br><span class="line"></span><br><span class="line">        Map&lt;String, String&gt; parameters = Maps.newHashMap();</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.border"</span>,<span class="string">"no"</span>);</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.textproducer.char.space"</span>,<span class="string">"4"</span>);</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.textproducer.char.length"</span>,<span class="string">"4"</span>);</span><br><span class="line">        registration.setInitParameters(parameters);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> registration;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>配置的访问路径为/captcha.jpg，该路径需要在登录页面中配置。</p>
+<h4 id="5-4-3-自动加载KaptchaConfiguration对象"><a href="#5-4-3-自动加载KaptchaConfiguration对象" class="headerlink" title="5.4.3 自动加载KaptchaConfiguration对象"></a>5.4.3 自动加载KaptchaConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.KaptchaConfiguration</span><br></pre></td></tr></table></figure></p>
+<h4 id="5-4-4-修改AuthenticationHandler对象，加入验证码逻辑"><a href="#5-4-4-修改AuthenticationHandler对象，加入验证码逻辑" class="headerlink" title="5.4.4. 修改AuthenticationHandler对象，加入验证码逻辑"></a>5.4.4. 修改AuthenticationHandler对象，加入验证码逻辑</h4><p>验证码的验证逻辑是在AuthenticationHandler对象的doAuthentication方法中，上面的UsernamePasswordCaptchaAuthenticationHandler对象中已经包含对验证码的处理逻辑，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> AuthenticationHandlerExecutionResult <span class="title">doAuthentication</span><span class="params">(Credential credential)</span> <span class="keyword">throws</span> GeneralSecurityException, PreventedException </span>&#123;</span><br><span class="line"></span><br><span class="line">    String requestCaptcha = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (credential <span class="keyword">instanceof</span>  RememberMeUsernamePasswordCaptchaCredential) &#123;</span><br><span class="line">        RememberMeUsernamePasswordCaptchaCredential rmupc = (RememberMeUsernamePasswordCaptchaCredential)credential;</span><br><span class="line">        requestCaptcha = rmupc.getCaptcha();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (credential <span class="keyword">instanceof</span> UsernamePasswrodCaptchaCredential) &#123;</span><br><span class="line">        UsernamePasswrodCaptchaCredential upc = (UsernamePasswrodCaptchaCredential)credential;</span><br><span class="line">        requestCaptcha = upc.getCaptcha();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();</span><br><span class="line">    Object attribute = attributes.getRequest().getSession().getAttribute(com.google.code.kaptcha.Constants.KAPTCHA_SESSION_KEY);</span><br><span class="line"></span><br><span class="line">    String realCaptcha = attribute == <span class="keyword">null</span> ? <span class="keyword">null</span> : attribute.toString();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(StringUtils.isBlank(requestCaptcha) || !requestCaptcha.equals(realCaptcha))&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> FailedCaptchaException(<span class="string">"Verification code does not match!"</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        attributes.getRequest().getSession().removeAttribute(com.google.code.kaptcha.Constants.KAPTCHA_SESSION_KEY);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证用户名/密码逻辑</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> createHandlerResult(credential, <span class="keyword">this</span>.principalFactory.createPrincipal(username));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="6、自定义登录错误信息"><a href="#6、自定义登录错误信息" class="headerlink" title="6、自定义登录错误信息"></a>6、自定义登录错误信息</h2><p>在UsernamePasswordCaptchaAuthenticationHandler对象中，会对验证码及用户名/密码进行验证，如果验证失败，可以定制显示的错误信息。</p>
+<h3 id="6-1-生成异常对象"><a href="#6-1-生成异常对象" class="headerlink" title="6.1 生成异常对象"></a>6.1 生成异常对象</h3><p>生成异常对象，该对象可以继承自AccountException对象（子对象），如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FailedCaptchaException</span> <span class="keyword">extends</span> <span class="title">AccountExpiredException</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">7267347853421454216L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">FailedCaptchaException</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">FailedCaptchaException</span><span class="params">(String msg)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="6-2-配置语言文件"><a href="#6-2-配置语言文件" class="headerlink" title="6.2 配置语言文件"></a>6.2 配置语言文件</h3><p>从cas-server-webapp-tomcat-5.3.9中拷贝messages.properties或messages_zh_CN.properties文件到resources目录下，按照如下格式配置：<br><strong>authenticationFailure.异常=错误信息</strong><br>以FailedCaptchaException为例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># Customer Error</span><br><span class="line">authenticationFailure.FailedCaptchaException=验证码不匹配</span><br></pre></td></tr></table></figure></p>
+<h2 id="7、其它配置"><a href="#7、其它配置" class="headerlink" title="7、其它配置"></a>7、其它配置</h2><h3 id="7-1-配置数据源及业务对象"><a href="#7-1-配置数据源及业务对象" class="headerlink" title="7.1 配置数据源及业务对象"></a>7.1 配置数据源及业务对象</h3><p>可以定义一个Configuration对象，如DataSourceConfig，配置Druid数据源及其相关对象。</p>
+<h3 id="7-2-配置Spring容器的扫描目录，加载Service及Dao对象"><a href="#7-2-配置Spring容器的扫描目录，加载Service及Dao对象" class="headerlink" title="7.2 配置Spring容器的扫描目录，加载Service及Dao对象"></a>7.2 配置Spring容器的扫描目录，加载Service及Dao对象</h3><p>可以定义一个Configuration对象，如SpringConfig，指定扫描的目录，自动加载业务对象。</p>
+<h3 id="7-3-加载DataSourceConfig及SpringConfig对象"><a href="#7-3-加载DataSourceConfig及SpringConfig对象" class="headerlink" title="7.3 加载DataSourceConfig及SpringConfig对象"></a>7.3 加载DataSourceConfig及SpringConfig对象</h3><p>在META-INF/spring.factories文件中加入相应的配置，最后文件内容为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.SpringConfig,\</span><br><span class="line">  net.noahsark.cas.common.config.CasCaptchaConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.CaptchaWebflowConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.KaptchaConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.DataSourceConfig</span><br></pre></td></tr></table></figure></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/31/docker-image-and-layer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/03/31/docker-image-and-layer/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Docker 镜像与分层</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-31 20:42:33" itemprop="dateCreated datePublished" datetime="2019-03-31T20:42:33+08:00">2019-03-31</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/docker/" itemprop="url" rel="index"><span itemprop="name">docker</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>一直对Docker中的镜像（image），分层（layer）及文件（file）三者之间的关系一直很好奇，这篇文章讲述就是这三者之间的关系。</p>
+<p><strong>环境说明：</strong><br>虚拟机：VirtualBox 5.1.38<br>操作系统：Ubuntu 16.04.5 LTS<br>docker：18.06.1-ce<br>Storage Driver：overlay2</p>
+<h2 id="1、镜像存储位置"><a href="#1、镜像存储位置" class="headerlink" title="1、镜像存储位置"></a>1、镜像存储位置</h2><p>Docker里面存放镜像的目录主要有两个：<strong>/var/lib/docker/image/{graph_driver}/及/var/lib/docker/{graph_driver}/</strong>，前一个主要是存放镜像的元数据，存储逻辑上的镜像和镜像层，后一个主要是存放镜像的数据文件，包括只读层和可读写层的文件。</p>
+<h2 id="2、镜像的元数据管理"><a href="#2、镜像的元数据管理" class="headerlink" title="2、镜像的元数据管理"></a>2、镜像的元数据管理</h2><p>以overlay2存储驱动为例，/var/lib/docker/image/overlay2/目录下结构为：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 overlay2/</span></span><br><span class="line">overlay2/</span><br><span class="line">├── distribution</span><br><span class="line">├── imagedb</span><br><span class="line">├── layerdb</span><br><span class="line">└── repositories.json</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>distribution目录存放layer的diff_id与digest的对应关系，关于二者的关系后面内容再描述；</li>
+<li>imagedb、layerdb分别存放镜像及分层的元数据；</li>
+<li>repositories.json存放镜像仓库的相关数据；</li>
+</ul>
+<h3 id="2-1-repositories-json"><a href="#2-1-repositories-json" class="headerlink" title="2.1 repositories.json"></a>2.1 repositories.json</h3><p>repositories.json 中记录了和本地 image 相关的 repository 信息，主要是 name 和 image id 的对应关系，当 image 从 registry 上被 pull 下来后，就会更新该文件。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># cat repositories.json | python -mjson.tool</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="string">"haproxy"</span>: &#123;</span><br><span class="line">            <span class="string">"haproxy:latest"</span>: <span class="string">"sha256:08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5ec"</span>,  </span><br><span class="line">            <span class="string">"haproxy@sha256:530809f5a9910de8688fe85f6b4f0533a2418365b448a82bb590b197fe7529c0"</span>: <span class="string">"sha256:08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5ec"</span></span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>存放了<strong>repository</strong>名称<strong>haproxy</strong>、<strong>tag(latest)</strong> 及<strong>image id(08d602…)d</strong>的信息；</li>
+<li>存放了<strong>repository image id</strong>与<strong>digest</strong>的对应关系，haproxy:latest签名为：haproxy@sha256:530809…，可以通过两种方式pull镜像，即名称(haproxy:latest)和digest；</li>
+<li>image id是Image的唯一标示，其数值根据该镜像的元数据配置文件采用sha256算法的计算获得。</li>
+</ul>
+<p>镜像的元数据配置文件存放在 <strong>/var/lib/docker/image/overlay2/imagedb/content/sha256/</strong> 目录下，文件为Image id，对该文件内容计算sha256摘要即为image id。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sha256sum 08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5ec</span></span><br><span class="line">08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5ec  08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5e</span><br></pre></td></tr></table></figure></p>
+<h3 id="2-2-imagedb"><a href="#2-2-imagedb" class="headerlink" title="2.2 imagedb"></a>2.2 imagedb</h3><p>imagedb存放了image的元数据配置文件，该文件记录了image元数据信息，包括镜像架构、操作系统、镜像默认配置、构建该镜像的容器ID和配置、创建时间、创建该镜像的Docker版本、构建镜像的历史信息及rootfs。通过构建镜像的历史信息及rootfs中的diff_ids，可以将image和layer关联起来，还可以计算出该镜像层的存储索引chainID，计算方式见后面内容。<br>镜像元数据配置文件目录：<strong>/var/lib/docker/image/overlay2/imagedb/content/sha256/{image_id}</strong>，查看haproxy元数据配置文件如下：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># cat 08d602ba77646c322b68eee5f6e436f4438e1ae3a1ad3cba26f9baa4c148d5ec | python -mjson.tool</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="string">"architecture"</span>: <span class="string">"amd64"</span>,</span><br><span class="line">    <span class="string">"config"</span>: &#123;</span><br><span class="line">        <span class="string">"ArgsEscaped"</span>: <span class="literal">true</span>,</span><br><span class="line">        <span class="string">"AttachStderr"</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="string">"AttachStdin"</span>: <span class="literal">false</span>,</span><br><span class="line">        ......</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">"container"</span>: <span class="string">"5fa7b90388c618ba33fc3cc68f4768ec2f1fa113da15ffefbb2e1d1abede8ada"</span>,</span><br><span class="line">    <span class="string">"container_config"</span>: &#123;</span><br><span class="line">        <span class="string">"ArgsEscaped"</span>: <span class="literal">true</span>,</span><br><span class="line">        <span class="string">"AttachStderr"</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="string">"AttachStdin"</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="string">"AttachStdout"</span>: <span class="literal">false</span>,</span><br><span class="line">       </span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">"created"</span>: <span class="string">"2019-03-05T04:39:53.999146965Z"</span>,</span><br><span class="line">    <span class="string">"docker_version"</span>: <span class="string">"18.06.1-ce"</span>,</span><br><span class="line">    <span class="string">"history"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="string">"created"</span>: <span class="string">"2019-03-04T23:22:21.800977094Z"</span>,</span><br><span class="line">            <span class="string">"created_by"</span>: <span class="string">"/bin/sh -c #(nop) ADD file:5ea7dfe8c8bcc... in / "</span></span><br><span class="line">        &#125;,</span><br><span class="line">        ......</span><br><span class="line">    ],</span><br><span class="line">    <span class="string">"os"</span>: <span class="string">"linux"</span>,</span><br><span class="line">    <span class="string">"rootfs"</span>: &#123;</span><br><span class="line">        <span class="string">"diff_ids"</span>: [</span><br><span class="line">            <span class="string">"sha256:6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579"</span>,</span><br><span class="line">            <span class="string">"sha256:885806cf466d56e36824a1623f362349202c6e4e8f7aab64e174519b66484fea"</span>,</span><br><span class="line">            <span class="string">"sha256:28de19851da2a6dbe597cf23e1637b14d4c51f7074ae01dd9818e131c62e430e"</span></span><br><span class="line">        ],</span><br><span class="line">        <span class="string">"type"</span>: <span class="string">"layers"</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>在rootfs中diff_ids包含了三个分层layer，从上到下依次是从底层到顶层，最底层是6744a…，最顶层是28de1…，通过diff_ids，可以将镜像与分层关联起来，如何关联见下面内容。</li>
+<li>在该镜像中，有三个只读层，再加上一个init层，一个可读写层，总共有五个分层layer。</li>
+</ul>
+<h3 id="2-3-layerdb"><a href="#2-3-layerdb" class="headerlink" title="2.3 layerdb"></a>2.3 layerdb</h3><p>docker中的镜像是分层的，划分为只读层和读写层。其中docker定义了roLayer接口来描述只读的镜像层，定义了mountLayer来描述可读写的容器层。这两个层分别存放在了两个目录中：<br><strong>roLayer:/var/lib/docker/image/overlay2/layerdb/sha256/{chainID}</strong><br><strong>mountLayer:/var/lib/docker/image/overlay2/layerdb/mounts/{container_id}</strong></p>
+<h4 id="2-3-1-layer只读层"><a href="#2-3-1-layer只读层" class="headerlink" title="2.3.1 layer只读层"></a>2.3.1 layer只读层</h4><p>在layer的属性中，diffID采用SHA256算法，基于分层文件包中的内容计算得到。而chainID是基于内容存储的索引，这是根据当前层与所有祖先镜像层diffId计算出来的，具体算法如下：</p>
+<ol>
+<li>如果该镜像层是最底层（没有父镜像层），该层的diffID便是chainID；</li>
+<li>如果不是最底层，chainID的计算公式为：chainID(n)=SHA256(chain(n-1) diffID(n))，也就是第n层的chainID根据父层的chainID加上一个空格和当前的diffID，再计算SHA256摘要。</li>
+</ol>
+<p>根据计算公式，haproxy对应的chainID分别为：<br>第一层：6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579<br>第二层：68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># echo -n "sha256:6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579 sha256:885806cf466d56e36824a1623f362349202c6e4e8f7aab64e174519b66484fea"|sha256sum -</span></span><br><span class="line">68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467  -</span><br></pre></td></tr></table></figure></p>
+<p>第三层：b5e0c75383b6d3a7dc43abebb31431017676f1e4209d4704963f52ce0b32b96b<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># echo -n "sha256:68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467 sha256:28de19851da2a6dbe597cf23e1637b14d4c51f7074ae01dd9818e131c62e430e"|sha256sum -</span></span><br><span class="line">b5e0c75383b6d3a7dc43abebb31431017676f1e4209d4704963f52ce0b32b96b  -</span><br></pre></td></tr></table></figure></p>
+<p>以第二层为例，查看第二层的目录/var/lib/docker/image/overlay2/layerdb/sha256/68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467</span></span><br><span class="line">68972fe3e03c5b26652f08aa8af0b06702c02208f987da2b1b873e057d456467</span><br><span class="line">├── cache-id</span><br><span class="line">├── diff</span><br><span class="line">├── parent</span><br><span class="line">├── size</span><br><span class="line">└── tar-split.json.gz</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p><strong>cache-id</strong>：由宿主机随即生成的一个uuid，与镜像层文件一一对应，指向真正存放 layer 文件的地方；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more cache-id </span></span><br><span class="line">9c58547be8d230a221107f2ac644c713eb9b8c820e1a22b351ce3e686b730b1b</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>diff</strong>：镜像层校验ID、根据该镜像层的打包文件校验获得；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more diff</span></span><br><span class="line">sha256:885806cf466d56e36824a1623f362349202c6e4e8f7aab64e174519b66484fea</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>parent</strong>：父镜像层的chainID(最底层不含该文件)；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more parent</span></span><br><span class="line">sha256:6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>size</strong>：当前layer的大小，单位是字节；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more size</span></span><br><span class="line">16815636</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>tar-split.json.gz</strong>：layer 压缩包的 split 文件，通过这个文件可以还原 layer 的 tar 包，详情可参考 <a href="https://github.com/vbatts/tar-split。" target="_blank" rel="noopener">https://github.com/vbatts/tar-split。</a></p>
+</li>
+</ul>
+<h4 id="2-3-2-容器可读写层"><a href="#2-3-2-容器可读写层" class="headerlink" title="2.3.2 容器可读写层"></a>2.3.2 容器可读写层</h4><p>容器可读写层在容器启动之后挂载在以容器id为目录的目录下。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># docker run -it --name HAProxy -p 6301:6301 haproxy /bin/bash</span></span><br><span class="line"><span class="comment"># docker ps </span></span><br><span class="line">CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                    NAMES</span><br><span class="line">3c262b6de295        haproxy             <span class="string">"/docker-entrypoint.…"</span>   19 seconds ago      Up 18 seconds       0.0.0.0:6301-&gt;6301/tcp   HAProxy</span><br></pre></td></tr></table></figure></p>
+<p>根据haproxy的容器3c262b6de295(前12位)，查看/var/lib/docker/image/overlay2/layerdb/mounts/3c262b6de2955f531994d547f2902752bf52f88f1172ca0c6c29fbfa60ac4b7a目录：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 3c262b6de2955f531994d547f2902752bf52f88f1172ca0c6c29fbfa60ac4b7a</span></span><br><span class="line">3c262b6de2955f531994d547f2902752bf52f88f1172ca0c6c29fbfa60ac4b7a/</span><br><span class="line">├── init-id</span><br><span class="line">├── mount-id</span><br><span class="line">└── parent</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p><strong>init-id</strong>：容器init层的mount-id，指向了layer数据文件目录；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more init-id</span></span><br><span class="line">c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e-init</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>mount-id</strong>：读写层的mount-id，指向了layer数据文件目录；</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more mount-id</span></span><br><span class="line">c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>parent</strong>：容器层的父镜像层的chainID，对应只读层中的最顶层即第三层。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more parent</span></span><br><span class="line">sha256:b5e0c75383b6d3a7dc43abebb31431017676f1e4209d4704963f52ce0b32b96b</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>根据</p>
+<h2 id="3、layer数据文件"><a href="#3、layer数据文件" class="headerlink" title="3、layer数据文件"></a>3、layer数据文件</h2><p>layer镜像分层的数据文件存储在/var/lib/docker/overlay2/{mount-id}/下，根据元数据目录下的cache-id就是mount-id，如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more 6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579/cache-id</span></span><br><span class="line">367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-1-最底层layer本地文件"><a href="#3-1-最底层layer本地文件" class="headerlink" title="3.1 最底层layer本地文件"></a>3.1 最底层layer本地文件</h3><p>chainId为6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579的layer对应的cacheID为367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65，查看/var/lib/docker/overlay2/367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 2 367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65/</span></span><br><span class="line">367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65/</span><br><span class="line">├── diff</span><br><span class="line">│   ├── bin</span><br><span class="line">│   ├── boot</span><br><span class="line">│   ├── dev</span><br><span class="line">│   ├── etc</span><br><span class="line">│   ├── home</span><br><span class="line">│   ├── lib</span><br><span class="line">│   ├── lib64</span><br><span class="line">│   ├── media</span><br><span class="line">│   ├── mnt</span><br><span class="line">│   ├── opt</span><br><span class="line">│   ├── proc</span><br><span class="line">│   ├── root</span><br><span class="line">│   ├── run</span><br><span class="line">│   ├── sbin</span><br><span class="line">│   ├── srv</span><br><span class="line">│   ├── sys</span><br><span class="line">│   ├── tmp</span><br><span class="line">│   ├── usr</span><br><span class="line">│   └── var</span><br><span class="line">└── link</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><strong>diff</strong>：该目录存放了真实的数据；</li>
+<li><strong>link</strong>：该文件存放了该层的符号链接名称，该符号链接更短，主要用来避免挂载时超出页面大小的限制，指向diff目录；<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more link</span></span><br><span class="line">7UCN35ON2ZKX3DX5BA2E6NIBNF</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>符号链接定义如下：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ll l/7UCN35ON2ZKX3DX5BA2E6NIBNF</span></span><br><span class="line">l/7UCN35ON2ZKX3DX5BA2E6NIBNF -&gt; ../367818b00c1569667c3f0eb8b0580c770251612d4ab16a477c5349dd20a6fd65/diff/</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-2-第二层Layer本地文件"><a href="#3-2-第二层Layer本地文件" class="headerlink" title="3.2 第二层Layer本地文件"></a>3.2 第二层Layer本地文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 9c58547be8d230a221107f2ac644c713eb9b8c820e1a22b351ce3e686b730b1b/</span></span><br><span class="line">9c58547be8d230a221107f2ac644c713eb9b8c820e1a22b351ce3e686b730b1b/</span><br><span class="line">├── diff</span><br><span class="line">├── link</span><br><span class="line">├── lower</span><br><span class="line">└── work</span><br></pre></td></tr></table></figure>
+<ul>
+<li>在第二层多了一个lower文件及work目录，其中lower文件内容是所有祖先layer diff目录的短符号链接名称， work 目录则是用来完成如 copy-on_write 的操作。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more lower</span></span><br><span class="line">l/7UCN35ON2ZKX3DX5BA2E6NIBNF</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>文件的内容即为父层diff目录的短符号连接文件。</p>
+<p>第三层同第二层，略</p>
+<h3 id="3-3-init层本地文件"><a href="#3-3-init层本地文件" class="headerlink" title="3.3 init层本地文件"></a>3.3 init层本地文件</h3><p>根据init-id文件中的内容，定位到该本地文件目录：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e-init</span></span><br><span class="line">c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e-init/</span><br><span class="line">├── diff</span><br><span class="line">├── link</span><br><span class="line">├── lower</span><br><span class="line">└── work</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>lower文件存放了三个只读层的符号链接文件；<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># more lower</span></span><br><span class="line">l/FU73TC6QKNZAZFGL5OLEHODVJY:l/Z34ST5SRLSB2UZTL6AUMICY7NI:l/7UCN35ON2ZKX3DX5BA2E6NIBNF</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="3-4-读写层本地文件"><a href="#3-4-读写层本地文件" class="headerlink" title="3.4 读写层本地文件"></a>3.4 读写层本地文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># tree -L 1 c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e</span></span><br><span class="line">c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e</span><br><span class="line">├── diff</span><br><span class="line">├── link</span><br><span class="line">├── lower</span><br><span class="line">├── merged</span><br><span class="line">└── work</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>lower</strong> ：该文件存放了init层及三个只读层diff目录的短符号链接文件名称；</li>
+<li><strong>merged</strong> ：每当启动一个容器时，会将 link 指向的镜像层目录以及 lower 指向的镜像层目录联合挂载到 merged 目录，因此，容器内的视角就是 merged 目录下的内容。</li>
+</ul>
+<h2 id="4-结论"><a href="#4-结论" class="headerlink" title="4 结论"></a>4 结论</h2><p>通过镜像文件的元数据信息我们可以找到分层Layer及本地数据文件之间的关联，对理解docker文件系统有很大的帮助：</p>
+<ol>
+<li>在本地镜像仓库文件repositories.json找到镜像的imageid，根据imageid找到image的元数据配置文件；</li>
+<li>在image元数据配置文件rootfs元素中找到layer的diffid;</li>
+<li>根据计算公式，将diffid转化为chaninid，chainid即为只读分层元数据文件的目录；</li>
+<li>在chainid目录下，cache-id文件存储了该分层数据文件的挂载目录cacheid；</li>
+<li>根据cacheid在overlays存储驱动下即可找到该层的数据文件；</li>
+<li>根据启动之后的contanerid,找到可读写层的元文件目录，init-id文件内容即为init层的挂载目录，而mount-id即为可读写层的挂载目录；</li>
+<li>根据可读写层的挂载目录即可找到相应的数据文件。</li>
+</ol>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+  </section>
+
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span>
+  </nav>
+
+
+
+          </div>
+          
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">118</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

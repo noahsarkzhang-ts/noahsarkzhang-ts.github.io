@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于">
+<meta name="keywords" content="事务,redo,undo,binlog">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Mysql 事务日志">
+<meta property="og:url" content="http://yoursite.com/2021/01/31/mysql-log/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/mysql-transaction-overview.jpg">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/undo-circle.png">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/undo-tablespace.png">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/insert-undo-log.jpg">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/update-undo-log.jpg">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/undo-log-list.jpg">
+<meta property="og:image" content="http://yoursite.com/images/mysql-log/two-phase-commit.jpg">
+<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Mysql 事务日志">
+<meta name="twitter:description" content="1. 概述在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于">
+<meta name="twitter:image" content="http://yoursite.com/images/mysql-log/mysql-transaction-overview.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/01/31/mysql-log/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Mysql 事务日志 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/31/mysql-log/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Mysql 事务日志
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-01-31 17:56:29" itemprop="dateCreated datePublished" datetime="2021-01-31T17:56:29+08:00">2021-01-31</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/数据库/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于 WAL（ Write-Ahead Logging） 技术，存储事务过程中对数据表的修改，主要是数据页的修改，保证了事务的持久性。这三种日志在数据库表的更新操作（包括新增、修改及删除）中，相互配合，保障了事务的顺利执行，下图以一次数据更新操作演示了它们的工作机制。<br><img src="/images/mysql-log/mysql-transaction-overview.jpg" alt="mysql-transaction-overview" title="mysql-transaction-overview"></p>
+<ol>
+<li>undo log 存储在系统表空间中（新版的 Mysql 已经可以设置独立的表空间），对 undo log 的更改同样记录到 redo log中；</li>
+<li>redo log 由独立的日志文件存储，日志文件只有追加操作，顺序写入到磁盘中，相比数据页的随机写入，具有较高的效率；</li>
+<li>binlog log 配合 redo log，实现了内部的 XA 协议，保证了数据在 Innodb 及 Mysql 之间的一致性。</li>
+</ol>
+<h2 id="2-基础概念"><a href="#2-基础概念" class="headerlink" title="2. 基础概念"></a>2. 基础概念</h2><p><strong>内存缓冲池</strong><br>如果 Mysql 不使用内存缓冲池，每次读取数据时，都需要访问磁盘，会大大的增加磁盘的 IO 请求，导致效率低下；Innodb 引擎在读取数据的时候，把相应的数据和索引载入到内存的缓冲池（buffer pool）中，一定程度的提高了数据的读写速度。</p>
+<p><strong>buffer pool</strong><br>用来存放各种数据的缓存，这些数据包括：索引页、数据页、undo 页、插入缓冲、自适应哈希索引、Innodb 存储的锁信息及数据字典等。工作方式是将数据库文件按照页（每页16k）读取到缓冲池，然后按照最近最少使用算法（LRU）来保留缓冲池中的缓冲数据。如果数据库文件需要修改，总是首先修改在缓冲池中的页（发生修改后即成为脏页），然后在按照一定的频率将缓冲池中的脏页刷新到文件。</p>
+<p><strong>表空间</strong><br>表空间可以看作是 InnoDB 存储引擎 逻辑结构的最高层。表空间文件：InnoDB默认的表空间文件为 ibdata1。</p>
+<ul>
+<li>页：每页数据为16kb，且不能进行修改。常见的页类型有：数据页，Undo页，系统页，事务数据页，插入缓冲位图页，插入缓冲空闲列表页，未压缩的二进制大对象页，压缩的二进制大对象页</li>
+<li>区：由64个连续的页组成，每个页大小为16kb，即每个区的大小为1024kb即1MB</li>
+<li>段：表空间由各个段组成，常见的段有数据段，索引段，回滚段（undo log段）等。</li>
+</ul>
+<h2 id="3-redo-log"><a href="#3-redo-log" class="headerlink" title="3. redo log"></a>3. redo log</h2><p>缓存技术是一种常用的性能优化技术，在 Mysql 中，使用 Buffer Pool 来缓存表数据，它是以数据页为单位。引入缓存，也会引入同步数据到磁盘的问题，如果每一个事务都同步数据，由于一个事务可能涉及到数据面，同步数据的操作是一个随机 IO 的操作，性能损耗很大。为了解决问题，使用了WAL（ Write-Ahead Logging）技术，引入 redo log。它的基本思想是：将数据页修改写入 redo log，日志文件是顺序写入，性能很高，同时Buffer Pool 数据异步写入磁盘。通过 redo log，即使 Mysql 宕机，也可以通过 redo log 进行恢复。</p>
+<p>redo log由两部分组成：</p>
+<ol>
+<li>redo log缓冲区 Log Buffer；</li>
+<li>redo log日志文件，在 InnoDB 中，redo log 是固定大小的，比如可以配置为一组 4 个文件，每个文件的大小是 1GB，从头开始写，写到末尾又回到开头循环写，如下图所示：<br><img src="/images/mysql-log/undo-circle.png" alt="undo-circle" title="undo-circle"></li>
+</ol>
+<p>write pos 是当前记录的位置，一边写一边后移动，写到第 3 号文件末尾后就回到 0 号文件开头。checkpoint 是当前要删除的位置，也是往后推移并且循环的，删除记录前要把记录更新到数据文件。<br>write pos 和 checkpoint 之间的部分可以用来记录新的操作。如果 write pos 追上 checkpoint，表示文件满了，这时候不能再执行新的更新，需要先删除一些记录，把 checkpoint 推进一下。<br>有了 redo log，InnoDB 就可以保证即使数据库发生异常重启，之前提交的记录都不会丢失，这个能力称为 crash-safe。<br>另外，为了实现数据完整性，在 Buffer Pool 刷新到磁盘之前，必须先把 redo log 写入到磁盘。除了数据页，聚集索引、辅助索引以及 undo log 都需要记录到 redo log中。</p>
+<p><strong>redo log的记录内容</strong><br>undo log和 redo log 本身是分开的。Innodb 的 undo log 是记录在数据文件（系统表空间）中的，而且 innodb 将 undo log 的内容看做是数据，因此对undo log本身的操作（如向undo log插入一条undo log记录等），都会记录到redo log。undo log 可以通过redo log 将其恢复。因此当数据表插入一条记录时，涉及到的操作如下所示：</p>
+<ul>
+<li>向 undo log 插入一条 undo log 记录；</li>
+<li>向 redo log 中插入一条 “插入 undo log 记录”的redo log记录；</li>
+<li>Buffer Pool 中插入数据 （异步同步到磁盘）；</li>
+<li>向 redo log 插入一条 “insert” 的 redo log记录。</li>
+</ul>
+<p><strong>redo log 参数</strong></p>
+<ul>
+<li><p>innodb_log_files_in_group<br>redo log 文件的个数，命名方式如：ib_logfile0，iblogfile1… iblogfilen。默认2个，最大100个。</p>
+</li>
+<li><p>innodb_log_file_size<br>文件设置大小，默认值为 48M，最大值为512G，注意最大值指的是整个 redo log系列文件之和，即（innodb_log_files_in_group * innodb_log_file_size ）不能大于最大值512G。</p>
+</li>
+<li><p>innodb_log_group_home_dir<br>文件存放路径</p>
+</li>
+<li><p>innodb_log_buffer_size<br>redo Log 缓存区，默认8M，可设置1-8M。延迟事务日志写入磁盘，把redo log 放到该缓冲区，然后根据 innodb_flush_log_at_trx_commit参数的设置，再把日志从buffer 中flush 到磁盘中。</p>
+</li>
+<li><p>innodb_flush_log_at_trx_commit</p>
+<ul>
+<li>innodb_flush_log_at_trx_commit=1，每次commit都会把redo log从redo log buffer写入到system，并fsync刷新到磁盘文件中。</li>
+<li>innodb_flush_log_at_trx_commit=2，每次事务提交时MySQL会把日志从redo log buffer写入到system，但只写入到file system buffer，由系统内部来fsync到磁盘文件。如果数据库实例crash，不会丢失redo log，但是如果服务器crash，由于file system buffer还来不及fsync到磁盘文件，所以会丢失这一部分的数据。</li>
+<li>innodb_flush_log_at_trx_commit=0，事务发生过程，日志一直激励在redo log buffer中，跟其他设置一样，但是在事务提交时，不产生redo 写操作，而是MySQL内部每秒操作一次，从redo log buffer，把数据写入到系统中去。如果发生crash，即丢失1s内的事务修改操作。</li>
+</ul>
+</li>
+</ul>
+<h2 id="4-undo-log"><a href="#4-undo-log" class="headerlink" title="4. undo log"></a>4. undo log</h2><p>Innodb 为了支持回滚和 MVCC，需要备份旧数据，undo log 就负责存储这些数据，在操作任何数据之前，首先将数据备份到undo log，然后进行数据的修改。如果出现了错误或者用户手动执行了 rollback，系统可以利用 undo log 中的备份将数据恢复到事务开始之前的状态。与 redo log不同的是，磁盘上不存在单独的 undo log 文件，它存放在数据库内部的特殊段（segment）中，这称之为 undo 段（undo segment），undo 段位于共享表空间内。<br><img src="/images/mysql-log/undo-tablespace.png" alt="undo-tablespace" title="undo-tablespace"></p>
+<p>其中32个rollback segment创建在临时表空间中，96个创建在系统表空间中，每一个rollback segment可以分配 1024个 slot，也就是可以支持96*1024个并发的事务。</p>
+<h3 id="4-1-undo-log-类型"><a href="#4-1-undo-log-类型" class="headerlink" title="4.1 undo log 类型"></a>4.1 undo log 类型</h3><p>undo log有两种类型，分别是 insert undo log 和 update undo log。前者记录的是insert 语句对应的undo log，后者对应的是 update、delete 语句对应的undo log。</p>
+<ol>
+<li><p>insert undo log<br>nsert undo log 只对事务本身可见，所以insert undo log在事务提交后可直接删除，无需通过 purge 线程执行清理操作。insert undo log 包含的字段如下：<br><img src="/images/mysql-log/insert-undo-log.jpg" alt="insert-undo-log" title="insert-undo-log"></p>
+</li>
+<li><p>update undo log<br>执行 update 或者 delete 会产生 undo log，会影响已存在的记录，为了实现MVCC，会将同一个记录的多个版本的 undo log 串联起来，根据隔离级别的不同，会看到不同版本的数据，update undo log 不能在事务提交时立刻删除，需要等待 purge 线程进行最后的删除操作。如果是长事务，会产生大量的 undo log。undo log 包含的字段如下：<br><img src="/images/mysql-log/update-undo-log.jpg" alt="update-undo-log" title="update-undo-log"></p>
+</li>
+</ol>
+<h3 id="4-2-事务回滚"><a href="#4-2-事务回滚" class="headerlink" title="4.2 事务回滚"></a>4.2 事务回滚</h3><p>事务根据 sql的类型，进行相应的处理：</p>
+<ul>
+<li>insert sql : 在 undo log 中记录下 insert 进来的数据的 ID，当 rollback 时，根据 ID 完成精准的删除；</li>
+<li>delete sql ：在 undo log 中记录删除的数据，当回滚时会将删除前的数据 insert 进去；</li>
+<li>update sql ：在 undo log 中记录下修改前的数据，回滚时只需要反向update即可；</li>
+<li>select sql ：select不需要回滚。</li>
+</ul>
+<p>对于 insert 类型的 undo log，由于只对当前事务可见（没有事务会对还未插入的数据感兴趣），在事务提交之后该 undo log就会被删除。但对于 update 类型的 undo log 来说，该操作会影响当前的记录，由于同时可能会有多个事务对当前记录进行 update 操作，Innodb 使用 DATA_ROLL_ID 指针将多个版本的 undo log 串联起来，而链条的起点则是行记录中的隐藏字段 DB_ROLL_PTR 。</p>
+<p>Innodb 为每个记录中记录了三个隐藏字段：</p>
+<ul>
+<li>6字节的事务ID（DB_TRX_ID）；</li>
+<li>7字节的回滚指针（DB_ROLL_PTR）；</li>
+<li>隐藏的主键id，如果没有主键，Mysql 自动生成一个主键。</li>
+</ul>
+<p>以 test 表为例，我们分别进行 insert及upadte 操作来演示 undo log 日志。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`test`</span>(</span><br><span class="line">   <span class="string">`id`</span> <span class="built_in">INT</span> <span class="keyword">UNSIGNED</span> AUTO_INCREMENT,</span><br><span class="line">   <span class="string">`a`</span> <span class="built_in">VARCHAR</span>(<span class="number">16</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">   <span class="string">`b`</span> <span class="built_in">VARCHAR</span>(<span class="number">16</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">   PRIMARY <span class="keyword">KEY</span> ( <span class="string">`id`</span> )</span><br><span class="line">)<span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 执行的操作</span></span><br><span class="line"><span class="keyword">insert</span> <span class="keyword">into</span> <span class="keyword">test</span>(<span class="keyword">id</span>, a, b) <span class="keyword">values</span>(<span class="number">1</span>, <span class="string">'redo'</span>,<span class="string">'undo'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">update</span> <span class="keyword">test</span> <span class="keyword">set</span> a=<span class="string">"redo log"</span> <span class="keyword">where</span> <span class="keyword">id</span>=<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> <span class="keyword">from</span> <span class="keyword">test</span> <span class="keyword">where</span> <span class="keyword">id</span>=<span class="number">1</span>;</span><br></pre></td></tr></table></figure></p>
+<p>其 undo log 链如下所示：<br><img src="/images/mysql-log/undo-log-list.jpg" alt="undo-log-list" title="undo-log-list"><br>如上图，删除的数据行不会立刻删除，而是在行记录头信息记录了一个 deleted_flag 标志位。最终会在 purge 线程 purge undo log 的时候进行实际的删除操作，这个时候undo log也会清理掉。</p>
+<h2 id="5-binlog-log"><a href="#5-binlog-log" class="headerlink" title="5. binlog log"></a>5. binlog log</h2><p>binlog 用于记录数据库执行的更新操作(不包括查询)信息，以二进制的形式保存在磁盘中。 binlog 是 Mysql 的逻辑日志，并且由 Server 层进行记录，使用任何存储引擎的 mysql 数据库都会记录 binlog log。</p>
+<p><strong>binlog log 格式</strong><br>binlog log 有三种格式，分别为 STATMENT 、 ROW 和 MIXED 。</p>
+<ul>
+<li>STATMENT ： 基于 SQL 语句的复制( statement-based replication, SBR )，每一条会修改数据的 sql 语句会记录到 binlog 中；</li>
+<li>ROW ： 基于行的复制( row-based replication, RBR )，不记录每条 sql 语句的上下文信息，仅需记录哪条数据被修改了；</li>
+<li>MIXED ： 基于 STATMENT 和 ROW 两种模式的混合复制( mixed-based replication, MBR )，一般的复制使用 STATEMENT 模式保存 binlog ，对于 STATEMENT 模式无法复制的操作使用 ROW 模式保存 binlog。</li>
+</ul>
+<p><strong>binlog log 写盘</strong><br>在写 binlog，通过参数 sync_binlog 来控制何时将 binlog fsync到磁盘。</p>
+<ul>
+<li>0：事务提交是没有立即 fsync 文件到磁盘，而是依赖于操作系统的 fsync 机制；</li>
+<li>1：每次 commit 的时候都要将 binlog fsync 磁盘；</li>
+<li>N：指定提交次数后，统一fsync到磁盘。</li>
+</ul>
+<p>要保证数据的可持久性，sync_binlog 必须设置为 1。</p>
+<p><strong>使用场景</strong></p>
+<ol>
+<li>主从同步；</li>
+<li>数据恢复。</li>
+</ol>
+<h2 id="6-内部-XA-协议"><a href="#6-内部-XA-协议" class="headerlink" title="6. 内部 XA 协议"></a>6. 内部 XA 协议</h2><p>从上面的内容可知，一个更新操作需要 Server 及 Innodb 协同完成，一个事务，Server 会写 binlog log， Innodb 会写 redo/undo log，这两部分是怎么保证数据的一致性及数据不丢失？在 Myslq 内部，使用了“两阶段提交”来实现这两个特性， 在此处的“两阶段提交”称为内部的 XA 协议，有别于多数据源的分布式事务。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">update</span> <span class="keyword">test</span> <span class="keyword">set</span> a=<span class="string">'redo'</span> <span class="keyword">where</span> <span class="keyword">id</span>=<span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+<p>以上面的 update 操作为例，更新的流程如下：<br><img src="/images/mysql-log/two-phase-commit.jpg" alt="two-phase-commit" title="two-phase-commit"></p>
+<p><strong>两阶段提交过程</strong><br>MySQL 采用了如下的过程实现内部 XA 的两阶段提交：</p>
+<ol>
+<li>Prepare 阶段：Innodb 将回滚段设置为 prepare 状态；将 redo log 写文件并刷盘；</li>
+<li>Commit 阶段：binlog 写入文件；binlog 刷盘；Innodb commit；</li>
+</ol>
+<p>两阶段提交保证了事务在多个引擎和 binlog 之间的原子性，以 binlog 写入成功作为事务提交的标志，而 InnoDB 的 commit 标志并不是事务成功与否的标志。</p>
+<p>在崩溃恢复中，是以 binlog 中的 xid 和 redo log 中的 xid 进行比较，xid 在 binlog 里存在则提交，不存在则回滚。我们来看崩溃恢复时具体的情况：</p>
+<ul>
+<li>在 prepare 阶段崩溃，即已经写入 redolog，在写入 binlog 之前崩溃，则会回滚；</li>
+<li>在 commit 阶段，当没有成功写入 binlog 时崩溃，也会回滚；</li>
+<li>如果已经写入 binlog，在写入 InnoDB commit 标志时崩溃，则重新写入 commit 标志，完成提交。</li>
+</ul>
+<h2 id="7-总结"><a href="#7-总结" class="headerlink" title="7. 总结"></a>7. 总结</h2><p>这篇文章分析了 Mysql 的三种日志文件，通过日志文件，Mysql 实现的事务的原子性及持久性，其中 undo log 实现了原子性，同时也用来实现 MVCC，redo log 实现了持久性，保证在服务宕机的情况下进行事务的恢复。另外，使用两阶段提交，结合 binlog 及 redo log，保证了 Mysql Sever 及 Innodb 数据的一致性。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://segmentfault.com/a/1190000009122071" target="_blank" rel="noopener">1. Innodb中的buffer poll和redo undo log</a><br><a href="https://mp.weixin.qq.com/s/b7Qnzh1EIM4wbExwmIkJyA" target="_blank" rel="noopener">2. 一个线上SQL死锁异常分析：深入了解事务和锁</a><br><a href="https://www.cnblogs.com/xinysu/p/6555082.html" target="_blank" rel="noopener">3. 说说MySQL中的Redo log Undo log都在干啥</a><br><a href="http://mysql.taobao.org/monthly/2016/07/01/" target="_blank" rel="noopener">4. MySQL · 特性分析 ·MySQL 5.7新特性系列三</a><br><a href="https://segmentfault.com/a/1190000023827696" target="_blank" rel="noopener">5. 必须了解的mysql三大日志-binlog、redo log和undo log</a><br><a href="https://mp.weixin.qq.com/s/zDiuK1wTIdwK4U3W3mrIlg" target="_blank" rel="noopener">6. 简介undo log、truncate、​以及undo log如何帮你回滚事物？</a><br><a href="https://xie.infoq.cn/article/ed531f74ecfd44eacb1a98258" target="_blank" rel="noopener">7. 洞悉 MySQL 底层架构：游走在缓冲与磁盘之间</a><br><a href="http://mysql.taobao.org/monthly/2018/12/04/" target="_blank" rel="noopener">8. MySQL的事务处理—两阶段事务提交2PC</a><br><a href="http://mysql.taobao.org/monthly/2020/05/07/" target="_blank" rel="noopener">9. MySQL · 源码分析 · 内部 XA 和组提交</a><br><a href="https://time.geekbang.org/column/article/68633" target="_blank" rel="noopener">10. 日志系统：一条SQL更新语句是如何执行的？</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/事务/" rel="tag"># 事务</a>
+          
+            <a href="/tags/redo/" rel="tag"># redo</a>
+          
+            <a href="/tags/undo/" rel="tag"># undo</a>
+          
+            <a href="/tags/binlog/" rel="tag"># binlog</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/11/29/gossip-protocol/" rel="next" title="Gossip 协议">
+                <i class="fa fa-chevron-left"></i> Gossip 协议
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/02/14/laws-and-principles/" rel="prev" title="法则及基本原则">
+                法则及基本原则 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">118</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-基础概念"><span class="nav-number">2.</span> <span class="nav-text">2. 基础概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-redo-log"><span class="nav-number">3.</span> <span class="nav-text">3. redo log</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-undo-log"><span class="nav-number">4.</span> <span class="nav-text">4. undo log</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-undo-log-类型"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 undo log 类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-事务回滚"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 事务回滚</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-binlog-log"><span class="nav-number">5.</span> <span class="nav-text">5. binlog log</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-内部-XA-协议"><span class="nav-number">6.</span> <span class="nav-text">6. 内部 XA 协议</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-总结"><span class="nav-number">7.</span> <span class="nav-text">7. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

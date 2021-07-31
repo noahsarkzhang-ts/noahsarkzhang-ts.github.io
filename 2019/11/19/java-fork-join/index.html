@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：  ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。">
+<meta name="keywords" content="数据结构,分而治之,fork&#x2F;join">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java Fork&#x2F;Join框架">
+<meta property="og:url" content="http://yoursite.com/2019/11/19/java-fork-join/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：  ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/fork-join.jpg">
+<meta property="og:image" content="http://yoursite.com/images/devide-conquer.jpg">
+<meta property="og:image" content="http://yoursite.com/images/work-stealing.jpg">
+<meta property="og:image" content="http://yoursite.com/images/ctl.jpg">
+<meta property="og:image" content="http://yoursite.com/images/idle-thread-list.jpg">
+<meta property="og:image" content="http://yoursite.com/images/workqueue-array-init.jpg">
+<meta property="og:image" content="http://yoursite.com/images/workqueue-array.jpg">
+<meta property="og:image" content="http://yoursite.com/images/workqueue-join-steal.jpg">
+<meta property="og:image" content="http://yoursite.com/images/ForkJoinWorkerThread.jpg">
+<meta property="og:image" content="http://yoursite.com/images/invoke-task.jpg">
+<meta property="og:image" content="http://yoursite.com/images/fork-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/images/singal-worker.jpg">
+<meta property="og:image" content="http://yoursite.com/images/join-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/images/work-stealing-flow.jpg">
+<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Java Fork&#x2F;Join框架">
+<meta name="twitter:description" content="1. 概述ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：  ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。">
+<meta name="twitter:image" content="http://yoursite.com/images/fork-join.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/11/19/java-fork-join/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Java Fork/Join框架 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/11/19/java-fork-join/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Java Fork/Join框架
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-11-19 14:15:31" itemprop="dateCreated datePublished" datetime="2019-11-19T14:15:31+08:00">2019-11-19</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/并发编程/" itemprop="url" rel="index"><span itemprop="name">并发编程</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：<br><img src="/images/fork-join.jpg" alt="fork-join" title="fork-join"></p>
+<ul>
+<li>ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。</li>
+<li>WorkQueue：工作队列，是任务存储的容器，也是实现Work-Stealing的关键数据结构。</li>
+<li>ForkJoinWorkerThread：工作线程，是任务的执行单元。</li>
+<li>ForkJoinTask：封装业务的执行逻辑，包括任务fork及join流程。</li>
+</ul>
+<h2 id="2-核心思想"><a href="#2-核心思想" class="headerlink" title="2. 核心思想"></a>2. 核心思想</h2><p>ForkJoinPool的两大核心就是分而治之(Divide and conquer)和工作窃取(Work Stealing)算法，下面先对两种算法作一个介绍，后面将会具体细节做说明，这部分内容来自 <a href="https://blog.hufeifei.cn/2018/09/15/Java/ForkJoinPool/" target="_blank" rel="noopener">holmofy</a>，作者进行了很好的总结。</p>
+<h3 id="2-1-分而治之"><a href="#2-1-分而治之" class="headerlink" title="2.1 分而治之"></a>2.1 分而治之</h3><p>ForkJoinPool主要思想是：将一个大任务拆分成多个小任务后，使用fork可以将小任务分发给其他线程同时处理，使用join可以将多个线程处理的结果进行汇总。<br><img src="/images/devide-conquer.jpg" alt="devide-conquer" title="devide-conquer"></p>
+<h3 id="2-2-工作窃取"><a href="#2-2-工作窃取" class="headerlink" title="2.2 工作窃取"></a>2.2 工作窃取</h3><p>Fork/Join框架中使用的work stealing灵感来源于Cilk(开发Cilk的公司被Intel收购，原项目后来被升级为Clik Plus)。</p>
+<blockquote>
+<p>Intel公司除了Clik Plus还有一个TBB(Threading Building Blocks)也是使用work stealing算法实现。</p>
+</blockquote>
+<p>Work Stealing算法是Fork/Join框架的核心思想：</p>
+<ul>
+<li>每个线程都有自己的一个WorkQueue，该工作队列是一个双端队列；</li>
+<li>队列支持三个功能push、pop、poll；</li>
+<li>push/pop只能被队列的所有者线程调用，而poll可以被其他线程调用；</li>
+<li>划分的子任务调用fork时，都会被push到自己的队列中；</li>
+<li>默认情况下，工作线程从自己的双端队列获出任务并执行；</li>
+<li>当自己的队列为空时，线程随机从另一个线程的队列末尾调用poll方法窃取任务。<br><img src="/images/work-stealing.jpg" alt="work-stealing" title="work-stealing"></li>
+</ul>
+<h2 id="3-数据结构"><a href="#3-数据结构" class="headerlink" title="3. 数据结构"></a>3. 数据结构</h2><h3 id="3-1-ForkJoinPool"><a href="#3-1-ForkJoinPool" class="headerlink" title="3.1 ForkJoinPool"></a>3.1 ForkJoinPool</h3><p>ForkJoinPool中的几个关键字段如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">volatile</span> <span class="keyword">long</span> ctl;                   <span class="comment">// main pool control</span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> runState;               <span class="comment">// lockable status</span></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">int</span> config;                    <span class="comment">// parallelism, mode</span></span><br><span class="line"><span class="keyword">int</span> indexSeed;                       <span class="comment">// to generate worker index</span></span><br><span class="line"><span class="keyword">volatile</span> WorkQueue[] workQueues;     <span class="comment">// main registry</span></span><br></pre></td></tr></table></figure></p>
+<h4 id="3-1-1-ctl字段"><a href="#3-1-1-ctl字段" class="headerlink" title="3.1.1 ctl字段"></a>3.1.1 ctl字段</h4><p>ctl有64位，分成4组各16位，代表了不同的状态，在ForkJoinPool中是一个很重要的字段，很多控制逻辑都要根据ctl来完成，如下图所示：<br><img src="/images/ctl.jpg" alt="ctl" title="ctl"></p>
+<ul>
+<li>AC：活跃线程的数量，初始化-parallelism；</li>
+<li>TC：所有线程的数量，初始化-parallelism；</li>
+<li>SS：表示空闲线程栈（Treiber stack）栈顶元素的版本和状态；</li>
+<li>ID：表示空闲线程栈（Treiber stack）栈顶元素在workQueues数组中的下标；</li>
+</ul>
+<p>parallelism表示ForkJoinPool的最大线程数，其最大值由MAX_CAP(32767)限定，默认情况下等于cpu的核数（Runtime.getRuntime().availableProcessors()），要改变这个值也可以通过构造函数设置。</p>
+<p>为了方便运算，AC和TC初始化parallelism负值，当AC和TC为负数时，表示线程数未达到最大线程数，可以新建线程。SP是ctl的低32位，可通过sp=(int)ctl取到，如果是否零的情况下，表示有空闲线程。</p>
+<p>在ForkJoinPool中，线程是绑定在WorkQueue上的，即一个线程必然有绑定WorkQueue（但WorkQueue不一定绑定线程，外部线程提交任务创建的WorkQueue绑定的线程为null）。ID存放的实际是空闲线程对应的WorkQueue在WorkQueue[]数组中的下标，后面为了描述的方便，统一说成是空闲线程的下标。下一个空闲线程（其实保存的也是WorkQueue[]的下标）保存在WorkQueue的stackPred字段中，讲到WorkQueue时，我们再对空闲线程栈进行深入描述。</p>
+<p>ForkJoinPool中定义的常量字段：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Bounds</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SMASK        = <span class="number">0xffff</span>;        <span class="comment">// short bits == max index</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> MAX_CAP      = <span class="number">0x7fff</span>;        <span class="comment">// max #workers - 1</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> EVENMASK     = <span class="number">0xfffe</span>;        <span class="comment">// even short bits</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SQMASK       = <span class="number">0x007e</span>;        <span class="comment">// max 64 (even) slots</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Masks and units for WorkQueue.scanState and ctl sp subfield</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SCANNING     = <span class="number">1</span>;             <span class="comment">// false when running tasks</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> INACTIVE     = <span class="number">1</span> &lt;&lt; <span class="number">31</span>;       <span class="comment">// must be negative</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SS_SEQ       = <span class="number">1</span> &lt;&lt; <span class="number">16</span>;       <span class="comment">// version count</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Mode bits for ForkJoinPool.config and WorkQueue.config</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> MODE_MASK    = <span class="number">0xffff</span> &lt;&lt; <span class="number">16</span>;  <span class="comment">// top half of int</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> LIFO_QUEUE   = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FIFO_QUEUE   = <span class="number">1</span> &lt;&lt; <span class="number">16</span>;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SHARED_QUEUE = <span class="number">1</span> &lt;&lt; <span class="number">31</span>;       <span class="comment">// must be negative</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Lower and upper word masks</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> SP_MASK    = <span class="number">0xffffffffL</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> UC_MASK    = ~SP_MASK;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Active counts</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span>  AC_SHIFT   = <span class="number">48</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> AC_UNIT    = <span class="number">0x0001L</span> &lt;&lt; AC_SHIFT;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> AC_MASK    = <span class="number">0xffffL</span> &lt;&lt; AC_SHIFT;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Total counts</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span>  TC_SHIFT   = <span class="number">32</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> TC_UNIT    = <span class="number">0x0001L</span> &lt;&lt; TC_SHIFT;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> TC_MASK    = <span class="number">0xffffL</span> &lt;&lt; TC_SHIFT;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> ADD_WORKER = <span class="number">0x0001L</span> &lt;&lt; (TC_SHIFT + <span class="number">15</span>); <span class="comment">// sign 48位是TC的符号位</span></span><br></pre></td></tr></table></figure></p>
+<p>1、ctl的初始化(ForkJoinPool)：AC=TC=-parallelism,SS=ID=0<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.config = (parallelism &amp; SMASK) | mode;</span><br><span class="line"><span class="keyword">long</span> np = (<span class="keyword">long</span>)(-parallelism); <span class="comment">// offset ctl counts</span></span><br><span class="line"><span class="keyword">this</span>.ctl = ((np &lt;&lt; AC_SHIFT) &amp; AC_MASK) | ((np &lt;&lt; TC_SHIFT) &amp; TC_MASK);</span><br></pre></td></tr></table></figure></p>
+<p>假定parallelism值为4，np为-4，16进制为FFFF FFFF FFFF FFFC，np &lt;&lt; AC_SHIFT 表示np左移48（AC_SHIFT）位，得到FFFC 0000 0000 0000，再与AC_MASK(0XFFFF 0000 0000 0000)进行&amp;（与）操作，((np &lt;&lt; AC_SHIFT) &amp; AC_MASK)得到的值为FFFC 0000 0000 0000，同理，((np &lt;&lt; TC_SHIFT) &amp; TC_MASK)，得到的值为0000 FFFC 0000 0000，最后再将这两个值进行|（或）操作，得到的值为FFFC FFFC 0000 0000，即将AC，TC赋值为-4赋值，SS和ID为0。</p>
+<p>2、添加线程(tryAddWorker)：AC=TC=+1<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">long</span> nc = ((AC_MASK &amp; (c + AC_UNIT)) |</span><br><span class="line">           (TC_MASK &amp; (c + TC_UNIT)));</span><br></pre></td></tr></table></figure></p>
+<p>添加线程的时候，会将AC和TC都加1，其中c为当前CTL的值，新值为nc。假定c为FFFC FFFC 0000 0000，c + AC_UNIT 可以表示为FFFC FFFC 0000 0000 + 0001 0000 000 000，即在TC部分加1，得到的值为FFFD FFFC 0000 0000，再与AC_MASK(FFFF 0000 0000 0000)进行&amp;(与操作)，(AC_MASK &amp; (c + AC_UNIT))的值为FFFD 0000 0000 0000。同理TC_MASK &amp; (c + TC_UNIT))为0000 FFFD 0000 0000，最后将这个值进行|(或)操作，得到FFFD FFFD 0000 0000。</p>
+<p>3、睡眠线程(scan)：AC:-1,ID=new ID<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> ss = w.scanState; <span class="comment">// w为WorkQueue的变量</span></span><br><span class="line"><span class="keyword">int</span> ns = ss | INACTIVE;       <span class="comment">// try to inactivate</span></span><br><span class="line"><span class="keyword">long</span> nc = ((SP_MASK &amp; ns) |</span><br><span class="line">           (UC_MASK &amp; ((c = ctl) - AC_UNIT)));</span><br><span class="line">w.stackPred = (<span class="keyword">int</span>)c;         <span class="comment">// hold prev stack top</span></span><br></pre></td></tr></table></figure></p>
+<p>ss的值为WorkQueue的scanState，scanState初始值为WorkQueue在WorkQueue[]中的下标（如果是外部线程提交任务产生的WorkQueue，scanState为INACTIVE），假定scanState为3，c为FFFD FFFD 0000 0000。ss | INACTIVE(0X8000 0000)等于8000 0011，SP_MASK &amp; ns等于0000 0000 8000 0011，(UC_MASK &amp; ((c = ctl) - AC_UNIT))等于FFFC FFFD 0000 0000，最后nc等于FFFC FFFD 8000 0011，即将空闲线程的下标设置在ID上。</p>
+<p>4、唤醒空闲线程(signalWork)：AC:+1,ID=v.stackPred<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 以下代码进行了精简，与signalWork方法中的顺序不一定一致。</span></span><br><span class="line"><span class="keyword">long</span> c = ctl;</span><br><span class="line"><span class="keyword">int</span> sp = (<span class="keyword">int</span>)c;</span><br><span class="line"><span class="keyword">int</span> i = sp &amp; SMASK; <span class="comment">// 空闲线程的下标</span></span><br><span class="line">WorkQueue v = ws[i]; <span class="comment">// 空闲线程绑定的WorkQueue</span></span><br><span class="line"><span class="keyword">long</span> nc = (UC_MASK &amp; (c + AC_UNIT)) | (SP_MASK &amp; v.stackPred);</span><br></pre></td></tr></table></figure></p>
+<p>假定c为FFFC FFFD 8000 0011,v.stackPred为5。将c的类型强制转化为int后，sp得到了c低32位的值，即SS与ID。sp与SMASK(0X0000 FFFF)得到低16位的值，即得到下标值(3)。再根据下标i得到对应的WorkQueue v，取到下一个空闲线程的下标(5)，并将这个下标设置到新ctl中的ID中。</p>
+<p>c + AC_UNIT表示AC加1,(UC_MASK &amp; (c + AC_UNIT))得到的值为FFFD FFFD 0000 0000，SP_MASK &amp; v.stackPred为0000 0000 0000 0101，最后这两个值进行|(或)操作，nc的值为FFFE FFFF 0000 0101。</p>
+<h4 id="3-1-2-config"><a href="#3-1-2-config" class="headerlink" title="3.1.2 config"></a>3.1.2 config</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 常量</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> LIFO_QUEUE   = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FIFO_QUEUE   = <span class="number">1</span> &lt;&lt; <span class="number">16</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">boolean</span> asyncMode = <span class="keyword">false</span>; <span class="comment">// 默认为LIFO</span></span><br><span class="line"><span class="keyword">int</span> mode = asyncMode ? FIFO_QUEUE : LIFO_QUEUE,</span><br><span class="line"><span class="keyword">this</span>.config = (parallelism &amp; SMASK) | mode;</span><br></pre></td></tr></table></figure>
+<p>config主要是存放两部分信息：1) parallelism,ForkJoinPool线程数；2) ForkJoinPool同步或异步模式，同步用LIFO模式，异步用FIFO，默认为LIFO。parallelism存放在int的低16位，LIFO_QUEUE为0，两者进行|（或）操作，还是parallelism本身。如果模式是FIFO_QUEUE的话，则将int第17位设置为1，假定parallelism为4，最后|（操作）之后，config的值为0X0001 0004。</p>
+<h4 id="3-1-3-workQueues"><a href="#3-1-3-workQueues" class="headerlink" title="3.1.3 workQueues"></a>3.1.3 workQueues</h4><p>workQueues是ForkJoinPool中非常重要的数据结构，存放多个工作队列WorkQueue，工作队列主要有两种类型：1）外部线程提交一次ForkJoinTask任务，都会生成一个WorkQueue，用来存放提交的的任务（一次可提交多个任务），该队列不属于任何一个线程，会等待其它线程来偷取(Work Stealing)任务，这类WorkQueue存放在workQueues的偶数下标处；2）新增一个工作线程WorkerThread时，都会生成一个WorkQueue，用来存放该线程需要执行的子任务，该WorkQueue绑定在工作线程上，这类WorkQueue存放在workQueues的奇数下标处。</p>
+<p>1、workQueues初始化<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// create workQueues array with size a power of two</span></span><br><span class="line"><span class="keyword">int</span> p = config &amp; SMASK; <span class="comment">// ensure at least 2 slots</span></span><br><span class="line"><span class="keyword">int</span> n = (p &gt; <span class="number">1</span>) ? p - <span class="number">1</span> : <span class="number">1</span>;</span><br><span class="line">n |= n &gt;&gt;&gt; <span class="number">1</span>; n |= n &gt;&gt;&gt; <span class="number">2</span>;  n |= n &gt;&gt;&gt; <span class="number">4</span>;</span><br><span class="line">n |= n &gt;&gt;&gt; <span class="number">8</span>; n |= n &gt;&gt;&gt; <span class="number">16</span>; n = (n + <span class="number">1</span>) &lt;&lt; <span class="number">1</span>;</span><br><span class="line">workQueues = <span class="keyword">new</span> WorkQueue[n];</span><br></pre></td></tr></table></figure></p>
+<p>p存放parallelism的值，经过一系列的符号右移及或操作之后，保证n为奇数，最后对n加1，再左移1位，得到一个2的倍数的值，一般情况下workQueues等于parallelism的2倍。</p>
+<p>2、提交任务的WorkQueue<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// SQMASK常量</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SQMASK  = <span class="number">0x007e</span>;   <span class="comment">// max 64 (even) slots</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> m = ws.length - <span class="number">1</span>; <span class="comment">// m等于workQueues长度减一，是一个奇数</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> k = r &amp; m &amp; SQMASK;</span><br><span class="line">WorkQueue q = <span class="keyword">new</span> WorkQueue(<span class="keyword">this</span>, <span class="keyword">null</span>);</span><br><span class="line">q.hint = r; <span class="comment">// r是一个随机值， r = ThreadLocalRandom.getProbe()</span></span><br><span class="line">q.config = k | SHARED_QUEUE; <span class="comment">// k是存放在workqueue[]中的位置</span></span><br><span class="line">q.scanState = INACTIVE; <span class="comment">// 初始化scanState的状态</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (rs &gt; <span class="number">0</span> &amp;&amp;  (ws = workQueues) != <span class="keyword">null</span> &amp;&amp;</span><br><span class="line">    k &lt; ws.length &amp;&amp; ws[k] == <span class="keyword">null</span>)</span><br><span class="line">    ws[k] = q;  <span class="comment">// else terminated</span></span><br></pre></td></tr></table></figure></p>
+<p>r是一个随机数，m是数组长度减一，r &amp; m 操作得到一个介于0~m的随机数字。SQMASK是数组的最大值64，其最低位是0，进行与操作，最低位必然是0，从而保证r &amp; m &amp; SQMASK的值是一个介于0~m的随机偶数。k是一个随机数，主要是为了减少插入位置的冲突。</p>
+<p>3、工作线程的WorkQueue<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">WorkQueue w = <span class="keyword">new</span> WorkQueue(<span class="keyword">this</span>, wt);</span><br><span class="line"><span class="keyword">int</span> i = <span class="number">0</span>;                                    <span class="comment">// assign a pool index</span></span><br><span class="line"><span class="keyword">int</span> mode = config &amp; MODE_MASK;</span><br><span class="line"><span class="keyword">int</span> rs = lockRunState();</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    WorkQueue[] ws; <span class="keyword">int</span> n;                    <span class="comment">// skip if no array</span></span><br><span class="line">    <span class="keyword">if</span> ((ws = workQueues) != <span class="keyword">null</span> &amp;&amp; (n = ws.length) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">int</span> s = indexSeed += SEED_INCREMENT;  <span class="comment">// unlikely to collide</span></span><br><span class="line">        <span class="keyword">int</span> m = n - <span class="number">1</span>;</span><br><span class="line">        i = ((s &lt;&lt; <span class="number">1</span>) | <span class="number">1</span>) &amp; m;               <span class="comment">// odd-numbered indices</span></span><br><span class="line">        <span class="keyword">if</span> (ws[i] != <span class="keyword">null</span>) &#123;                  <span class="comment">// collision</span></span><br><span class="line">            <span class="keyword">int</span> probes = <span class="number">0</span>;                   <span class="comment">// step by approx half n</span></span><br><span class="line">            <span class="keyword">int</span> step = (n &lt;= <span class="number">4</span>) ? <span class="number">2</span> : ((n &gt;&gt;&gt; <span class="number">1</span>) &amp; EVENMASK) + <span class="number">2</span>;</span><br><span class="line">            <span class="keyword">while</span> (ws[i = (i + step) &amp; m] != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (++probes &gt;= n) &#123;</span><br><span class="line">                    workQueues = ws = Arrays.copyOf(ws, n &lt;&lt;= <span class="number">1</span>);</span><br><span class="line">                    m = n - <span class="number">1</span>;</span><br><span class="line">                    probes = <span class="number">0</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        w.hint = s;                           <span class="comment">// use as random seed</span></span><br><span class="line">        w.config = i | mode;</span><br><span class="line">        w.scanState = i;                      <span class="comment">// publication fence</span></span><br><span class="line">        ws[i] = w;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    unlockRunState(rs, rs &amp; ~RSLOCK);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>重点看以下代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">WorkQueue w = <span class="keyword">new</span> WorkQueue(<span class="keyword">this</span>, wt);</span><br><span class="line"></span><br><span class="line">n = ws.length</span><br><span class="line"><span class="keyword">int</span> s = indexSeed += SEED_INCREMENT;  <span class="comment">// unlikely to collide</span></span><br><span class="line"><span class="keyword">int</span> m = n - <span class="number">1</span>;</span><br><span class="line">i = ((s &lt;&lt; <span class="number">1</span>) | <span class="number">1</span>) &amp; m;</span><br><span class="line"></span><br><span class="line">ws[i] = w;</span><br></pre></td></tr></table></figure></p>
+<p>s是一个随机值， ((s &lt;&lt; 1) | 1)表达式得到一个随机的奇数，即最低为1。再与m(也是一个奇数)进行&amp;(与)操作，得到一个介于0~m(包括m)的的奇数。从而保证工作线程的WorkQueue存放在workQueues的奇数位置。</p>
+<h4 id="3-1-4-indexSeed"><a href="#3-1-4-indexSeed" class="headerlink" title="3.1.4 indexSeed"></a>3.1.4 indexSeed</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* Increment for seed generators. See class ThreadLocal for</span></span><br><span class="line"><span class="comment">* explanation.</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SEED_INCREMENT = <span class="number">0x9e3779b9</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> s = indexSeed += SEED_INCREMENT;</span><br></pre></td></tr></table></figure>
+<p>indexSeed主要是用来随机生成WorkQueue的下标。</p>
+<h3 id="3-2-WorkQueue"><a href="#3-2-WorkQueue" class="headerlink" title="3.2 WorkQueue"></a>3.2 WorkQueue</h3><p>WorkQueue是存储ForkJoinTask的容器，也是Work-Stealing依赖的数据结构。外部提交新的ForkJoinTask任务，会新建一个WorkQueue，将任务存放到WorkQueue的ForkJoinTask数组中，最后将该WorkQueue存放到ForkJoinPool对象的workQueues数组中（存放到偶数下标处），新的任务会被工作线程窃取。另外一方面工作线程中产生的子任务会存放到该线程绑定的工作队列中。下面是WorkQueue的一些关键字段。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Instance fields</span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> scanState;    <span class="comment">// versioned, &lt;0: inactive; odd:scanning</span></span><br><span class="line"><span class="keyword">int</span> stackPred;             <span class="comment">// pool stack (ctl) predecessor</span></span><br><span class="line"><span class="keyword">int</span> nsteals;               <span class="comment">// number of steals</span></span><br><span class="line"><span class="keyword">int</span> hint;                  <span class="comment">// randomization and stealer index hint</span></span><br><span class="line"><span class="keyword">int</span> config;                <span class="comment">// pool index and mode</span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> qlock;        <span class="comment">// 1: locked, &lt; 0: terminate; else 0</span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> base;         <span class="comment">// index of next slot for poll</span></span><br><span class="line"><span class="keyword">int</span> top;                   <span class="comment">// index of next slot for push</span></span><br><span class="line">ForkJoinTask&lt;?&gt;[] array;   <span class="comment">// the elements (initially unallocated)</span></span><br><span class="line"><span class="keyword">final</span> ForkJoinPool pool;   <span class="comment">// the containing pool (may be null)</span></span><br><span class="line"><span class="keyword">final</span> ForkJoinWorkerThread owner; <span class="comment">// owning thread or null if shared</span></span><br><span class="line"><span class="keyword">volatile</span> Thread parker;    <span class="comment">// == owner during call to park; else null</span></span><br><span class="line"><span class="keyword">volatile</span> ForkJoinTask&lt;?&gt; currentJoin;  <span class="comment">// task being joined in awaitJoin</span></span><br><span class="line"><span class="keyword">volatile</span> ForkJoinTask&lt;?&gt; currentSteal; <span class="comment">// mainly used by helpStealer</span></span><br></pre></td></tr></table></figure></p>
+<h4 id="3-2-1-stackPred"><a href="#3-2-1-stackPred" class="headerlink" title="3.2.1 stackPred"></a>3.2.1 stackPred</h4><p>通过ctl的ID字段与stackPred可以形成一个空闲线程列表栈，栈首存放在ID字段中，stackPred存放的是下一个空闲线程的下标，如下图所示：<br><img src="/images/idle-thread-list.jpg" alt="idle-thread-list" title="idle-thread-list"></p>
+<h4 id="3-2-2-array-base-top"><a href="#3-2-2-array-base-top" class="headerlink" title="3.2.2 array,base,top"></a>3.2.2 array,base,top</h4><p>这三个字段主要是用来存取ForkJoinTask任务的，array是一个ForkJoinTask类型的数组，以双端队列的方式提供服务；base是队列的底部，外部线程窃取任务就是从base开始；top是队列的顶部，工作队列绑定的线程push/pop都是在top上操作。这三个值的初始状态如下图所示：<br><img src="/images/workqueue-array-init.jpg" alt="workqueue-array-init" title="workqueue-array-init"></p>
+<p>array的初始大小为8192，最大为64M，base及top默认值为初始大小的一半4096，代码定义如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> INITIAL_QUEUE_CAPACITY = <span class="number">1</span> &lt;&lt; <span class="number">13</span>; <span class="comment">// 8192 数组初始大小</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> MAXIMUM_QUEUE_CAPACITY = <span class="number">1</span> &lt;&lt; <span class="number">26</span>; <span class="comment">// 64M 数组最大值</span></span><br><span class="line"></span><br><span class="line">base = top = INITIAL_QUEUE_CAPACITY &gt;&gt;&gt; <span class="number">1</span>; <span class="comment">// base及top默认值</span></span><br></pre></td></tr></table></figure>
+<p>工作窃取时的队列如下所示:<br><img src="/images/workqueue-array.jpg" alt="workqueue-array" title="workqueue-array"></p>
+<h4 id="3-2-2-currentSteal-currentJoin"><a href="#3-2-2-currentSteal-currentJoin" class="headerlink" title="3.2.2 currentSteal,currentJoin"></a>3.2.2 currentSteal,currentJoin</h4><p>currentSteal表示当前工作线程从外部工作队列中窃取到的任务，currentJoin表示当前工作线程处在join中的任务，通过这两个参数的配合使用，可以将递归类型的任务分布在多个工作线程执行，同时父级任务线程可以帮子任务或孙子任务线程执行任务，它们的关系如下图所示：<br><img src="/images/workqueue-join-steal.jpg" alt="workqueue-join-steal" title="workqueue-join-steal"></p>
+<p>wt1线程当前join的任务就是wt2线程窃取的任务，当wt1线程队列没有任务的时候，它会找到窃取它任务的wt2线程，发现wt2线程的任务队列为空，再去查找窃取wt2线程任务的wt3线程，发现wt3线程队列不为空，则窃取wt3线程工作队列base位置的任务t-1-2-1，并执行它。</p>
+<h3 id="3-3-ForkJoinWorkerThread"><a href="#3-3-ForkJoinWorkerThread" class="headerlink" title="3.3 ForkJoinWorkerThread"></a>3.3 ForkJoinWorkerThread</h3><p>ForkJoinWorkerThread对象继承自Thread对象，是任务执行的实体，继承关系如下图所示：<br><img src="/images/ForkJoinWorkerThread.jpg" alt="ForkJoinWorkerThread" title="ForkJoinWorkerThread"></p>
+<p>ForkJoinWorkerThread有内部有两个字段，主要是保存了WorkQueue及ForkJoinPool的引用，定义如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> ForkJoinPool pool;                <span class="comment">// the pool this thread works in</span></span><br><span class="line"><span class="keyword">final</span> ForkJoinPool.WorkQueue workQueue; <span class="comment">// work-stealing mechanics</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="3-4-ForkJoinTask"><a href="#3-4-ForkJoinTask" class="headerlink" title="3.4 ForkJoinTask"></a>3.4 ForkJoinTask</h3><p>ForkJoinTask封装了计算的流程，实现了fork及join方法，它是分治算法中两个核心的方法，这两个方法我们在后面的部分详细介绍。ForkJoinTask有两个子类：RecursiveTask和ForkJoinTask，它们的区别主要是计算有没有返回值。这两个子类都提供了一个抽象方法compute，由具体的业务算法来实现，主要包括子任务的划分及结果的合并逻辑，其核心思想如下所示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">if(任务很小）&#123;</span><br><span class="line">    直接计算得到结果</span><br><span class="line">&#125;else&#123;</span><br><span class="line">    分拆成N个子任务</span><br><span class="line">    调用子任务的fork()进行计算</span><br><span class="line">    调用子任务的join()合并计算结果</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="4-工作流程"><a href="#4-工作流程" class="headerlink" title="4. 工作流程"></a>4. 工作流程</h2><h3 id="4-1-提交任务"><a href="#4-1-提交任务" class="headerlink" title="4.1 提交任务"></a>4.1 提交任务</h3><p><img src="/images/invoke-task.jpg" alt="invoke-task" title="invoke-task"></p>
+<p>流程：<br>1） 提交线程</p>
+<ul>
+<li>提交线程（不是工作线程）构建ForkJoinTask，提交给ForkJoinPool执行，如通过invoke方法；</li>
+<li>如果ForkJoinPool中的工作队列数组workQueues没有创建，则创建该数组，默认为parallelism的2倍；</li>
+<li>创建工作队列q，并将该队列添加到workQueues的偶数下标处；</li>
+<li>创建工作队列q的任务数组array，默认大小了8192，base和top的初始值为数组大小的一半，即4096；</li>
+<li>提交线程会走到“激活工作线程”的流程，该流程会在后面的内容讲到。</li>
+</ul>
+<p>2）工作线程</p>
+<ul>
+<li>启动工作线程wt，扫描ForkJoinPool的workQueues数组，窃取一个ForkJoinTask去执行；</li>
+<li>随机生成一个在数组大小范围内的奇数，作为扫描的起始位置，这样可以避免多个线程同时从一个位置扫描，减少竞争；</li>
+<li>遍历工作队列workQueues数组，如果工作队列中有任务，则从其base位置处取得任务t，如果该队列中还有其它任务，则“激活工作线程”，让其它工作线程来窃取其它任务；</li>
+<li>设置工作线程wt的currentSteal（在工作队列中）的值为t，表示工作窃取了任务t；</li>
+<li>执行任务t；</li>
+<li>任务执行结束，将currentSteal设置为null；</li>
+<li>遍历工作队列workQueues数组，如果都没有找到任务，则会将当前工作线程加入到空闲线程列表中，并睡眠当前工作线程等待激活。</li>
+</ul>
+<h3 id="4-2-fork流程"><a href="#4-2-fork流程" class="headerlink" title="4.2 fork流程"></a>4.2 fork流程</h3><p><img src="/images/fork-flow.jpg" alt="fork-flow" title="fork-flow"></p>
+<p>流程：</p>
+<ul>
+<li>执行fork的线程可以是外部线程，也可以是工作线程，这两种方式处理方法不一样；</li>
+<li>判断线程的类型是否ForkJoinWorkerThread；</li>
+<li>如果是ForkJoinWorkerThread类型，则将任务提交到工作线程的工作队列中，执行“激活工作线程”流程；</li>
+<li>如果不是ForkJoinWorkerThread类型，则将任务提交到commonForkJoinPool中，与“提交任务”流程是一样的。</li>
+</ul>
+<h4 id="4-2-1-激活工作线程"><a href="#4-2-1-激活工作线程" class="headerlink" title="4.2.1 激活工作线程"></a>4.2.1 激活工作线程</h4><p><img src="/images/singal-worker.jpg" alt="singal-worker" title="singal-worker"></p>
+<p>流程：</p>
+<ul>
+<li>设置工作队列数组为ws,当前工作队列为q；</li>
+<li>判断当前活跃线程是否小于parallelim，如果已经大于parallelim，则直接退出；</li>
+<li>再判断是否有空闲线程，有空闲线程则唤醒空闲线程；</li>
+<li>如果没有空闲线程，同时线程总数小于parallelim，则创建一个新的工作线程wt来执行任务；</li>
+<li>建立线程相关的工作队列w，建立线程与队列的关联关系，并将工作队列添加到数组ws的奇数下标处；</li>
+<li>启动wt线程。</li>
+</ul>
+<h3 id="4-3-join流程"><a href="#4-3-join流程" class="headerlink" title="4.3 join流程"></a>4.3 join流程</h3><p><img src="/images/join-flow.jpg" alt="join-flow" title="join-flow"></p>
+<p>流程：</p>
+<ul>
+<li>执行join的任务为task，执行join方法的线程为wt，wt的工作队列为w；</li>
+<li>判断task任务是否已经结束，如果已经结束，直接返回结果即可；</li>
+<li>task没有结束，则判断wt的类型，是否为ForkJoinWorkerThread；</li>
+<li>如果wt不是ForkJoinWorkerThread类型的线程，则说明是外部线程执行了join方法，则阻塞该线程，等待任务结束后被唤醒；</li>
+<li>如果wt是ForkJoinWorkerThread类型的线程，则分为三种情况；</li>
+<li>1）task在w的栈首位置，则直接将task出栈，执行task即可；</li>
+<li>2）task在w中，但不在栈首位置，处于w的中间位置，则将w中的task转换为空任务（空操作，因为该任务已经被提前执行），执行task；</li>
+<li>3）task不在w中，表示该任务已经被其它工作线程窃取了，此时如果w的队列为空，则执行“工作窃取流程”，帮助窃取任务的线程，让它更快结束；</li>
+<li>在一个步骤中，如果w的队列不为空，则睡眠线程wt，在睡眠之前，作为补偿，会创建一个新的工作线程或唤醒一个空闲线程来执行任务。</li>
+</ul>
+<h4 id="4-3-1-工作窃取流程"><a href="#4-3-1-工作窃取流程" class="headerlink" title="4.3.1 工作窃取流程"></a>4.3.1 工作窃取流程</h4><p><img src="/images/work-stealing-flow.jpg" alt="work-stealing-flow" title="work-stealing-flow"></p>
+<p>流程：</p>
+<ul>
+<li>设置task为被窃取的任务，w为当前工作线程的工作队列；</li>
+<li>遍历工作队列数组，找到窃取task任务的工作线程,其工作队列为v，判断条件为工作线程的v.cureentSteal==task; </li>
+<li>判断工作队列v是否为空；</li>
+<li>如果v不为空，则从工作队列v的base位置窃取任务t，在当前线程w中执行任务t，并设置w.currentSteal=t，直到v为空；</li>
+<li>如果v为空，则说明任务被其它线程窃取，通过其currentJoin字段找到被窃取的任务，并将该字段设置为task的值，从第一步重新执行，从而帮助儿子任务、孙子任务等等后代任务快速结束。</li>
+</ul>
+<h2 id="5-实例"><a href="#5-实例" class="headerlink" title="5. 实例"></a>5. 实例</h2><p>我们通过ForkJoinPool框架实现快速排序算法，来展示将在一个线程中执行的递归算法转化为在多个线程中“分治”执行的算法。维基百科关于快速排序的定义如下：</p>
+<blockquote>
+<p>快速排序使用分治法（Divide and conquer）策略来把一个序列（list）分为较小和较大的2个子序列，然后递归地排序两个子序列。<br>步骤为：</p>
+<ul>
+<li>挑选基准值：从数列中挑出一个元素，称为“基准”（pivot），</li>
+<li>分割：重新排序数列，所有比基准值小的元素摆放在基准前面，所有比基准值大的元素摆在基准后面（与基准值相等的数可以到任何一边）。在这个分割结束之后，对基准值的排序就已经完成，</li>
+<li>递归排序子序列：递归地将小于基准值元素的子序列和大于基准值元素的子序列排序。<br>递归到最底部的判断条件是数列的大小是零或一，此时该数列显然已经有序。</li>
+</ul>
+</blockquote>
+<h3 id="5-1-递归算法"><a href="#5-1-递归算法" class="headerlink" title="5.1 递归算法"></a>5.1 递归算法</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RecursiveQuicksort</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 交换数组中两个元素</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> array 数组</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> left 左边的下标</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> right 右边的下标</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">swap</span><span class="params">(<span class="keyword">int</span>[] array, <span class="keyword">int</span> left, <span class="keyword">int</span> right)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> tmp = array[left];</span><br><span class="line">        array[left] = array[right];</span><br><span class="line">        array[right] = tmp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 分隔数组为两个子数组</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> array 数组</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> left 左边的下标</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> right 右边的下标</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 分隔的下标</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">partition</span><span class="params">(<span class="keyword">int</span>[] array, <span class="keyword">int</span> left, <span class="keyword">int</span> right)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 计算基准的下标</span></span><br><span class="line">        <span class="keyword">int</span> index = (left + right) / <span class="number">2</span>;</span><br><span class="line">        <span class="keyword">int</span> privot = array[index];</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> i = left;</span><br><span class="line">        <span class="keyword">int</span> j = right - <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        swap(array, index, right);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (i &lt; j) &#123;</span><br><span class="line">            <span class="keyword">while</span> (i &lt;= right &amp;&amp; array[i] &lt; privot) &#123;</span><br><span class="line">                i++;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">while</span> ( j &gt;= left &amp;&amp; array[j] &gt; privot) &#123;</span><br><span class="line">                j--;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (i &lt; j) &#123;</span><br><span class="line">                swap(array, i, j);</span><br><span class="line">                i++;</span><br><span class="line">                j--;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (array[i] &gt; array[right]) &#123;</span><br><span class="line">            swap(array, i, right);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> i;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 快速排序算法</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> array 数组</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> left 左边的下标</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> right 右边的下标</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">quicksort</span><span class="params">(<span class="keyword">int</span>[] array, <span class="keyword">int</span> left, <span class="keyword">int</span> right)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (left &gt;= right || array == <span class="keyword">null</span> || array.length &lt;= <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> privot = partition(array, left, right);</span><br><span class="line">        quicksort(array, left, privot - <span class="number">1</span>);</span><br><span class="line">        quicksort(array, privot + <span class="number">1</span>, right);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span>[] array = <span class="keyword">new</span> <span class="keyword">int</span>[]&#123;<span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">20</span>, <span class="number">21</span>, <span class="number">22</span>, <span class="number">30</span>, <span class="number">32</span>, <span class="number">65</span>, <span class="number">100</span>, <span class="number">102</span>&#125;;</span><br><span class="line">        <span class="keyword">new</span> RecursiveQuicksort().quicksort(array, <span class="number">0</span>, array.length - <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">        IntStream stream = IntStream.of(array);</span><br><span class="line">        stream.forEach(a -&gt; System.out.println(a));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="5-2-Fork-Join"><a href="#5-2-Fork-Join" class="headerlink" title="5.2 Fork/Join"></a>5.2 Fork/Join</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ForkJoinQuicksort</span> <span class="keyword">extends</span> <span class="title">RecursiveAction</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span>[] array;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> left;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> right;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ForkJoinQuicksort</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ForkJoinQuicksort</span><span class="params">(<span class="keyword">int</span>[] array, <span class="keyword">int</span> left, <span class="keyword">int</span> right)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>();</span><br><span class="line">        <span class="keyword">this</span>.array = array;</span><br><span class="line">        <span class="keyword">this</span>.left = left;</span><br><span class="line">        <span class="keyword">this</span>.right = right;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">compute</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (left &gt;= right || array == <span class="keyword">null</span> || array.length &lt;= <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> privot = partition(array, left, right);</span><br><span class="line">        ForkJoinQuicksort leftTask = <span class="keyword">new</span> ForkJoinQuicksort(array, left, privot - <span class="number">1</span>);</span><br><span class="line">        ForkJoinQuicksort rightTask = <span class="keyword">new</span> ForkJoinQuicksort(array, privot + <span class="number">1</span>, right);</span><br><span class="line"></span><br><span class="line">        leftTask.fork();    <span class="comment">// 提交异步子任务</span></span><br><span class="line">        rightTask.fork();</span><br><span class="line"></span><br><span class="line">        rightTask.join();   <span class="comment">// 等待任务执行结束</span></span><br><span class="line">        leftTask.join();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        ForkJoinPool pool = <span class="keyword">new</span> ForkJoinPool();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span>[] array = <span class="keyword">new</span> <span class="keyword">int</span>[]&#123;<span class="number">3</span>, <span class="number">4</span>, <span class="number">50</span>, <span class="number">23</span>, <span class="number">20</span>, <span class="number">44</span>, <span class="number">22</span>, <span class="number">51</span>, <span class="number">32</span>, <span class="number">65</span>, <span class="number">2</span>, <span class="number">5</span>&#125;;</span><br><span class="line"></span><br><span class="line">        ForkJoinQuicksort task = <span class="keyword">new</span> ForkJoinQuicksort(array, <span class="number">0</span>, array.length - <span class="number">1</span>);</span><br><span class="line">        pool.invoke(task);  <span class="comment">// 提交任务</span></span><br><span class="line"></span><br><span class="line">        IntStream stream = IntStream.of(array);</span><br><span class="line">        stream.forEach(value -&gt; System.out.println(value));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ForkJoinQuicksort主要是继承RecursiveAction（没有返回值），算法逻辑在compute方法实现即可。</p>
+<h2 id="6-总结"><a href="#6-总结" class="headerlink" title="6. 总结"></a>6. 总结</h2><p>ForkJoinPool主要是提供了“分治算法”的多线程版本，基于“Work-Stealing”，可以有效使用cpu多核的优势，提高算法的速度。ForkJoinPool 最适合的是计算密集型的任务，如果存在 I/O、线程间同步、sleep() 等会造成线程长时间阻塞的情况时，最好配合使用 ManagedBlocker。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="http://blog.dyngr.com/blog/2016/09/15/java-forkjoinpool-internals/" target="_blank" rel="noopener">1. Java 并发编程笔记：如何使用 ForkJoinPool 以及原理</a></p>
+<p><a href="https://www.jianshu.com/p/f777abb7b251" target="_blank" rel="noopener">2. jdk1.8-ForkJoin框架剖析</a></p>
+<p><a href="https://blog.hufeifei.cn/2018/09/15/Java/ForkJoinPool/" target="_blank" rel="noopener">3.ForkJoinPool入门篇</a></p>
+<p><a href="https://www.jianshu.com/p/de025df55363" target="_blank" rel="noopener">4.分析jdk-1.8-ForkJoinPool实现原理(上)</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/数据结构/" rel="tag"># 数据结构</a>
+          
+            <a href="/tags/分而治之/" rel="tag"># 分而治之</a>
+          
+            <a href="/tags/fork-join/" rel="tag"># fork/join</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/11/07/consistent-hash/" rel="next" title="一致性哈希算法">
+                <i class="fa fa-chevron-left"></i> 一致性哈希算法
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/12/08/java-stream-pipeline/" rel="prev" title="Java Stream Pipeline">
+                Java Stream Pipeline <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">118</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-核心思想"><span class="nav-number">2.</span> <span class="nav-text">2. 核心思想</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-分而治之"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 分而治之</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-工作窃取"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 工作窃取</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-数据结构"><span class="nav-number">3.</span> <span class="nav-text">3. 数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-ForkJoinPool"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 ForkJoinPool</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-1-ctl字段"><span class="nav-number">3.1.1.</span> <span class="nav-text">3.1.1 ctl字段</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-2-config"><span class="nav-number">3.1.2.</span> <span class="nav-text">3.1.2 config</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-3-workQueues"><span class="nav-number">3.1.3.</span> <span class="nav-text">3.1.3 workQueues</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-4-indexSeed"><span class="nav-number">3.1.4.</span> <span class="nav-text">3.1.4 indexSeed</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-WorkQueue"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 WorkQueue</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-1-stackPred"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 stackPred</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-2-array-base-top"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 array,base,top</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-2-currentSteal-currentJoin"><span class="nav-number">3.2.3.</span> <span class="nav-text">3.2.2 currentSteal,currentJoin</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-ForkJoinWorkerThread"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 ForkJoinWorkerThread</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-ForkJoinTask"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 ForkJoinTask</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-工作流程"><span class="nav-number">4.</span> <span class="nav-text">4. 工作流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-提交任务"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 提交任务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-fork流程"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 fork流程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-1-激活工作线程"><span class="nav-number">4.2.1.</span> <span class="nav-text">4.2.1 激活工作线程</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-join流程"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 join流程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-3-1-工作窃取流程"><span class="nav-number">4.3.1.</span> <span class="nav-text">4.3.1 工作窃取流程</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-实例"><span class="nav-number">5.</span> <span class="nav-text">5. 实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-递归算法"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 递归算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Fork-Join"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 Fork/Join</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-总结"><span class="nav-number">6.</span> <span class="nav-text">6. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
