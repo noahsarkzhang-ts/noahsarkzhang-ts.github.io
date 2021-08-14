@@ -369,6 +369,256 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/08/09/pointer-determination-and-heap-traversal/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2020/08/09/pointer-determination-and-heap-traversal/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">垃圾回收之指针判定及堆的遍历</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-08-09 11:03:19" itemprop="dateCreated datePublished" datetime="2020-08-09T11:03:19+08:00">2020-08-09</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Java基础/" itemprop="url" rel="index"><span itemprop="name">Java基础</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p> 在 <a href="https://noahsarkzhang-ts.github.io/2020/07/19/garbage-collecton/" target="_blank" rel="noopener">垃圾回收之回收算法</a> 这篇文章中预设了两个前提：</p>
+<ol>
+<li>根集合及对象中的指针集合已经得到；</li>
+<li>堆是可遍历的，即从一个对象可直接定位到下一个对象；</li>
+</ol>
+<p> 为了描述的方便，在上篇文章中直接得出了结论，而这篇文章的目的就是解释这两个问题。</p>
+<h2 id="1-指针的判定"><a href="#1-指针的判定" class="headerlink" title="1. 指针的判定"></a>1. 指针的判定</h2><p>从位置上来说，可以初步将指针分为两类：1）根上指针，主要包括寄存器、线程栈及全局变量上的指针；2）堆内指针，主要是指堆中对象内指向其它对象的指针，正常来说，根上指针需要运行时才能确定，而堆内指针对于静态类型的语言来说在编译时就可以确定。两者的关系如下图所示：<br><img src="/images/gc/pointer.jpg" alt="pointer" title="pointer"></p>
+<p>识别出堆上或根上的数据是否是指针，是垃圾回收的前提，根据识别的程度，可以将垃圾回收分为三类：</p>
+<ol>
+<li>准确式 GC (precise GC) ：能够识别根上指针和堆内指针，明确数据是否是指针类型；</li>
+<li>半保守式 GC ：也叫根上保守，它能识别堆内指针，但不能识别根上指针；</li>
+<li>保守式GC（conservative GC）: 不能完全识别指针类型，它根据一些规则来排除不是指针，这些规则包含上下边界检查（GC堆的上下界是已知的）、对齐检查（通常分配空间的时候会有对齐要求，假如说是4字节对齐，那么不能被4整除的数字就肯定不是指针）。</li>
+</ol>
+<h3 id="1-1-堆内指针的判定"><a href="#1-1-堆内指针的判定" class="headerlink" title="1.1 堆内指针的判定"></a>1.1 堆内指针的判定</h3><p>要识别出堆内的指针，一般要求对象上记录对象的类型信息，在扫描堆的时候，可以根据类型信息，来判断对象中的数据是否是指针类型。如果是JVM的话，这些数据可能在类加载器或者对象模型的模块里计算得到，不需要编译器的支持。</p>
+<h3 id="1-2-根上指针的判定"><a href="#1-2-根上指针的判定" class="headerlink" title="1.2 根上指针的判定"></a>1.2 根上指针的判定</h3><p>根上的数据，如寄存器和线程栈，是运行时产生的数据，与堆内指针的判定方法不一样，以 JVM 为例，一般有以下几个方法：</p>
+<ol>
+<li>让数据自身带上标记（tag）；</li>
+<li>让编译器为每个方法生成特别的扫描代码；</li>
+<li>从外部记录下类型信息，存成映射表。现在三种主流的高性能 JVM 实现，HotSpot、JRockit 和 J9 都是这样做的。其中，HotSpot把这样的数据结构叫做OopMap，JRockit 里叫做livemap，J9 里叫做GC map。Apache Harmony的 DRLVM 也把它叫 GCMap。</li>
+</ol>
+<p>JVM 中指令的执行会影响寄存器和线程栈中的数据，要实现映射表，需要 JVM 的解释器和 JIT 编译器都有相应的支持，由它们来生成足够的元数据（类型）提供给垃圾回收器。在HotSpot中，如果 JVM 以解释的方式运行代码，映射表（OopMap）可以由解释器来收集；如果使用 JIT 编译器编译后的代码，则需要在一些关键点插入代码来记录映射表（OopMap）。这些关键点也叫做“安全点”（safepoint），之所以要选择一些特定的位置来记录OopMap，是因为如果对每条指令（的位置）都记录 OopMap 的话，这些记录就会比较大，那么空间开销会显得不值得。选用一些比较关键的点来记录就能有效的缩小记录的数据量，这些关键点包括：</p>
+<ol>
+<li>循环的末尾；</li>
+<li>方法临返回前 / 调用方法的call指令后；</li>
+<li>可能抛异常的位置。</li>
+</ol>
+<p>所以说，垃圾回收不是在任意位置都可以进入，只能在 safepoint 处进入。</p>
+<p>平时这些 OopMap 都是压缩存在内存里，在垃圾回收的时候才按需解压出来使用，一般有两种使用方式：</p>
+<ol>
+<li>每次都遍历原始的OopMap，循环的一个个偏移量扫描过去；这种用法也叫“解释式”；</li>
+<li>为每个 OopMap生成一块定制的扫描代码，以后每次要用 OopMap 就直接执行生成的扫描代码；这种用法也叫“编译式”。</li>
+</ol>
+<p>HotSpot 是用“解释式”的方式来使用 OopMap 的，每次都循环变量里面的项来扫描对应的偏移量。</p>
+<h3 id="1-3-OopMap"><a href="#1-3-OopMap" class="headerlink" title="1.3 OopMap"></a>1.3 OopMap</h3><p>在 HotSpot 中，对象的类型信息里有记录自己的 OopMap，记录了在该类型的对象内什么偏移量上是什么类型的数据。所以从对象开始向外的扫描可以是准确的，这些数据是在类加载过程中计算得到的。另外，在“安全点”中记录了根上数据类型及偏移量，保证了根上的数据类型也是准确的，通过这两种方法，HotSpot 实现了准确式 GC 。现在我们来看下，在 JVM 中 OopMap 相关的信息。</p>
+<blockquote>
+<p>Oop maps are bit maps specifying which stack and register locations hold oops for a given pc. During GC, these locations need to be visited since they represent roots for GC. Also, if GC moves objects, pointers must be updated.</p>
+</blockquote>
+<h4 id="1-3-1-根集合上关联的OopMap"><a href="#1-3-1-根集合上关联的OopMap" class="headerlink" title="1.3.1 根集合上关联的OopMap"></a>1.3.1 根集合上关联的OopMap</h4><p>如果 JVM 使用翻译器，则在翻译器中收集 OopMap 中，如果使用 JIT 编译器，则在指定位置插入特定的代码收集 OopMap，我们以下面的代码为例，反汇编代码，分析 OopMap相关的结构。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DisAssemblyTest</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">invoke</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        String name = <span class="string">"test"</span>;</span><br><span class="line">        String newName = name.intern();</span><br><span class="line">        System.out.println(name == newName);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">new</span> DisAssemblyTest().invoke();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用如下参数，运行代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly -Xcomp </span><br><span class="line">-XX:CompileCommand=dontinline,*DisAssemblyTest.invoke </span><br><span class="line">-XX:CompileCommand=compileonly,*DisAssemblyTest.invoke</span><br></pre></td></tr></table></figure></p>
+<p>反汇编的代码如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">[Entry Point]</span><br><span class="line">[Constants]</span><br><span class="line">  # &#123;method&#125; &#123;0x0000000057252b68&#125; &apos;invoke&apos; &apos;()V&apos; in &apos;org/noahsrak/jvm/DisAssemblyTest&apos;</span><br><span class="line">  #           [sp+0x40]  (sp of caller)</span><br><span class="line">  0x000000000296baa0: mov    0x8(%rdx),%r10d</span><br><span class="line">  0x000000000296baa4: cmp    %rax,%r10</span><br><span class="line">  ...</span><br><span class="line">[Verified Entry Point]</span><br><span class="line">  0x000000000296bac0: mov    %eax,-0x6000(%rsp)</span><br><span class="line">  ...</span><br><span class="line">  0x000000000296bb9f: callq  0x00000000028a61a0  ; OopMap&#123;[32]=Oop off=260&#125;</span><br><span class="line">                                                ;*invokevirtual intern</span><br><span class="line">                                                ; - org.noahsrak.jvm.DisAssemblyTest::invoke@4 (line 12)</span><br><span class="line">                                                ;   &#123;optimized virtual_call&#125;</span><br><span class="line">  0x000000000296bba4: nopl   0x0(%rax)</span><br><span class="line">  0x000000000296bba8: jmpq   0x000000000296bd3c  ;   &#123;no_reloc&#125;</span><br><span class="line">  0x000000000296bbad: add    %al,(%rax)</span><br><span class="line">  0x000000000296bbaf: add    %al,(%rax)</span><br><span class="line">  0x000000000296bbb1: add    %ah,0xf(%rsi)</span><br><span class="line">  ...</span><br><span class="line">  0x000000000296bcb5: movabs $0xffffffffffffffff,%rax</span><br><span class="line">  0x000000000296bcbf: callq  0x00000000028a63e0  ; OopMap&#123;off=548&#125;</span><br><span class="line">                                                ;*invokevirtual println</span><br><span class="line">                                                ; - org.noahsrak.jvm.DisAssemblyTest::invoke@21 (line 13)</span><br><span class="line">                                                ;   &#123;virtual_call&#125;</span><br><span class="line">  0x000000000296bcc4: add    $0x30,%rsp</span><br><span class="line">  0x000000000296bcc8: pop    %rbp</span><br><span class="line">  0x000000000296bcc9: test   %eax,-0x253bbcf(%rip)        # 0x0000000000430100</span><br><span class="line">                                                ;   &#123;poll_return&#125;</span><br><span class="line">  0x000000000296bccf: retq   </span><br><span class="line">  0x000000000296bcd0: mov    %rsi,0x8(%rsp)</span><br><span class="line">  0x000000000296bcd5: movq   $0xffffffffffffffff,(%rsp)</span><br><span class="line">  0x000000000296bcdd: callq  0x000000000296a460  ; OopMap&#123;rdx=Oop off=578&#125;</span><br><span class="line">                                                ;*synchronization entry</span><br><span class="line">                                                ; - org.noahsrak.jvm.DisAssemblyTest::invoke@-1 (line 11)</span><br><span class="line">                                                ;   &#123;runtime_call&#125;</span><br><span class="line">  0x000000000296bce2: jmpq   0x000000000296bafb</span><br><span class="line">  0x000000000296bce7: movabs $0x0,%r8           ;   &#123;oop(NULL)&#125;</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure></p>
+<p>这段输出含有一条callq指令，用来实现对intern()方法的调用：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">OopMap&#123;[<span class="number">32</span>]=Oop off=<span class="number">260</span>&#125;</span><br></pre></td></tr></table></figure></p>
+<p>它的含义是：有一个OopMap与这条callq指令之后的一条指令（nopl）关联在一起，该指令位置上有一个活跃的引用，在离栈顶偏移量为32的位置上。</p>
+<p>OopMap记录输出的日志的构成是：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">OopMap&#123;零到多个“数据位置=内容类型”的记录 off=该OopMap关联的指令的位置&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这个例子中，[32]表示栈顶指针+偏移量0，这里就是[rsp + 32]，也就是栈顶偏移量为32的位置；右边的”=Oop”说明这个位置存着一个普通对象指针（ordinary object pointer，HotSpot 将指向GC堆中对象开头位置的指针称为Oop）</p>
+<p>off=260 就是这个 OopMap 记录关联的指令在方法的指令流中的偏移量，这个数字是十进制的。可以看到，该方法的指令流是从地址0x000000000296baa0开始的；十进制的260就是十六进制的0x104；<code>0x000000000296baa0 + 0x104 = 0x000000000296bba4</code>，正好就是例子中callq指令后的<code>nopl   0x0(%rax)</code>所在的位置。</p>
+<h4 id="1-3-2-对象上关联的OopMap"><a href="#1-3-2-对象上关联的OopMap" class="headerlink" title="1.3.2 对象上关联的OopMap"></a>1.3.2 对象上关联的OopMap</h4><p>除了在根集合上收集 OopMap，在对象上也会关联 OopMap，用来描述对象中字段的引用信息，对象中的 OopMap 存放在对象的类信息中，在类进行加载的时候进行初始化。分析 OopMap 之前，我们先了解下 java 中对象与类的关系。<br><img src="/images/gc/klass.png" alt="klass" title="klass"></p>
+<p>HotSpot中采用了 OOP-Klass 模型来描述 Java 对象与类的关系：</p>
+<ol>
+<li>OOP 或 OOPS （Ordinary Object Pointer）指的是普通对象指针，主要职能是表示对象的实例数据，存储在堆里面；</li>
+<li>Klass 用来描述对象实例的具体类型，实现语言层面的 Java 的 Class 对象，在 JVM 中用 Klass 表示，存储在元空间（方法区）。</li>
+</ol>
+<p>在 Java 中，每创建一个 Java 对象，在 JVM 内部也会相应创建一个 OOP 对象来表示 Java 对象。OOP类的共同基类型是oopDesc，它有多个子类，instanceOopDesc 表示对象，arrayOopDesc 表示数组。</p>
+<p>其中，instanceOopDesc 和 arrayOopDesc 又称为对象头，instanceOopDesc 对象头包括以下两部分信息：Mark Word 和 元数据指针(Klass*)：</p>
+<ol>
+<li>Mark Word，主要存储对象运行时记录信息，如hashcode、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等;</li>
+<li>元数据指针，用来存储 klass 指针，对应的klass 指针指向一个存储类的元数据的 Klass 对象。</li>
+</ol>
+<p>instanceOopDesc 用于表示 Java 对象，instanceKlass 用于描述 instanceOopDesc，instanceKlassKlass 用来描述 instanceKlass，为了避免无限描述下去，所以有个klassKlass作为这个描述链上的终结符。</p>
+<p>对象中的 OopMap 就是在 Klass 对象中存放，其布局如下所示：<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">InstanceKlass layout:</span><br><span class="line">  [C++ vtbl pointer           ] Klass</span><br><span class="line">  [subtype cache              ] Klass</span><br><span class="line">  [instance size              ] Klass</span><br><span class="line">  [java mirror                ] Klass</span><br><span class="line">  [super                      ] Klass</span><br><span class="line">  [access_flags               ] Klass</span><br><span class="line">  [name                       ] Klass</span><br><span class="line">  [first subklass             ] Klass</span><br><span class="line">  [next sibling               ] Klass</span><br><span class="line">  [<span class="built_in">array</span> klasses              ]</span><br><span class="line">  [methods                    ]</span><br><span class="line">  [local interfaces           ]</span><br><span class="line">  [transitive interfaces      ]</span><br><span class="line">  [fields                     ]</span><br><span class="line">  [constants                  ]</span><br><span class="line">  [<span class="class"><span class="keyword">class</span> <span class="title">loader</span>               ]</span></span><br><span class="line"><span class="class">  [<span class="title">source</span> <span class="title">file</span> <span class="title">name</span>           ]</span></span><br><span class="line"><span class="class">  [<span class="title">inner</span> <span class="title">classes</span>              ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">field</span> <span class="title">size</span>          ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">field</span> <span class="title">size</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">oop</span> <span class="title">fields</span> <span class="title">size</span>     ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">oop</span> <span class="title">maps</span> <span class="title">size</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">has</span> <span class="title">finalize</span> <span class="title">method</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">deoptimization</span> <span class="title">mark</span> <span class="title">bit</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">initialization</span> <span class="title">state</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">initializing</span> <span class="title">thread</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">Java</span> <span class="title">vtable</span> <span class="title">length</span>         ]</span></span><br><span class="line"><span class="class">  [<span class="title">oop</span> <span class="title">map</span> <span class="title">cache</span> (<span class="title">stack</span> <span class="title">maps</span>) ]</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">Java</span> <span class="title">vtable</span>             ] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">vtable_len</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span>] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">nonstatic_oop_map_size</span></span></span><br><span class="line"><span class="class">    <span class="title">The</span> <span class="title">embedded</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span> <span class="title">are</span> <span class="title">short</span> <span class="title">pairs</span> (<span class="title">offset</span>, <span class="title">length</span>)</span></span><br><span class="line"><span class="class">    <span class="title">indicating</span> <span class="title">where</span> <span class="title">oops</span> <span class="title">are</span> <span class="title">located</span> <span class="title">in</span> <span class="title">instances</span> <span class="title">of</span> <span class="title">this</span> <span class="title">klass</span>.</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">implementor</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interface</span>] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">interface</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">host</span> <span class="title">klass</span>        ] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">an</span> <span class="title">anonymous</span> <span class="title">class</span> (<span class="title">JSR</span> 292 <span class="title">enabled</span>)</span></span><br></pre></td></tr></table></figure></p>
+<p>在上面的布局中可以看到有一个 oop map cache 的字段，猜测就是用来存放 OopMap相关的信息。</p>
+<h4 id="1-3-3-小结"><a href="#1-3-3-小结" class="headerlink" title="1.3.3 小结"></a>1.3.3 小结</h4><p>用一句话来描述，OopMap 存放了堆、栈及寄存器上指针信息，借助 OopMap 不仅可以准确判定一个数值是否是指针，同时直接扫描 OopMap 集合可以加快标记的速度，从而提高垃圾回收的效率。</p>
+<h2 id="2-堆的遍历"><a href="#2-堆的遍历" class="headerlink" title="2. 堆的遍历"></a>2. 堆的遍历</h2><h3 id="2-1-内存分配"><a href="#2-1-内存分配" class="headerlink" title="2.1 内存分配"></a>2.1 内存分配</h3><p>在垃圾回收算法中，需要对堆进行清除及整理操作，这时候就需要对堆从头到尾进行遍历，遍历的方式跟内存的分配方式极为相关，我们先介绍内存的分配方式。内存的分配方式有两种基本的分配策略：1）顺序分配；2）空闲链表分配。</p>
+<ol>
+<li><p>顺序分配<br>顺序分配使用一个较大的空闲内存块，从一端根据大小顺序分配，它的数据结构比较简单，只需要一个空闲指针（free pointer）和一个界限指针（limit pointer）。根据分配的内存块大小，只要简单移动空闲指针即可。如果存在字节对齐要求，则可能需要额外增加填充字节，分配的逻辑如下图所示：<br><img src="/images/gc/sequence-allocation.jpg" alt="sequence-allocation" title="sequence-allocation"><br>顺序分配的特点是简单、高效，适用于大块内存及内存比较规整的情况下，可以在复制回收及标记整理算法中使用。使用顺序分配的堆中，要实现堆的遍历，每一个分配的内存块需要包含一个头部，描述内存块的信息，如块的大小等等。</p>
+</li>
+<li><p>空闲链表分配<br>空闲链表使用某种数据结构来记录空闲内存单元（free cell）的位置和大小，该数据结构将所有的空闲内存块串联起来进行统一分配。严格来讲，空闲内存单元的组织方式不一定是链表，也可以采用其它形式。下面是使用双向空闲链表的结构：<br><img src="/images/gc/linklist-allocation.jpg" alt="linklist-allocation" title="linklist-allocation"><br>内存块中都会有一个头部，表明块的大小及是否已分配。另外在每一个空闲块中，都会包含一个pred（前驱）和succ（后继）指针，从而可以对空闲块进行双向遍历。<br>在需要分配内存时，分配器顺序检测每一个空闲内存单元，依照某种策略选择一个并从中进行分配。其算法实现通常是顺序扫描所有空闲内存单元，直到发现第一个符合条件的内存单元为止，因而也叫做顺序适应分配。典型的算法包括首次适应（first-fit）、循环首次适配（next-fit）、最佳适应（best-fit）。<br><strong>1) 首次适应分配</strong><br>对于一次内存分配请求，首次适应分配器将在所发现的第一个满足分配要求的内存单元中进行分配。如果该内存单元的空间大于所需的空间，则会进行分裂操作，将剩余的空间归还到空闲链表中。<br><strong>2) 循环首次适应分配</strong><br>循环首次适应分配是首次适应分配算法的一个变种。在分配内存时，该算法不是每次都从空闲链表头部开始查找，而是从上次成功分配的位置开始。该算法可以有效避免对空闲链表前端较小空间内存单元的遍历。<br><strong>3) 最佳适应分配</strong><br>最佳适应分配是指在空闲链表中找到满足分配要求且空间最小的空闲内存单元，其目的在于减少空间浪费，同时避免不必要的内存单元分裂。</p>
+</li>
+</ol>
+<p>使用空闲链表分配的堆内存，进行堆的遍历相对比较容易，根据内存单元的头部信息可以快速定位到下一个内存单元。</p>
+<h3 id="2-2-JVM内存分配"><a href="#2-2-JVM内存分配" class="headerlink" title="2.2 JVM内存分配"></a>2.2 JVM内存分配</h3><h4 id="2-2-1-Java对象布局"><a href="#2-2-1-Java对象布局" class="headerlink" title="2.2.1 Java对象布局"></a>2.2.1 Java对象布局</h4><p>在分析 JVM 内存分配之前，先要理解一个 Java 对象在内存中的布局，Java 对象的布局如下所示：<br><img src="/images/gc/object-layout.jpg" alt="object-layout" title="object-layout"><br>一个Java对象在内存中包括对象头、实例数据和对齐填充3个部分：<br>1、对象头<br>Mark Word：用于存储对象自身的运行时数据，如哈希码、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等，在32位系统占4字节，在64位系统中占8字节；<br>klass：用来指向对象对应的 Klass 对象（其对应的元数据对象）的内存地址，在32位系统占4字节，在64位系统中占8字节；<br>Length：如果是数组对象，还有一个保存数组长度的空间，占4个字节；<br>2、实例数据<br>存储对象各字段的内容。<br>3、对齐填充<br>HotSpot 要求对象起始地址必须是8字节的整数，即对象的大小必须是8字节的整数倍。当对象实例数据部分没有对齐时，就需要通过对齐填充来补全。</p>
+<p>Klass指针指向的元数据对象就是我们上节讲到的InstanceKlass，它存有对象描述信息及OopMap，在垃圾回收算法中起到比较关键的作用。</p>
+<h4 id="2-2-2-内存分配"><a href="#2-2-2-内存分配" class="headerlink" title="2.2.2 内存分配"></a>2.2.2 内存分配</h4><p>在 JVM 中要分配一个对象，有两种分配方式：1）指针碰撞；2）空闲列表。这两种方式跟我们在上面讲的分配方式是类似的，可以认为这两种方式是其具体的实现。<br>1、指针碰撞<br><img src="/images/gc/bump-the-pointer.jpg" alt="bump-the-pointer" title="bump-the-pointer"></p>
+<p>使用该算法，直接根据分配对象的大小，移动空闲指针即可。在对象头中存放了对象元数据对象的指针，可以方便得到对象的大小，进而定位到下一个对象的位置，实现堆的遍历。</p>
+<p>2、空闲列表<br><img src="/images/gc/free-list-before.jpg" alt="free-list-before" title="free-list-before"><br>使用空闲列表算法，已分配的内存块和释放的内存块互相间隔，在遍历堆的时候需要跳过释放的内存块或未分配的内存块，一种可选的做法是用一个“填充对象”覆盖释放的内存块，如下图所示：<br><img src="/images/gc/free-list-after.jpg" alt="free-list-after" title="free-list-after"><br>当释放一个对象时，回收器使用一个“填充对象”覆盖其空间，而“填充对象”内部包含一个表示自身大小的域（可以当作一个字节数组），清扫器（标记-清扫算法）可以据此快速跳过空闲内存单元并找到下一个真正的对象。</p>
+<h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h2><p>在这篇文章里，我们分析了垃圾回收中的两个问题：1）指针的判定；2）堆的遍历。在 JVM 中通过维护 OopMap 解决了指针的判定，同时通过对象对象头记录的元数据，可以方便定位对象的位置，从而解决对象的遍历。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://www.iteye.com/blog/rednaxelafx-1044951" target="_blank" rel="noopener">1. 找出栈上的指针/引用</a><br><a href="https://book.douban.com/subject/26740958/" target="_blank" rel="noopener">2. 垃圾回收算法手册——自动内存管理的艺术</a><br><a href="https://book.douban.com/subject/26912767/" target="_blank" rel="noopener">3. 深入理解计算机系统</a><br><a href="https://www.iteye.com/blog/rednaxelafx-730461" target="_blank" rel="noopener">4. 借助HotSpot SA来一窥PermGen上的对象</a><br><a href="https://blog.csdn.net/jyxmust/article/details/88255594" target="_blank" rel="noopener">5. 浅谈JVM OOP-Klass二分模型</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/08/02/deep-understanding-of-high-concurrency/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2336,253 +2586,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/12/08/java-stream-pipeline/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2019/12/08/java-stream-pipeline/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">Java Stream Pipeline</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2019-12-08 20:13:30" itemprop="dateCreated datePublished" datetime="2019-12-08T20:13:30+08:00">2019-12-08</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Java基础/" itemprop="url" rel="index"><span itemprop="name">Java基础</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><blockquote>
-<p>Java 8中的Stream是对集合（Collection）对象功能的增强，它专注于对集合对象进行各种非常便利、高效的聚合操作（Aggregate operation），或者大批量数据操作(Bulk data operation)。Stream API借助于同样新出现的Lambda表达式，极大的提高编程效率和程序可读性。同时它提供串行和并行两种模式进行汇聚操作，并发模式能够充分利用多核处理器的优势，使用fork/join并行方式来拆分任务和加速处理过程<sup>1</sup>。</p>
-</blockquote>
-<p>这篇文章重点分析Stream背后的数据结构及执行流程，以下面代码为例：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">List&lt;Integer&gt; list = Arrays.asList(<span class="number">1</span>, <span class="number">5</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">8</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>);</span><br><span class="line"><span class="keyword">int</span> sum = list.stream().filter(x -&gt; x % <span class="number">2</span> == <span class="number">0</span>).sorted(Comparator.reverseOrder()).map(x -&gt; x * x).reduce((x, y) -&gt; x + y).get();</span><br></pre></td></tr></table></figure></p>
-<p>在这段执行代码之后，将会生成以下的数据结构：</p>
-<p><img src="/images/java-stream-pipeline.jpg" alt="java-stream-pipeline" title="java-stream-pipeline"></p>
-<ul>
-<li>操作的定义：对数据的一次处理，如过滤(filter)，排序(sorted)，映射(map)及规约（reduce）等等。操作有三种类型：1)Head，头结点，没有实际操作，包含了数据源；2)ReferencePipeline，中间操作，代表了一次数据处理；3)TerminalOp，结束操作，代表处理的结束。</li>
-<li>ReferencePipeline对象代表了一次中间操作，描述了操作的静态信息，Stream执行的一次中间操作之后都会生成一个ReferencePipeline对象(StatelessOp及StatefulOp)，这些对象在最终操作（reduce）之前会形成一个双向链表，此时只是建立操作的前后关系，还未执行真正的操作。</li>
-<li>Sink对象代表了真正的所要执行的操作，执行terminal操作(如reduce)之后，将会从后往前生成一个”操作序列”，如上图所示的wrapedSink对象。每一个ReferencePipeline对象对应一个Sink对象，代表了ReferencePipeline所要执行的操作，前一个Sink对象会持有下一个操作的Sink对象，形成一个单向链表。</li>
-<li>Sink对象有四个基本方法：1）begin()，操作的开始；2）end()，代表操作结束；3）accept(E e)，真正的操作,如filter,sorted,map及reduce等数据处理；4）cancellationRequested，是否取消操作，用于断路操作，如anyMatch表示找到第一个匹配的对象，后面的数据不用再执行，直接退出；Sink对象根据需要实现这四个方法，来满足不同的数据处理需求。</li>
-<li>ReferencePipeline对象有两种不同的类型：StatelessOp（无状态操作）和StatefulOp（有状态操作），这两种类型的区别就在于数据元素之间是否有依赖，如排序(sotred)操作，是一个有状态操作，需要知道所有数据元素才能进行排序，它会临时生成一个列表存放所有的数据，排序之后，重新迭代处理后面的操作，而对于无状态操作，前一个数据元素的操作与后一个数据元素操作没有关系，可以直接将多个无状态操作合并起来，即前一个操作结束之后，可将操作结果直接传给下一个操作（downstream）,在一次迭代中将所有操作执行完毕，这就是Stream处理数据高效的原因。相对而言，有状态操作会存储临时结果，重起一次迭代，而无状态操作一次迭代即可完成所有操作，如上图所示，因为有sorted操作，所有的数据处理需要两次迭代完成。</li>
-<li>上图中的执行流程是一个没有短路操作（后面会讲短路操作的流程）的流程，可以看到，主要分为三个步骤：1）执行begin()，进行初始化操作；2）执行accept()，数据处理；3）执行end()操作，进行数据收尾操作，这三个操作会递归调用，直到碰到有状态操作或结束操作才结束，如果碰到的是有状态操作，如sorted，前一个迭代的end操作将会触发下一个迭代的开始。</li>
-</ul>
-<p>在文章开始前，先讲述下几个重要概念：<br>1、Stream</p>
-<blockquote>
-<p>A sequence of elements supporting sequential and parallel aggregate operations.  The following example illustrates an aggregate operation using<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> sum = widgets.stream()</span><br><span class="line">                   .filter(w -&gt; w.getColor() == RED)</span><br><span class="line">                   .mapToInt(w -&gt; w.getWeight())</span><br><span class="line">                   .sum();</span><br></pre></td></tr></table></figure></p>
-</blockquote>
-<p>2、AbstractPipeline</p>
-<blockquote>
-<p>Abstract base class for “pipeline” classes, which are the core implementations of the Stream interface and its primitive specializations. Manages construction and evaluation of stream pipelines.<br>An AbstractPipelinere presents an initial portion of a stream pipeline, encapsulating a stream source and zero or more intermediate operations. The individual AbstractPipeline objects are often referred to as stages, where each stage describes either the stream source or an intermediate operation.</p>
-</blockquote>
-<p>3、Sink</p>
-<blockquote>
-<p>An extension of Consumer used to conduct values through the stages of a stream pipeline, with additional methods to manage size information, control flow, etc.  Before calling the  accept() method on a code Sink for the first time, you must first call the  begin() method to inform it that data is coming (optionally informing the sink how much data is coming), and after all data has been sent, you must call the end() method.  After calling end(), you should not call accept() without again calling begin(). Sink also offers a mechanism by which the sink can cooperatively signal that it does not wish to receive any more data (the cancellationRequested() method), which a source can poll before sending more data to the Sink.</p>
-</blockquote>
-<h2 id="2-AbstractPipeline"><a href="#2-AbstractPipeline" class="headerlink" title="2. AbstractPipeline"></a>2. AbstractPipeline</h2><p>在Stream中执行的一个数据处理都对应一个操作，最终以双向链表的形式组织起来，而操作的类型分为三种：1）head头结点；2）ReferencePipeline，中间操作；3）TerminalOp，结束操作，实际上head头结点也是ReferencePipeline类型，只是它有点特殊，它没有实际的操作，所以单独把它拿出来。ReferencePipeline中间操作分为两种操作：1）有状态操作(StatefulOp)；2）无状态操作（StatelessOp）,两者的操作在上面内容已经讲述过，在这里不再赘述。TerminalOp结束操作也分为两种操作：1）非短路操作；2）短路操作，这两者之间的区别在短路操作会终止后续的操作，提前返回，关于短路操作在后面的内容重点讲述。这几种分类如下图所示：</p>
-<table width="600"><tr><td colspan="3" style="text-align:center" border="0">Stream操作分类</td></tr><tr><td rowspan="2" border="1">中间操作(Intermediate operations)</td><td>无状态(Stateless)</td><td>unordered() filter() map() mapToInt() mapToLong() mapToDouble() flatMap() flatMapToInt() flatMapToLong() flatMapToDouble() peek()</td></tr><tr><td>有状态(Stateful)</td><td>distinct() sorted() sorted() limit() skip() </td></tr><tr><td rowspan="2" border="1">结束操作(Terminal operations)</td><td>非短路操作</td><td>forEach() forEachOrdered() toArray() reduce() collect() max() min() count()</td></tr><tr><td>短路操作(short-circuiting)</td><td>anyMatch() allMatch() noneMatch() findFirst() findAny()</td></tr></table>
-
-<p>中间操作的类图如下所示：<br><img src="/images/ReferencePipeline.jpg" alt="ReferencePipeline" title="ReferencePipeline"><br>Head,Stateful及StatelessOp都继承自ReferencePipeline类，Head相对其它两种类型，没有实际的操作，只是包含了一个数据源。另外，这三个类也实现了Stream接口，每一个操作都可以继续调用下一个操作，实现链式调用。<br>ReferencePipeline类，有两个比较重要的作用：1）将中间操作以双向链表的形式组织起来，方便后面构建”操作序列”（Sink对象链）；2）构建当前操作的Sink对象，该对象是包含了真正的处理流程。以map方法为例介绍这两个作用：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> &lt;R&gt; <span class="function">Stream&lt;R&gt; <span class="title">map</span><span class="params">(Function&lt;? <span class="keyword">super</span> P_OUT, ? extends R&gt; mapper)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(mapper);</span><br><span class="line">	</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> StatelessOp&lt;P_OUT, R&gt;(<span class="keyword">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function">Sink&lt;P_OUT&gt; <span class="title">opWrapSink</span><span class="params">(<span class="keyword">int</span> flags, Sink&lt;R&gt; sink)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Sink.ChainedReference&lt;P_OUT, R&gt;(sink) &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(P_OUT u)</span> </span>&#123;</span><br><span class="line">                    downstream.accept(mapper.apply(u));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>在map方法调用中，会生成一个StatelessOp对象，在构造函数中将当前的Pipeline对象（this对象）作为参数传递给新生成的对象，该StatelessOp对象继承了AbstractPipeline抽象类，在AbstractPipeline类中通过nextStage、previousStage两个字段将前后两个操作建立起前后的关联关系，代码如下图所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> previousStage 前一个阶段的操作,就是构建函数中传入的this对象</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> opFlags the operation flags for the new stage 操作的标志</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">AbstractPipeline(AbstractPipeline&lt;?, E_IN, ?&gt; previousStage, <span class="keyword">int</span> opFlags) &#123;</span><br><span class="line">    <span class="keyword">if</span> (previousStage.linkedOrConsumed)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(MSG_STREAM_LINKED);</span><br><span class="line">    previousStage.linkedOrConsumed = <span class="keyword">true</span>;</span><br><span class="line">    <span class="comment">// 上一个阶段(前一个操作)的nextStage指向当前的StatelessOp对象</span></span><br><span class="line">    previousStage.nextStage = <span class="keyword">this</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 当前对象的previousStage指向上一个阶段的对象(前一个操作)</span></span><br><span class="line">    <span class="keyword">this</span>.previousStage = previousStage;</span><br><span class="line">    <span class="keyword">this</span>.sourceOrOpFlags = opFlags &amp; StreamOpFlag.OP_MASK;</span><br><span class="line">    <span class="keyword">this</span>.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);</span><br><span class="line">    <span class="keyword">this</span>.sourceStage = previousStage.sourceStage;</span><br><span class="line">    <span class="keyword">if</span> (opIsStateful())</span><br><span class="line">        sourceStage.sourceAnyStateful = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">this</span>.depth = previousStage.depth + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>另外，在StatelessOp对象的opWrapSink方法中，构建了一个Sink.ChainedReference对象，该对象包含了map的处理逻辑。这个方法相对比较简单，数据用mapper方法处理完之后，将结果传递给下个操作(downstream)处理，其中mapper对应是Lamdba表达式：x -&gt; x * x。</p>
-<p>TerminalOp终止操作的类图如下所示：<br><img src="/images/TerminalOp.jpg" alt="TerminalOp" title="TerminalOp"><br>TerminalOp有四种类型，分别是：1）ForEachOp；2）FindOp；3）MatchOp；4）ReduceOp。表格中提到的所有终止操作都是基于这四种类型来实现的，另外终止类型的操作并没有加入到由ReferencePipeline组成的双向链表中。<br>最后的终止操作是通过调用诸如forEach(), reduce(), collect(), anyMatch()等这些方法来触发的，这些方法最终会调用ReferencePipeline类中的evaluate()方法来完成操作，在evaluate()方法，生成一个TerminalOp对象，且封装了一个统一的处理流程，现在来看下这个evaluate()方法，其流程如下：<br><img src="/images/stream-evaluate.jpg" alt="stream-evaluate" title="stream-evaluate"></p>
-<ul>
-<li>根据不同的终止操作生成不同的TerminalOp对象，可以是上面四种类型中的任意一种；</li>
-<li>构建数据源Spliterator；</li>
-<li>执行evaluate()方法的中间操作ReferencePipeline对象合并TerminalOp对象的操作标志位，如是否短路操作等等；</li>
-<li>判断执行的模式，并发模式暂不分析，我们主要分析Sequential模式；</li>
-<li>从TerminalOp对象中构建TerminalSink对象；</li>
-<li>从后往前遍历中间操作（ReferencePipeline）对象，构建每一个中间操作对应的Sink对象，并将这些Sink对象从前往后生成链表，TerminalSink对象在链尾；</li>
-<li>根据操作标志位判来触发真正的动作，如短路操作，或者非短路操作，该部分内容在后面讲述；</li>
-</ul>
-<p>在这里重点看一个步骤：包装Sink对象。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> sink TerminalSink对象,链尾对象</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> 链首Sink对象</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">final</span> &lt;P_IN&gt; <span class="function">Sink&lt;P_IN&gt; <span class="title">wrapSink</span><span class="params">(Sink&lt;E_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(sink);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 遍历所有的中间操作</span></span><br><span class="line">    <span class="keyword">for</span> ( <span class="meta">@SuppressWarnings</span>(<span class="string">"rawtypes"</span>) AbstractPipeline p=AbstractPipeline.<span class="keyword">this</span>; p.depth &gt; <span class="number">0</span>; p=p.previousStage) &#123;</span><br><span class="line">        sink = p.opWrapSink(p.previousStage.combinedFlags, sink);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> (Sink&lt;P_IN&gt;) sink;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>通过wrapSink方法，从后往前遍历所有的AbstractPipeline对象，生成每个操作对应的Sink对象，并将后一个Sink对象作为参数传入，赋值给dowonstream字段，从而将所有的Sink对象串连起来，通过链首的Sink对象访问所有的Sink对象。</p>
-<h2 id="3-Sink"><a href="#3-Sink" class="headerlink" title="3. Sink"></a>3. Sink</h2><p>Sink对象是扩展自Comsumer接口，主要用来处理数据，除了Comsumer接口的accept()方法，还增加了三个方法：begin(),end()及cancellationRequested()。在调用accept()方法之前，先调用begin(int size)方法，告之数据源的大小，调用accept()方法之后，再调用end()方法，通知数据处理已经结束，如果有短路操作（中止后续数据的处理），必须先调用cancellationRequested()方法，这两种处理模式如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 非短路操作</span></span><br><span class="line"><span class="keyword">if</span> (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) &#123;</span><br><span class="line">    <span class="comment">// 1、调用begin()方法，告之数据源大小；</span></span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    <span class="comment">// 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据；</span></span><br><span class="line">    spliterator.forEachRemaining(wrappedSink);</span><br><span class="line">    <span class="comment">// 3、处理完数据之后，调用end()方法</span></span><br><span class="line">    wrappedSink.end();</span><br><span class="line">	</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;  <span class="comment">// 短路操作</span></span><br><span class="line">    <span class="comment">// 调用begin()方法，告之数据源大小；</span></span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    <span class="comment">// 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据，</span></span><br><span class="line">    <span class="comment">// 如果上一个元素设置了“短路”标志，说明数据已经完毕，则退出遍历；</span></span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">    &#125; <span class="keyword">while</span> (!wrappedSink.cancellationRequested() &amp;&amp; spliterator.tryAdvance(wrappedSink));</span><br><span class="line">    <span class="comment">// 3、处理完数据之后，调用end()方法</span></span><br><span class="line">    wrappedSink.end();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>从上面的代码可以看出，所有的操作都是在一次遍历中完成的，对数据的处理操作已经按照书写顺序串连起来，即Sink对象链表，数据源中的每一个元素依次传递给Sink对象，被Sink对象的accept()方法处理，如果是短路操作，则需要设置”短路”标志，在处理下一个数据元素时，调用cancellationRequested()方法便可知道数据已经处理完毕，退出遍历返回即可。这里有两个问题，1）“短路”标志是如何设置的？2）数据的处理是否只需要一次遍历？<br>1) “短路”标志设置<br>在两个地方需要判断“短路”标志，一个是根据“短路”标志，是否执行“短路”操作，另外一个是在遍历数据源的过程中，判断数据处理是否已经被取消，需要中止操作，以anyMatch()方法为例。<br><img src="/images/short_circuit-1.jpg" alt="short_circuit-1" title="short_circuit-1"><br>如上图所示，判断“短路”的逻辑如下：</p>
-<ul>
-<li><p>在短路操作的TerminalOp对象中设置短路的标志位；</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MatchOp.getOpFlags()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getOpFlags</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> StreamOpFlag.IS_SHORT_CIRCUIT | StreamOpFlag.NOT_ORDERED;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>将TerminalOp对象中短路标志位合并到最后一个ReferencePipeline对象的combinedFlags中；</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractPipeline.sourceSpliterator()</span></span><br><span class="line"><span class="keyword">if</span> (terminalFlags != <span class="number">0</span>)  &#123;</span><br><span class="line">    <span class="comment">// Apply flags from the terminal operation to last pipeline stage</span></span><br><span class="line">    combinedFlags = StreamOpFlag.combineOpFlags(terminalFlags, combinedFlags);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>根据combinedFlags判断是否执行短路操作；</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractPipeline.copyInto()</span></span><br><span class="line"><span class="keyword">if</span> (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) &#123;</span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    spliterator.forEachRemaining(wrappedSink);</span><br><span class="line">    wrappedSink.end();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123;</span><br><span class="line">    copyIntoWithCancel(wrappedSink, spliterator);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>中止操作的逻辑如下：<br><img src="/images/short_circuit-2.jpg" alt="short_circuit-2" title="short_circuit-2"><br>在MatchSink中一个stop的字段，如果找到匹配的数据，则设置stop=true，在进行下一个数据匹配之前递归调用cancellationRequested()，取得stop的值，从而中止操作。</p>
-<ul>
-<li><p>找到匹配的数据并设置stop；</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MatchSink.accept()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(T t)</span> </span>&#123;</span><br><span class="line">	<span class="comment">// 条件匹配</span></span><br><span class="line">    <span class="keyword">if</span> (!stop &amp;&amp; predicate.test(t) == matchKind.stopOnPredicateMatches) &#123;</span><br><span class="line">        stop = <span class="keyword">true</span>; <span class="comment">// 设置stop</span></span><br><span class="line">        value = matchKind.shortCircuitResult;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>对下一个数据元素进行数据处理前递归调用cancellationRequested()方法，调用到TerminalSink，结束调用。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReferencePipeline.forEachWithCancel()</span></span><br><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">forEachWithCancel</span><span class="params">(Spliterator&lt;P_OUT&gt; spliterator, Sink&lt;P_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 处理下一个数据之前调用cancellationRequested()方法</span></span><br><span class="line">    <span class="keyword">do</span> &#123; &#125; <span class="keyword">while</span> (!sink.cancellationRequested() &amp;&amp; spliterator.tryAdvance(sink));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ChainedReference.cancellationRequested()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancellationRequested</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 递归调用一个Sink的cancellationRequested()方法</span></span><br><span class="line">    <span class="keyword">return</span> downstream.cancellationRequested();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// BooleanTerminalSink.cancellationRequested</span></span><br><span class="line"><span class="comment">// 调用到TerminalSink，结束调用</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancellationRequested</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> stop;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>2）遍历次数<br>中间操作ReferencePipeline对象分为两种类型：1）无状态操作StatelessOp；2）有状态操作StatefulOp。这两种操作的区别在于：在无状态操作StatelessOp中数据元素没有依赖关系，每一个数据元素可以独立处理，而有状态操作StatefulOp中数据元素的处理依赖其它元素，每一个元素不能独立处理，以filter()和sorted()两个方法为例。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReferencePipeline.filter()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Stream&lt;P_OUT&gt; <span class="title">filter</span><span class="params">(Predicate&lt;? <span class="keyword">super</span> P_OUT&gt; predicate)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(predicate);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> StatelessOp&lt;P_OUT, P_OUT&gt;(<span class="keyword">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                 StreamOpFlag.NOT_SIZED) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function">Sink&lt;P_OUT&gt; <span class="title">opWrapSink</span><span class="params">(<span class="keyword">int</span> flags, Sink&lt;P_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Sink.ChainedReference&lt;P_OUT, P_OUT&gt;(sink) &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">begin</span><span class="params">(<span class="keyword">long</span> size)</span> </span>&#123;</span><br><span class="line">                    downstream.begin(-<span class="number">1</span>);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(P_OUT u)</span> </span>&#123;</span><br><span class="line">					<span class="comment">// 如果满足过滤条件，则传递给下一个Sink处理</span></span><br><span class="line">                    <span class="keyword">if</span> (predicate.test(u))</span><br><span class="line">                        downstream.accept(u);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>在StatelessOp操作中，经过本阶段的Sink处理完毕之后，会将数据元素继续传递给下一个Sink对象处理。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sorted()方法对应的Sink对象</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">RefSortingSink</span>&lt;<span class="title">T</span>&gt; <span class="keyword">extends</span> <span class="title">AbstractRefSortingSink</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">    <span class="comment">// 1. 临时生成一个列表对象</span></span><br><span class="line">    <span class="keyword">private</span> ArrayList&lt;T&gt; list;</span><br><span class="line"></span><br><span class="line">    RefSortingSink(Sink&lt;? <span class="keyword">super</span> T&gt; sink, Comparator&lt;? <span class="keyword">super</span> T&gt; comparator) &#123;</span><br><span class="line">        <span class="keyword">super</span>(sink, comparator);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">begin</span><span class="params">(<span class="keyword">long</span> size)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (size &gt;= Nodes.MAX_ARRAY_SIZE)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(Nodes.BAD_SIZE);</span><br><span class="line">            </span><br><span class="line">        <span class="comment">// 2. 列表对象初始化，一般生成不限长度的列表</span></span><br><span class="line">        list = (size &gt;= <span class="number">0</span>) ? <span class="keyword">new</span> ArrayList&lt;T&gt;((<span class="keyword">int</span>) size) : <span class="keyword">new</span> ArrayList&lt;T&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">end</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 4. 进行排序操作</span></span><br><span class="line">        list.sort(comparator);</span><br><span class="line">	</span><br><span class="line">        <span class="comment">// 5. 重新遍历数据列表，处理后续的操作</span></span><br><span class="line">        downstream.begin(list.size()); <span class="comment">// 通知数据处理开始</span></span><br><span class="line">        <span class="comment">// 6. 判断是否进行“短路”操作</span></span><br><span class="line">        <span class="keyword">if</span> (!cancellationWasRequested) &#123;</span><br><span class="line">            <span class="comment">// 7. 执行非短路操作</span></span><br><span class="line">            list.forEach(downstream::accept);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 8. 执行短路操作</span></span><br><span class="line">            <span class="keyword">for</span> (T t : list) &#123;</span><br><span class="line">                <span class="keyword">if</span> (downstream.cancellationRequested()) <span class="keyword">break</span>;</span><br><span class="line">                downstream.accept(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 9. 通知数据处理结束</span></span><br><span class="line">        downstream.end();</span><br><span class="line">        list = <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(T t)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 3. 将数据元素添加到列表中</span></span><br><span class="line">        list.add(t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>对于排序操作而言，需要知道所有的元素才能进行，所以它临时生成了一个新的列表对象，存储完所有的数据元素之后，再进行排序操作。最后遍历列表对象，重新执行短路/非短路操作，完成剩余的操作。</p>
-<p>总上所述，在操作序列中只有无状态操作的话，只要遍历一次即可执行完所有操作，如果包含有状态操作，则每一个有状态操作者需要增加一次遍历。</p>
-<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>通过上面的分析，Stream的实现有以下三个特点：1）通过链表的方式将操作序列串连起来，数据元素在这个链表中依次流动（传递），可以有效减少数据遍历的次数；2）定义了一套“协议”，规范了前后两个不同操作之间的交互方式，遵循了这套协议，不同操作可按不同顺序组合，完成不同的功能；3）借助Fork/Join框架，数据源可并发执行数据处理，显著提高数据处理的效率。</p>
-<p><strong>参考：</strong></p>
-<hr>
-<p><a href="https://www.ibm.com/developerworks/cn/java/j-lo-java8streamapi/index.html" target="_blank" rel="noopener">1. Java 8 中的 Streams API 详解</a></p>
-<p><a href="https://www.cnblogs.com/CarpenterLee/p/6637118.html" target="_blank" rel="noopener">2. 深入理解Java Stream流水线</a></p>
-
-          
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2630,7 +2633,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-count">34</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -2928,7 +2931,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">118</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">120</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>

@@ -369,6 +369,253 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/12/08/java-stream-pipeline/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/12/08/java-stream-pipeline/" class="post-title-link" itemprop="http://yoursite.com/page/3/index.html">Java Stream Pipeline</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-12-08 20:13:30" itemprop="dateCreated datePublished" datetime="2019-12-08T20:13:30+08:00">2019-12-08</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Java基础/" itemprop="url" rel="index"><span itemprop="name">Java基础</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><blockquote>
+<p>Java 8中的Stream是对集合（Collection）对象功能的增强，它专注于对集合对象进行各种非常便利、高效的聚合操作（Aggregate operation），或者大批量数据操作(Bulk data operation)。Stream API借助于同样新出现的Lambda表达式，极大的提高编程效率和程序可读性。同时它提供串行和并行两种模式进行汇聚操作，并发模式能够充分利用多核处理器的优势，使用fork/join并行方式来拆分任务和加速处理过程<sup>1</sup>。</p>
+</blockquote>
+<p>这篇文章重点分析Stream背后的数据结构及执行流程，以下面代码为例：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">List&lt;Integer&gt; list = Arrays.asList(<span class="number">1</span>, <span class="number">5</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">8</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>);</span><br><span class="line"><span class="keyword">int</span> sum = list.stream().filter(x -&gt; x % <span class="number">2</span> == <span class="number">0</span>).sorted(Comparator.reverseOrder()).map(x -&gt; x * x).reduce((x, y) -&gt; x + y).get();</span><br></pre></td></tr></table></figure></p>
+<p>在这段执行代码之后，将会生成以下的数据结构：</p>
+<p><img src="/images/java-stream-pipeline.jpg" alt="java-stream-pipeline" title="java-stream-pipeline"></p>
+<ul>
+<li>操作的定义：对数据的一次处理，如过滤(filter)，排序(sorted)，映射(map)及规约（reduce）等等。操作有三种类型：1)Head，头结点，没有实际操作，包含了数据源；2)ReferencePipeline，中间操作，代表了一次数据处理；3)TerminalOp，结束操作，代表处理的结束。</li>
+<li>ReferencePipeline对象代表了一次中间操作，描述了操作的静态信息，Stream执行的一次中间操作之后都会生成一个ReferencePipeline对象(StatelessOp及StatefulOp)，这些对象在最终操作（reduce）之前会形成一个双向链表，此时只是建立操作的前后关系，还未执行真正的操作。</li>
+<li>Sink对象代表了真正的所要执行的操作，执行terminal操作(如reduce)之后，将会从后往前生成一个”操作序列”，如上图所示的wrapedSink对象。每一个ReferencePipeline对象对应一个Sink对象，代表了ReferencePipeline所要执行的操作，前一个Sink对象会持有下一个操作的Sink对象，形成一个单向链表。</li>
+<li>Sink对象有四个基本方法：1）begin()，操作的开始；2）end()，代表操作结束；3）accept(E e)，真正的操作,如filter,sorted,map及reduce等数据处理；4）cancellationRequested，是否取消操作，用于断路操作，如anyMatch表示找到第一个匹配的对象，后面的数据不用再执行，直接退出；Sink对象根据需要实现这四个方法，来满足不同的数据处理需求。</li>
+<li>ReferencePipeline对象有两种不同的类型：StatelessOp（无状态操作）和StatefulOp（有状态操作），这两种类型的区别就在于数据元素之间是否有依赖，如排序(sotred)操作，是一个有状态操作，需要知道所有数据元素才能进行排序，它会临时生成一个列表存放所有的数据，排序之后，重新迭代处理后面的操作，而对于无状态操作，前一个数据元素的操作与后一个数据元素操作没有关系，可以直接将多个无状态操作合并起来，即前一个操作结束之后，可将操作结果直接传给下一个操作（downstream）,在一次迭代中将所有操作执行完毕，这就是Stream处理数据高效的原因。相对而言，有状态操作会存储临时结果，重起一次迭代，而无状态操作一次迭代即可完成所有操作，如上图所示，因为有sorted操作，所有的数据处理需要两次迭代完成。</li>
+<li>上图中的执行流程是一个没有短路操作（后面会讲短路操作的流程）的流程，可以看到，主要分为三个步骤：1）执行begin()，进行初始化操作；2）执行accept()，数据处理；3）执行end()操作，进行数据收尾操作，这三个操作会递归调用，直到碰到有状态操作或结束操作才结束，如果碰到的是有状态操作，如sorted，前一个迭代的end操作将会触发下一个迭代的开始。</li>
+</ul>
+<p>在文章开始前，先讲述下几个重要概念：<br>1、Stream</p>
+<blockquote>
+<p>A sequence of elements supporting sequential and parallel aggregate operations.  The following example illustrates an aggregate operation using<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> sum = widgets.stream()</span><br><span class="line">                   .filter(w -&gt; w.getColor() == RED)</span><br><span class="line">                   .mapToInt(w -&gt; w.getWeight())</span><br><span class="line">                   .sum();</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<p>2、AbstractPipeline</p>
+<blockquote>
+<p>Abstract base class for “pipeline” classes, which are the core implementations of the Stream interface and its primitive specializations. Manages construction and evaluation of stream pipelines.<br>An AbstractPipelinere presents an initial portion of a stream pipeline, encapsulating a stream source and zero or more intermediate operations. The individual AbstractPipeline objects are often referred to as stages, where each stage describes either the stream source or an intermediate operation.</p>
+</blockquote>
+<p>3、Sink</p>
+<blockquote>
+<p>An extension of Consumer used to conduct values through the stages of a stream pipeline, with additional methods to manage size information, control flow, etc.  Before calling the  accept() method on a code Sink for the first time, you must first call the  begin() method to inform it that data is coming (optionally informing the sink how much data is coming), and after all data has been sent, you must call the end() method.  After calling end(), you should not call accept() without again calling begin(). Sink also offers a mechanism by which the sink can cooperatively signal that it does not wish to receive any more data (the cancellationRequested() method), which a source can poll before sending more data to the Sink.</p>
+</blockquote>
+<h2 id="2-AbstractPipeline"><a href="#2-AbstractPipeline" class="headerlink" title="2. AbstractPipeline"></a>2. AbstractPipeline</h2><p>在Stream中执行的一个数据处理都对应一个操作，最终以双向链表的形式组织起来，而操作的类型分为三种：1）head头结点；2）ReferencePipeline，中间操作；3）TerminalOp，结束操作，实际上head头结点也是ReferencePipeline类型，只是它有点特殊，它没有实际的操作，所以单独把它拿出来。ReferencePipeline中间操作分为两种操作：1）有状态操作(StatefulOp)；2）无状态操作（StatelessOp）,两者的操作在上面内容已经讲述过，在这里不再赘述。TerminalOp结束操作也分为两种操作：1）非短路操作；2）短路操作，这两者之间的区别在短路操作会终止后续的操作，提前返回，关于短路操作在后面的内容重点讲述。这几种分类如下图所示：</p>
+<table width="600"><tr><td colspan="3" style="text-align:center" border="0">Stream操作分类</td></tr><tr><td rowspan="2" border="1">中间操作(Intermediate operations)</td><td>无状态(Stateless)</td><td>unordered() filter() map() mapToInt() mapToLong() mapToDouble() flatMap() flatMapToInt() flatMapToLong() flatMapToDouble() peek()</td></tr><tr><td>有状态(Stateful)</td><td>distinct() sorted() sorted() limit() skip() </td></tr><tr><td rowspan="2" border="1">结束操作(Terminal operations)</td><td>非短路操作</td><td>forEach() forEachOrdered() toArray() reduce() collect() max() min() count()</td></tr><tr><td>短路操作(short-circuiting)</td><td>anyMatch() allMatch() noneMatch() findFirst() findAny()</td></tr></table>
+
+<p>中间操作的类图如下所示：<br><img src="/images/ReferencePipeline.jpg" alt="ReferencePipeline" title="ReferencePipeline"><br>Head,Stateful及StatelessOp都继承自ReferencePipeline类，Head相对其它两种类型，没有实际的操作，只是包含了一个数据源。另外，这三个类也实现了Stream接口，每一个操作都可以继续调用下一个操作，实现链式调用。<br>ReferencePipeline类，有两个比较重要的作用：1）将中间操作以双向链表的形式组织起来，方便后面构建”操作序列”（Sink对象链）；2）构建当前操作的Sink对象，该对象是包含了真正的处理流程。以map方法为例介绍这两个作用：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> &lt;R&gt; <span class="function">Stream&lt;R&gt; <span class="title">map</span><span class="params">(Function&lt;? <span class="keyword">super</span> P_OUT, ? extends R&gt; mapper)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(mapper);</span><br><span class="line">	</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> StatelessOp&lt;P_OUT, R&gt;(<span class="keyword">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function">Sink&lt;P_OUT&gt; <span class="title">opWrapSink</span><span class="params">(<span class="keyword">int</span> flags, Sink&lt;R&gt; sink)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Sink.ChainedReference&lt;P_OUT, R&gt;(sink) &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(P_OUT u)</span> </span>&#123;</span><br><span class="line">                    downstream.accept(mapper.apply(u));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在map方法调用中，会生成一个StatelessOp对象，在构造函数中将当前的Pipeline对象（this对象）作为参数传递给新生成的对象，该StatelessOp对象继承了AbstractPipeline抽象类，在AbstractPipeline类中通过nextStage、previousStage两个字段将前后两个操作建立起前后的关联关系，代码如下图所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> previousStage 前一个阶段的操作,就是构建函数中传入的this对象</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> opFlags the operation flags for the new stage 操作的标志</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">AbstractPipeline(AbstractPipeline&lt;?, E_IN, ?&gt; previousStage, <span class="keyword">int</span> opFlags) &#123;</span><br><span class="line">    <span class="keyword">if</span> (previousStage.linkedOrConsumed)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(MSG_STREAM_LINKED);</span><br><span class="line">    previousStage.linkedOrConsumed = <span class="keyword">true</span>;</span><br><span class="line">    <span class="comment">// 上一个阶段(前一个操作)的nextStage指向当前的StatelessOp对象</span></span><br><span class="line">    previousStage.nextStage = <span class="keyword">this</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 当前对象的previousStage指向上一个阶段的对象(前一个操作)</span></span><br><span class="line">    <span class="keyword">this</span>.previousStage = previousStage;</span><br><span class="line">    <span class="keyword">this</span>.sourceOrOpFlags = opFlags &amp; StreamOpFlag.OP_MASK;</span><br><span class="line">    <span class="keyword">this</span>.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);</span><br><span class="line">    <span class="keyword">this</span>.sourceStage = previousStage.sourceStage;</span><br><span class="line">    <span class="keyword">if</span> (opIsStateful())</span><br><span class="line">        sourceStage.sourceAnyStateful = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">this</span>.depth = previousStage.depth + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>另外，在StatelessOp对象的opWrapSink方法中，构建了一个Sink.ChainedReference对象，该对象包含了map的处理逻辑。这个方法相对比较简单，数据用mapper方法处理完之后，将结果传递给下个操作(downstream)处理，其中mapper对应是Lamdba表达式：x -&gt; x * x。</p>
+<p>TerminalOp终止操作的类图如下所示：<br><img src="/images/TerminalOp.jpg" alt="TerminalOp" title="TerminalOp"><br>TerminalOp有四种类型，分别是：1）ForEachOp；2）FindOp；3）MatchOp；4）ReduceOp。表格中提到的所有终止操作都是基于这四种类型来实现的，另外终止类型的操作并没有加入到由ReferencePipeline组成的双向链表中。<br>最后的终止操作是通过调用诸如forEach(), reduce(), collect(), anyMatch()等这些方法来触发的，这些方法最终会调用ReferencePipeline类中的evaluate()方法来完成操作，在evaluate()方法，生成一个TerminalOp对象，且封装了一个统一的处理流程，现在来看下这个evaluate()方法，其流程如下：<br><img src="/images/stream-evaluate.jpg" alt="stream-evaluate" title="stream-evaluate"></p>
+<ul>
+<li>根据不同的终止操作生成不同的TerminalOp对象，可以是上面四种类型中的任意一种；</li>
+<li>构建数据源Spliterator；</li>
+<li>执行evaluate()方法的中间操作ReferencePipeline对象合并TerminalOp对象的操作标志位，如是否短路操作等等；</li>
+<li>判断执行的模式，并发模式暂不分析，我们主要分析Sequential模式；</li>
+<li>从TerminalOp对象中构建TerminalSink对象；</li>
+<li>从后往前遍历中间操作（ReferencePipeline）对象，构建每一个中间操作对应的Sink对象，并将这些Sink对象从前往后生成链表，TerminalSink对象在链尾；</li>
+<li>根据操作标志位判来触发真正的动作，如短路操作，或者非短路操作，该部分内容在后面讲述；</li>
+</ul>
+<p>在这里重点看一个步骤：包装Sink对象。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> sink TerminalSink对象,链尾对象</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> 链首Sink对象</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">final</span> &lt;P_IN&gt; <span class="function">Sink&lt;P_IN&gt; <span class="title">wrapSink</span><span class="params">(Sink&lt;E_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(sink);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 遍历所有的中间操作</span></span><br><span class="line">    <span class="keyword">for</span> ( <span class="meta">@SuppressWarnings</span>(<span class="string">"rawtypes"</span>) AbstractPipeline p=AbstractPipeline.<span class="keyword">this</span>; p.depth &gt; <span class="number">0</span>; p=p.previousStage) &#123;</span><br><span class="line">        sink = p.opWrapSink(p.previousStage.combinedFlags, sink);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> (Sink&lt;P_IN&gt;) sink;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>通过wrapSink方法，从后往前遍历所有的AbstractPipeline对象，生成每个操作对应的Sink对象，并将后一个Sink对象作为参数传入，赋值给dowonstream字段，从而将所有的Sink对象串连起来，通过链首的Sink对象访问所有的Sink对象。</p>
+<h2 id="3-Sink"><a href="#3-Sink" class="headerlink" title="3. Sink"></a>3. Sink</h2><p>Sink对象是扩展自Comsumer接口，主要用来处理数据，除了Comsumer接口的accept()方法，还增加了三个方法：begin(),end()及cancellationRequested()。在调用accept()方法之前，先调用begin(int size)方法，告之数据源的大小，调用accept()方法之后，再调用end()方法，通知数据处理已经结束，如果有短路操作（中止后续数据的处理），必须先调用cancellationRequested()方法，这两种处理模式如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 非短路操作</span></span><br><span class="line"><span class="keyword">if</span> (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) &#123;</span><br><span class="line">    <span class="comment">// 1、调用begin()方法，告之数据源大小；</span></span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    <span class="comment">// 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据；</span></span><br><span class="line">    spliterator.forEachRemaining(wrappedSink);</span><br><span class="line">    <span class="comment">// 3、处理完数据之后，调用end()方法</span></span><br><span class="line">    wrappedSink.end();</span><br><span class="line">	</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;  <span class="comment">// 短路操作</span></span><br><span class="line">    <span class="comment">// 调用begin()方法，告之数据源大小；</span></span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    <span class="comment">// 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据，</span></span><br><span class="line">    <span class="comment">// 如果上一个元素设置了“短路”标志，说明数据已经完毕，则退出遍历；</span></span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">    &#125; <span class="keyword">while</span> (!wrappedSink.cancellationRequested() &amp;&amp; spliterator.tryAdvance(wrappedSink));</span><br><span class="line">    <span class="comment">// 3、处理完数据之后，调用end()方法</span></span><br><span class="line">    wrappedSink.end();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>从上面的代码可以看出，所有的操作都是在一次遍历中完成的，对数据的处理操作已经按照书写顺序串连起来，即Sink对象链表，数据源中的每一个元素依次传递给Sink对象，被Sink对象的accept()方法处理，如果是短路操作，则需要设置”短路”标志，在处理下一个数据元素时，调用cancellationRequested()方法便可知道数据已经处理完毕，退出遍历返回即可。这里有两个问题，1）“短路”标志是如何设置的？2）数据的处理是否只需要一次遍历？<br>1) “短路”标志设置<br>在两个地方需要判断“短路”标志，一个是根据“短路”标志，是否执行“短路”操作，另外一个是在遍历数据源的过程中，判断数据处理是否已经被取消，需要中止操作，以anyMatch()方法为例。<br><img src="/images/short_circuit-1.jpg" alt="short_circuit-1" title="short_circuit-1"><br>如上图所示，判断“短路”的逻辑如下：</p>
+<ul>
+<li><p>在短路操作的TerminalOp对象中设置短路的标志位；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MatchOp.getOpFlags()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getOpFlags</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> StreamOpFlag.IS_SHORT_CIRCUIT | StreamOpFlag.NOT_ORDERED;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>将TerminalOp对象中短路标志位合并到最后一个ReferencePipeline对象的combinedFlags中；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractPipeline.sourceSpliterator()</span></span><br><span class="line"><span class="keyword">if</span> (terminalFlags != <span class="number">0</span>)  &#123;</span><br><span class="line">    <span class="comment">// Apply flags from the terminal operation to last pipeline stage</span></span><br><span class="line">    combinedFlags = StreamOpFlag.combineOpFlags(terminalFlags, combinedFlags);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>根据combinedFlags判断是否执行短路操作；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractPipeline.copyInto()</span></span><br><span class="line"><span class="keyword">if</span> (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) &#123;</span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    spliterator.forEachRemaining(wrappedSink);</span><br><span class="line">    wrappedSink.end();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123;</span><br><span class="line">    copyIntoWithCancel(wrappedSink, spliterator);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>中止操作的逻辑如下：<br><img src="/images/short_circuit-2.jpg" alt="short_circuit-2" title="short_circuit-2"><br>在MatchSink中一个stop的字段，如果找到匹配的数据，则设置stop=true，在进行下一个数据匹配之前递归调用cancellationRequested()，取得stop的值，从而中止操作。</p>
+<ul>
+<li><p>找到匹配的数据并设置stop；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MatchSink.accept()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(T t)</span> </span>&#123;</span><br><span class="line">	<span class="comment">// 条件匹配</span></span><br><span class="line">    <span class="keyword">if</span> (!stop &amp;&amp; predicate.test(t) == matchKind.stopOnPredicateMatches) &#123;</span><br><span class="line">        stop = <span class="keyword">true</span>; <span class="comment">// 设置stop</span></span><br><span class="line">        value = matchKind.shortCircuitResult;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>对下一个数据元素进行数据处理前递归调用cancellationRequested()方法，调用到TerminalSink，结束调用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReferencePipeline.forEachWithCancel()</span></span><br><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">forEachWithCancel</span><span class="params">(Spliterator&lt;P_OUT&gt; spliterator, Sink&lt;P_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 处理下一个数据之前调用cancellationRequested()方法</span></span><br><span class="line">    <span class="keyword">do</span> &#123; &#125; <span class="keyword">while</span> (!sink.cancellationRequested() &amp;&amp; spliterator.tryAdvance(sink));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ChainedReference.cancellationRequested()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancellationRequested</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 递归调用一个Sink的cancellationRequested()方法</span></span><br><span class="line">    <span class="keyword">return</span> downstream.cancellationRequested();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// BooleanTerminalSink.cancellationRequested</span></span><br><span class="line"><span class="comment">// 调用到TerminalSink，结束调用</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancellationRequested</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> stop;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>2）遍历次数<br>中间操作ReferencePipeline对象分为两种类型：1）无状态操作StatelessOp；2）有状态操作StatefulOp。这两种操作的区别在于：在无状态操作StatelessOp中数据元素没有依赖关系，每一个数据元素可以独立处理，而有状态操作StatefulOp中数据元素的处理依赖其它元素，每一个元素不能独立处理，以filter()和sorted()两个方法为例。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReferencePipeline.filter()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Stream&lt;P_OUT&gt; <span class="title">filter</span><span class="params">(Predicate&lt;? <span class="keyword">super</span> P_OUT&gt; predicate)</span> </span>&#123;</span><br><span class="line">    Objects.requireNonNull(predicate);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> StatelessOp&lt;P_OUT, P_OUT&gt;(<span class="keyword">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                 StreamOpFlag.NOT_SIZED) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function">Sink&lt;P_OUT&gt; <span class="title">opWrapSink</span><span class="params">(<span class="keyword">int</span> flags, Sink&lt;P_OUT&gt; sink)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Sink.ChainedReference&lt;P_OUT, P_OUT&gt;(sink) &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">begin</span><span class="params">(<span class="keyword">long</span> size)</span> </span>&#123;</span><br><span class="line">                    downstream.begin(-<span class="number">1</span>);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(P_OUT u)</span> </span>&#123;</span><br><span class="line">					<span class="comment">// 如果满足过滤条件，则传递给下一个Sink处理</span></span><br><span class="line">                    <span class="keyword">if</span> (predicate.test(u))</span><br><span class="line">                        downstream.accept(u);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在StatelessOp操作中，经过本阶段的Sink处理完毕之后，会将数据元素继续传递给下一个Sink对象处理。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sorted()方法对应的Sink对象</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">RefSortingSink</span>&lt;<span class="title">T</span>&gt; <span class="keyword">extends</span> <span class="title">AbstractRefSortingSink</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">    <span class="comment">// 1. 临时生成一个列表对象</span></span><br><span class="line">    <span class="keyword">private</span> ArrayList&lt;T&gt; list;</span><br><span class="line"></span><br><span class="line">    RefSortingSink(Sink&lt;? <span class="keyword">super</span> T&gt; sink, Comparator&lt;? <span class="keyword">super</span> T&gt; comparator) &#123;</span><br><span class="line">        <span class="keyword">super</span>(sink, comparator);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">begin</span><span class="params">(<span class="keyword">long</span> size)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (size &gt;= Nodes.MAX_ARRAY_SIZE)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(Nodes.BAD_SIZE);</span><br><span class="line">            </span><br><span class="line">        <span class="comment">// 2. 列表对象初始化，一般生成不限长度的列表</span></span><br><span class="line">        list = (size &gt;= <span class="number">0</span>) ? <span class="keyword">new</span> ArrayList&lt;T&gt;((<span class="keyword">int</span>) size) : <span class="keyword">new</span> ArrayList&lt;T&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">end</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 4. 进行排序操作</span></span><br><span class="line">        list.sort(comparator);</span><br><span class="line">	</span><br><span class="line">        <span class="comment">// 5. 重新遍历数据列表，处理后续的操作</span></span><br><span class="line">        downstream.begin(list.size()); <span class="comment">// 通知数据处理开始</span></span><br><span class="line">        <span class="comment">// 6. 判断是否进行“短路”操作</span></span><br><span class="line">        <span class="keyword">if</span> (!cancellationWasRequested) &#123;</span><br><span class="line">            <span class="comment">// 7. 执行非短路操作</span></span><br><span class="line">            list.forEach(downstream::accept);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 8. 执行短路操作</span></span><br><span class="line">            <span class="keyword">for</span> (T t : list) &#123;</span><br><span class="line">                <span class="keyword">if</span> (downstream.cancellationRequested()) <span class="keyword">break</span>;</span><br><span class="line">                downstream.accept(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 9. 通知数据处理结束</span></span><br><span class="line">        downstream.end();</span><br><span class="line">        list = <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">accept</span><span class="params">(T t)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 3. 将数据元素添加到列表中</span></span><br><span class="line">        list.add(t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对于排序操作而言，需要知道所有的元素才能进行，所以它临时生成了一个新的列表对象，存储完所有的数据元素之后，再进行排序操作。最后遍历列表对象，重新执行短路/非短路操作，完成剩余的操作。</p>
+<p>总上所述，在操作序列中只有无状态操作的话，只要遍历一次即可执行完所有操作，如果包含有状态操作，则每一个有状态操作者需要增加一次遍历。</p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>通过上面的分析，Stream的实现有以下三个特点：1）通过链表的方式将操作序列串连起来，数据元素在这个链表中依次流动（传递），可以有效减少数据遍历的次数；2）定义了一套“协议”，规范了前后两个不同操作之间的交互方式，遵循了这套协议，不同操作可按不同顺序组合，完成不同的功能；3）借助Fork/Join框架，数据源可并发执行数据处理，显著提高数据处理的效率。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://www.ibm.com/developerworks/cn/java/j-lo-java8streamapi/index.html" target="_blank" rel="noopener">1. Java 8 中的 Streams API 详解</a></p>
+<p><a href="https://www.cnblogs.com/CarpenterLee/p/6637118.html" target="_blank" rel="noopener">2. 深入理解Java Stream流水线</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/11/19/java-fork-join/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3000,434 +3247,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/13/redis-object-system/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2019/07/13/redis-object-system/" class="post-title-link" itemprop="http://yoursite.com/page/3/index.html">Redis 对象系统</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2019-07-13 13:29:41" itemprop="dateCreated datePublished" datetime="2019-07-13T13:29:41+08:00">2019-07-13</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Redis是一个key-value类型的数据库，key可以是整数或者字符串，value可以支持丰富的数据结构，如字符串、列表、哈希、集合及有序集合。在Redis中，对这些数据结构统一进行了封装，都是以redis对象(redisObject)来呈现，这篇文章主要是对redisObect内部原理及实现做一些梳理，内容主要基于《Redis设计与实现》。</p>
-<h2 id="1-对象定义"><a href="#1-对象定义" class="headerlink" title="1. 对象定义"></a>1. 对象定义</h2><p>在Redis中对象的定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">redisObject</span> &#123;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 类型</span></span><br><span class="line">    <span class="keyword">unsigned</span> type:<span class="number">4</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 编码</span></span><br><span class="line">    <span class="keyword">unsigned</span> encoding:<span class="number">4</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 指向底层的数据结构</span></span><br><span class="line">    <span class="keyword">void</span> *ptr;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 引用计数</span></span><br><span class="line">    <span class="keyword">int</span> refcount;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 最后一次程序访问的时间</span></span><br><span class="line">    <span class="keyword">unsigned</span> lru:<span class="number">22</span></span><br><span class="line"></span><br><span class="line">&#125; robj;</span><br></pre></td></tr></table></figure></p>
-<h3 id="1-1-类型"><a href="#1-1-类型" class="headerlink" title="1.1 类型"></a>1.1 类型</h3><p>type属性记录了对象的类型，有五种对象类型，分别是字符串对象、列表对象、哈希对象、集合对象和有序集合对象,可以在键上使用TYPE命令查看键的类型，如果一个键是字符串类型，用命令查看如下所示:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis&gt; TYPE msg</span><br><span class="line">string</span><br></pre></td></tr></table></figure>
-<p>type属性的值及命令输出对应如下表所示：</p>
-<table>
-<thead>
-<tr>
-<th>对象</th>
-<th>type属性对应的值</th>
-<th>TYPE命令输出</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>字符串对象</td>
-<td>REDIS_STRING</td>
-<td>string</td>
-</tr>
-<tr>
-<td>列表对象</td>
-<td>REDIS_LIST</td>
-<td>list</td>
-</tr>
-<tr>
-<td>哈希对象</td>
-<td>REDIS_HASH</td>
-<td>hash</td>
-</tr>
-<tr>
-<td>集合对象</td>
-<td>REDIS_SET</td>
-<td>set</td>
-</tr>
-<tr>
-<td>有序集合对象</td>
-<td>REDIS_ZSET</td>
-<td>zset</td>
-</tr>
-</tbody>
-</table>
-<h3 id="1-2-编码和实现"><a href="#1-2-编码和实现" class="headerlink" title="1.2 编码和实现"></a>1.2 编码和实现</h3><p>对于一种对象，根据不同的使用场景可以有不同的底层数据结构来实现，不同的实现由encoding属性来表示，可以使用OBJECT ENCODING命令查看一个键值对值的编码，如果一个值是REDIS_ENCODING_EMBSTR，其输出如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis&gt; OBJECT ENCODING msg</span><br><span class="line"><span class="string">"embstr"</span></span><br></pre></td></tr></table></figure></p>
-<p>encoding取值范围及代表的数据结构如下所示：</p>
-<table>
-<thead>
-<tr>
-<th>encoding取值范围</th>
-<th>代表的数据结构</th>
-<th>OBJECT ENCODING命令输出</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>REDIS_ENCODING_INT</td>
-<td>long类型的整数</td>
-<td>int</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_EMBSTR</td>
-<td>embstr编码的简单的动态字符串</td>
-<td>embstr</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_RAW</td>
-<td>简单动态字符串</td>
-<td>raw</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_HT</td>
-<td>字典</td>
-<td>hashtable</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_LINKEDLIST</td>
-<td>双向链表</td>
-<td>linkedlist</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_ZIPLIST</td>
-<td>压缩列表</td>
-<td>ziplist</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_INTSET</td>
-<td>整数集合</td>
-<td>intset</td>
-</tr>
-<tr>
-<td>REDIS_ENCODING_SKIPLIST</td>
-<td>跳跃表和字典</td>
-<td>skiplist</td>
-</tr>
-</tbody>
-</table>
-<p>在Redis中有五种对象，每一种对象根据不同的使用场景可以有不同的数据结构来实现，类型type和编码encoding的关系对应如下表所示：</p>
-<table>
-<thead>
-<tr>
-<th>type</th>
-<th>encoding</th>
-<th>对象</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>REDIS_STRING</td>
-<td>REDIS_ENCODING_INT</td>
-<td>使用整数值实现的字符串对象</td>
-</tr>
-<tr>
-<td>REDIS_STRING</td>
-<td>REDIS_ENCODING_EMBSTR</td>
-<td>使用embstr编码实现的SDS字符串对象</td>
-</tr>
-<tr>
-<td>REDIS_STRING</td>
-<td>REDIS_ENCODING_RAW</td>
-<td>SDS字符串对象</td>
-</tr>
-<tr>
-<td>REDIS_LIST</td>
-<td>REDIS_ENCODING_LINKEDLIST</td>
-<td>使用双向链表实现的列表对象</td>
-</tr>
-<tr>
-<td>REDIS_LIST</td>
-<td>REDIS_ENCODING_ZIPLIST</td>
-<td>使用压缩列表实现的列表对象</td>
-</tr>
-<tr>
-<td>REDIS_HASH</td>
-<td>REDIS_ENCODING_HT</td>
-<td>使用字典实现的哈希对象</td>
-</tr>
-<tr>
-<td>REDIS_HASH</td>
-<td>REDIS_ENCODING_ZIPLIST</td>
-<td>使用压缩列表实现的哈希对象</td>
-</tr>
-<tr>
-<td>REDIS_SET</td>
-<td>REDIS_ENCODING_INTSET</td>
-<td>使用整数集合实现的集合对象</td>
-</tr>
-<tr>
-<td>REDIS_SET</td>
-<td>REDIS_ENCODING_HT</td>
-<td>使用字典实现的集合对象</td>
-</tr>
-<tr>
-<td>REDIS_ZSET</td>
-<td>REDIS_ENCODING_ZIPLIST</td>
-<td>使用压缩列表实现的有序集合对象</td>
-</tr>
-<tr>
-<td>REDIS_ZSET</td>
-<td>REDIS_ENCODING_SKIPLIST</td>
-<td>使用跳跃表和字典实现的有序集合对象</td>
-</tr>
-</tbody>
-</table>
-<h3 id="1-3-引用计数"><a href="#1-3-引用计数" class="headerlink" title="1.3 引用计数"></a>1.3 引用计数</h3><p>Redis在对象系统中构建了一个基于引用计数的内存回收机制，通过这个机制，在每一个对象的refcount属性中记录引用计数信息，Redis可以通过跟踪对象的这些引用计数信息，在适当的时候自动释放对象并进行内存回收。<br>对象的引用计数信息会随着对象的使用状态而不断变化：</p>
-<ul>
-<li>在创建一个新对象时，引用计数的值会被初始化为1；</li>
-<li>当一个对象被引用时，它的引用计数值为加1；</li>
-<li>当一个对象被解除引用时，它的引用计数值为减1；</li>
-<li>当对象的引用计数值变为0时，对象会被释放。</li>
-</ul>
-<p>可以使用OBJECT REFCOUNT命令查看一个键对应的值被引用的次数，如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis&gt; OBJECT REFCOUNT key</span><br><span class="line">(<span class="built_in">integer</span>) 2</span><br></pre></td></tr></table></figure></p>
-<h3 id="1-4-对象的空转时长"><a href="#1-4-对象的空转时长" class="headerlink" title="1.4 对象的空转时长"></a>1.4 对象的空转时长</h3><p>redisObject中的lru属性记录了该对象最后一次被访问的时间，可以使用OBJECT IDLETIME命令打印给定键的空转时长，这个空转时长是通过当前时间减去键的值对象的lru时间计算出来的，单位为钞（S），命令如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis&gt; OBJECT IDLETIME msg</span><br><span class="line">(<span class="built_in">integer</span>) 10</span><br></pre></td></tr></table></figure></p>
-<p>键的空转时长还有另外一个作用：如果Redis打开了maxmemory选项，并且服务器内存回收算法为volatile-lru或allkeys-lru，那么当服务器占用的内存超过了maxmemory选项所设置的上限值时，空转时长较高的那部分键会被优先释放，从而回收内存。</p>
-<h2 id="2-字符串对象"><a href="#2-字符串对象" class="headerlink" title="2. 字符串对象"></a>2. 字符串对象</h2><p>字符串对象的编码可以是int、embstr或者raw。</p>
-<h3 id="2-1-int编码的字符串"><a href="#2-1-int编码的字符串" class="headerlink" title="2.1 int编码的字符串"></a>2.1 int编码的字符串</h3><p>如果一个字符串对象保存的是整数值，并且这个整数值可以用long类型来表示，那么字符串对象中的ptr将指向一个long类型的地址，如下图所示：<br><img src="/images/string-int.jpg" alt="string-int" title="string-int"></p>
-<h3 id="2-2-raw编码的字符串"><a href="#2-2-raw编码的字符串" class="headerlink" title="2.2 raw编码的字符串"></a>2.2 raw编码的字符串</h3><p>如果字符串对象保存的是一个字符串值，并且这个字符串值的长度大于39个字节，那么字符串对象将使用简单字符串（SDS）来保存这个字符串值，如下图所示：<br><img src="/images/string-raw.jpg" alt="string-raw" title="string-raw"></p>
-<h3 id="2-3-embstr编码的字符串"><a href="#2-3-embstr编码的字符串" class="headerlink" title="2.3 embstr编码的字符串"></a>2.3 embstr编码的字符串</h3><p>如果字符串对象保存的是一个字符串值，并且这个字符串值的长度小于等于39个字节，那么字符串对象将使用embstr编码的方式保存这个字符串值。<br>embstr编码是专门用于保存短字符串的一种优化编码方式，这种编码和raw编码都使用sdshdr结构来保存字符串，区别主要在于内存分配：embstr编码会将redisobject和sdshdr作为一个整体，一次性分配相邻的空间来保存这两个对象，而raw编码则使用两次。embstr编码的内存结构如下所示：<br><img src="/images/string-embstr.jpg" alt="string-embstr" title="string-embstr"></p>
-<h3 id="2-4-double类型的字符串"><a href="#2-4-double类型的字符串" class="headerlink" title="2.4 double类型的字符串"></a>2.4 double类型的字符串</h3><p>double类型的浮点数在Redis中是作为字符串保存的。如果要保存一个浮点数到字符串对象里面，Redis首先将这个浮点数转换成字符串，然后再保存到字符串对象中，编码可以是embstr或者raw。</p>
-<h3 id="2-5-编码转换"><a href="#2-5-编码转换" class="headerlink" title="2.5 编码转换"></a>2.5 编码转换</h3><p>int编码的字符串对象和embstr编码的字符串对象在条件满足的情况下，会被转换为raw编码的字符串对象。</p>
-<h4 id="2-5-1-int–-gt-raw"><a href="#2-5-1-int–-gt-raw" class="headerlink" title="2.5.1 int–&gt;raw"></a>2.5.1 int–&gt;raw</h4><p>如果对int编码的字符串对象执行了一些命令，使得这个对象保存的不再是整数值，而是一个字符串，那么字符串对象的编码将从int变为raw。</p>
-<h4 id="2-5-2-ebmstr–-gt-raw"><a href="#2-5-2-ebmstr–-gt-raw" class="headerlink" title="2.5.2 ebmstr–&gt;raw"></a>2.5.2 ebmstr–&gt;raw</h4><p>ebmstr编码的字符串对象是只读的，如果要对该对象进行修改操作，则会将embstr编码的字符串对象转换为raw编码的字符串对象。</p>
-<h2 id="3-列表对象"><a href="#3-列表对象" class="headerlink" title="3. 列表对象"></a>3. 列表对象</h2><p>列表对象的编码可以是ziplist或者linkedlist。</p>
-<h3 id="3-1-ziplist编码的列表对象"><a href="#3-1-ziplist编码的列表对象" class="headerlink" title="3.1 ziplist编码的列表对象"></a>3.1 ziplist编码的列表对象</h3><p>ziplist编码的列表对象使用压缩列表作为底层实现，每一个压缩列表结点（entry）保存了一个列表对象。</p>
-<h3 id="3-2-linkedlist编码的列表对象"><a href="#3-2-linkedlist编码的列表对象" class="headerlink" title="3.2 linkedlist编码的列表对象"></a>3.2 linkedlist编码的列表对象</h3><p>linkedlist编码的列表对象使用双向链表作为底层实现，每一个双向链表结点（node）都保存了一个字符串对象，而每一个字符串对象都保存了一个列表元素。</p>
-<h3 id="3-3-编码转换"><a href="#3-3-编码转换" class="headerlink" title="3.3 编码转换"></a>3.3 编码转换</h3><p>当列表对象同时满足以下两个条件时，列表对象使用ziplist编码：</p>
-<ol>
-<li>列表对象保存的所有字符串元素的长度都小于64字节；</li>
-<li>列表对象保存的元素数量小于512个。</li>
-</ol>
-<p>不能满足这两个条件的列表对象需要使用linkedlist编码。</p>
-<p><strong>注：list-max-ziplist-value和list-max-ziplist-entries两个选项可以修改上面两个值。</strong></p>
-<p>对于使用ziplist编码的列表对象来说，当使用ziplist编码所需的两个条件的任意一个不能被满足时，就会进行编码的转换，将ziplist转换为linkedlist。</p>
-<h2 id="4-哈希对象"><a href="#4-哈希对象" class="headerlink" title="4. 哈希对象"></a>4. 哈希对象</h2><p>哈希对象的编码可以是ziplist或者hashtable。</p>
-<h3 id="4-1-ziplist编码的哈希对象"><a href="#4-1-ziplist编码的哈希对象" class="headerlink" title="4.1 ziplist编码的哈希对象"></a>4.1 ziplist编码的哈希对象</h3><p>ziplist编码的哈希对象使用压缩列表作为底层实现，每当有新的键值对加入到哈希对象时，Redis依次将键结点、值结点推入到压缩列表表尾。</p>
-<h3 id="4-2-hashtable编码的哈希对象"><a href="#4-2-hashtable编码的哈希对象" class="headerlink" title="4.2 hashtable编码的哈希对象"></a>4.2 hashtable编码的哈希对象</h3><p>hashtable编码的哈希对象使用字典作为底层实现，哈希对象的键值都分别是一个字符串对象。</p>
-<h3 id="4-3-编码转换"><a href="#4-3-编码转换" class="headerlink" title="4.3 编码转换"></a>4.3 编码转换</h3><p>当哈希对象同时满足以下条件时，哈希对象使用ziplist编码：</p>
-<ol>
-<li>哈希对象保存的所有键值的字符串长度长度都小于64字节；</li>
-<li>哈希对象保存的键值对数量小于512个。</li>
-</ol>
-<p>不能满足这两个条件的哈希对象需要使hashtable编码。</p>
-<p><strong>注：hash-max-ziplist-value和hash-max-ziplist-entries两个选项可以修改上面两个值。</strong></p>
-<p>对于使用ziplist编码的哈希对象来说，当使用ziplist编码所需的两个条件的任意一个不能被满足时，就会进行编码的转换，将ziplist转换为hashtable。</p>
-<h2 id="5-集合对象"><a href="#5-集合对象" class="headerlink" title="5. 集合对象"></a>5. 集合对象</h2><p>集合对象的编码可以是intset或者hashtable。</p>
-<h3 id="5-1-intset编码的集合对象"><a href="#5-1-intset编码的集合对象" class="headerlink" title="5.1 intset编码的集合对象"></a>5.1 intset编码的集合对象</h3><p>intset编码的集合对象使用整数集合作为底层实现，集合对象包含的所有元素都是整数。</p>
-<h3 id="5-2-hashtable编码的集合对象"><a href="#5-2-hashtable编码的集合对象" class="headerlink" title="5.2 hashtable编码的集合对象"></a>5.2 hashtable编码的集合对象</h3><p>hashtable编码的集合对象使用字典作为底层实现，字典的每一个键都是一个字符串对象，保存了集合元素，而字典的值全部设置为NULL。</p>
-<h3 id="5-3-编码转换"><a href="#5-3-编码转换" class="headerlink" title="5.3 编码转换"></a>5.3 编码转换</h3><p>当集合对象同时满足以下条件时，集合对象使用intset编码：</p>
-<ol>
-<li>集合对象保存的所有元素都是整数值；</li>
-<li>集合对象保存的元素数量小于512个。</li>
-</ol>
-<p>不能满足这两个条件的集合对象需要使hashtable编码。</p>
-<p><strong>注：第二个条件是要可以通过set-max-intset-entries选项进行修改。</strong></p>
-<p>对于使用intset编码的集合对象来说，当使用intset编码所需的两个条件的任意一个不能被满足时，就会进行编码的转换，将intset转换为hashtable。</p>
-<h2 id="6-有序集合对象"><a href="#6-有序集合对象" class="headerlink" title="6. 有序集合对象"></a>6. 有序集合对象</h2><p>有序集合的编码可以是ziplist或者skiplist。</p>
-<h3 id="6-1-ziplist编码的有序集合对象"><a href="#6-1-ziplist编码的有序集合对象" class="headerlink" title="6.1 ziplist编码的有序集合对象"></a>6.1 ziplist编码的有序集合对象</h3><p>ziplist编码的有序集合对象使用压缩列表作为底层实现，每个集合元素使用两个紧挨在一起的压缩列表结点来保存，第一个结点保存元素的成员（member），第二个结点则保存元素的分值（score）。<br>压缩列表的集合元素按分值从小到大进行排序，分值较小的元素被放置在靠近表头的位置，而分值较大的元素则被放置表尾的位置。</p>
-<h3 id="6-2-skiplist编码的有序集合对象"><a href="#6-2-skiplist编码的有序集合对象" class="headerlink" title="6.2 skiplist编码的有序集合对象"></a>6.2 skiplist编码的有序集合对象</h3><p>skiplis编码的有序集合对象使用zset结构来作为底层实现，一个zset结构同时包含一个字典和一个跳跃表，其结构如下所示：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">zset</span> &#123;</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 跳跃表</span></span><br><span class="line">    zskiplist *zsl;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 字典</span></span><br><span class="line">    dict *dict;</span><br><span class="line">&#125; zset;</span><br></pre></td></tr></table></figure></p>
-<p>zset结构中的zsl跳跃表按分值从小到大保存了所有集合元素，每个跳跃表结点保存了一个集合元素：object属性保存了元素的成员，score保存了元素的分值；<br>zset结构中的dict字典为有序集合创建一个成员到分值的映射，字典中的每个键值对保存了一个元素：字典的键保存了元素的成员，而字典的值则保存了分值。</p>
-<p>使用跳跃表和字典来实现有序集合，可以充分两者的优点：</p>
-<ol>
-<li>通过跳跃表，可以O(NlogN)时间复杂度的范围查询；</li>
-<li>通过字典，可以O(1)时间复杂度的查找元素成员。</li>
-</ol>
-<h3 id="6-3-编码转换"><a href="#6-3-编码转换" class="headerlink" title="6.3 编码转换"></a>6.3 编码转换</h3><p>当有序集合对象同时满足以下条件时，集合对象使用ziplist编码：</p>
-<ol>
-<li>有序集合对象保存的元素数量小于128个；</li>
-<li>有序集合对象保存的所有元素的长度都小于64个字节。</li>
-</ol>
-<p>不能满足这两个条件的有序集合对象需要使skiplist编码。</p>
-<p><strong>注：zset-max-ziplist-value和zset-max-ziplist-entries两个选项可以修改上面两个值。</strong></p>
-<p>对于使用ziplist编码的有序集合对象来说，当使用ziplist编码所需的两个条件的任意一个不能被满足时，就会进行编码的转换，将ziplist转换为skiplist。</p>
-<h2 id="7-字符串和整数"><a href="#7-字符串和整数" class="headerlink" title="7. 字符串和整数"></a>7. 字符串和整数</h2><p>Redis作为一个键值对数据库，构建了五种对象类型，原始类型如字符串和整数和对象类型的关系如下：</p>
-<ol>
-<li>字符串和整数存放在字符串对象，整数集合和压缩列表中；</li>
-<li>在列表对象（linkedlist）、哈希对象（hashtable）和集合对象（hashtable）和有序集合对象（skiplist）中不直接存储字符串和整数，而是存储字符串对象。</li>
-</ol>
-<h2 id="8-Redis存储效率"><a href="#8-Redis存储效率" class="headerlink" title="8. Redis存储效率"></a>8. Redis存储效率</h2><p>Redis数据库的整体结构如下图所示，为了方便描述，将字符串对象、哈希对象及列表对象进行的简化。</p>
-<p><img src="/images/redis-server.jpg" alt="redis-server" title="redis-server"></p>
-<p>一个Redis服务器默认有16个数据库（DB），每个DB实际就是一个键值数据库，底层的数据结构是字典（dict），所有的数据都以键值对存储在dict中，其中键是一个字符串对象，而值可以是五种Redis对象中任意一种，即字符串对象、列表对象、哈希对象、集合对象及有序集合对象。</p>
-<p>下面以一个字符串键值对为例来分析Redis的存储效率，即有效存储空间与所占空间的比率：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis&gt; SET message <span class="string">"Hello Redis"</span></span><br></pre></td></tr></table></figure></p>
-<p>根据上图所示，增加一个新的字符串键值对需要增加如下对象：</p>
-<ol>
-<li>两个字符串对象；</li>
-<li>一个字典结点对象，message及值就存储在这个结点中。</li>
-</ol>
-<p>如下图所示：</p>
-<p><img src="/images/dict-node.jpg" alt="dict-node" title="dict-node"></p>
-<h3 id="8-1-字符串对象"><a href="#8-1-字符串对象" class="headerlink" title="8.1 字符串对象"></a>8.1 字符串对象</h3><p>字符串对象的内存结构如下所示：</p>
-<p><img src="/images/redis-object.jpg" alt="redis-object" title="redis-object"></p>
-<p>message字符串对象：12 + 12 + 7 + 1 = 32字节</p>
-<p>值对象：12 + 12 + 11 + 1 = 36字节</p>
-<p>其中前两个12字节分别是redisObject和sdshdr结构体所占的空间，而最后1字节是’\0’空字符。</p>
-<h3 id="8-2-字典结点对象"><a href="#8-2-字典结点对象" class="headerlink" title="8.2 字典结点对象"></a>8.2 字典结点对象</h3><p>字典结点对象的内存结构如下所示：</p>
-<p><img src="/images/dictEntry.jpg" alt="dictEntry" title="dictEntry"></p>
-<p>dictEntry：4 + 4 + 4 = 12字节</p>
-<h3 id="8-3-存储效率"><a href="#8-3-存储效率" class="headerlink" title="8.3 存储效率"></a>8.3 存储效率</h3><p>存储一个字符串键值对需要额外的空间为：25 + 25 + 12 = 62字节<br>存储效率：(7 + 11) / (7 + 11 + 62) = 22.5%</p>
-<p><strong>参考：</strong></p>
-<hr>
-<p>1.Redis设计与实现</p>
-
-          
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3475,7 +3294,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">33</span>
+                    <span class="site-state-item-count">34</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -3773,7 +3592,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">118</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">120</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
