@@ -111,15 +111,15 @@
   <meta name="description" content="1. 概述在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行">
 <meta name="keywords" content="网关,PRC,TCP,Websocket">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Alligator 长连接网关概述">
+<meta property="og:title" content="Alligator 序列：长连接网关概述">
 <meta property="og:url" content="http://yoursite.com/2021/07/31/alligator-gateway-overview/index.html">
 <meta property="og:site_name" content="以太格">
 <meta property="og:description" content="1. 概述在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/alligator/alligator-architecture.jpg">
-<meta property="og:updated_time" content="2021-07-31T15:10:51.325Z">
+<meta property="og:updated_time" content="2021-08-21T15:12:07.398Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Alligator 长连接网关概述">
+<meta name="twitter:title" content="Alligator 序列：长连接网关概述">
 <meta name="twitter:description" content="1. 概述在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行">
 <meta name="twitter:image" content="http://yoursite.com/images/alligator/alligator-architecture.jpg">
 
@@ -138,7 +138,7 @@
   };
 </script>
 
-  <title>Alligator 长连接网关概述 | 以太格</title>
+  <title>Alligator 序列：长连接网关概述 | 以太格</title>
   
 
 
@@ -388,7 +388,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">Alligator 长连接网关概述
+          <h1 class="post-title" itemprop="name headline">Alligator 序列：长连接网关概述
               
             
           </h1>
@@ -413,12 +413,24 @@
                 
               
 
-              <time title="创建时间：2021-07-31 19:58:01 / 修改时间：23:10:51" itemprop="dateCreated datePublished" datetime="2021-07-31T19:58:01+08:00">2021-07-31</time>
+              <time title="创建时间：2021-07-31 19:58:01" itemprop="dateCreated datePublished" datetime="2021-07-31T19:58:01+08:00">2021-07-31</time>
             
 
             
               
 
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-08-21 23:12:07" itemprop="dateModified" datetime="2021-08-21T23:12:07+08:00">2021-08-21</time>
               
             
           </span>
@@ -452,6 +464,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">1.5k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1 分钟</span>
+              
+            </div>
           
 
           
@@ -489,6 +529,7 @@
 <li>业务无关：对底层模块进行了统一地抽象及封装，业务人员可以专注业务开发；</li>
 </ul>
 <h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h2><p>Alligator 不仅提供了一个快速进行长连接开发的框架，同时还提供了一个开发脚手架，让长连接网关开发不再是一件困难的事。后续将出一个序列专门介绍其底层实现；</p>
+<p><a href="https://github.com/noahsarkzhang-ts/alligator" target="_blank" rel="noopener">工程代码</a></p>
 
       
     </div>
@@ -541,8 +582,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2021/08/14/alligator-heartbeat-detection/" rel="prev" title="Alligator 心跳检测">
-                Alligator 心跳检测 <i class="fa fa-chevron-right"></i>
+              <a href="/2021/08/14/alligator-heartbeat-detection/" rel="prev" title="Alligator 系列：心跳检测">
+                Alligator 系列：心跳检测 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
@@ -613,7 +654,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">34</span>
+                    <span class="site-state-item-count">36</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -662,7 +703,9 @@
                     
                       
                     
-                    <span class="site-state-item-count">18</span>
+                      
+                    
+                    <span class="site-state-item-count">19</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -915,7 +958,27 @@
                     
                       
                     
-                    <span class="site-state-item-count">120</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">130</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -977,12 +1040,27 @@
   <span class="author" itemprop="copyrightHolder">Noahsark</span>
 
   
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">296k</span>
+  
 
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:29</span>
   
 </div>
 
 <div class="BbeiAn-info">
     <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
 </div>
 
 

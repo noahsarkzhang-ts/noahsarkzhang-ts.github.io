@@ -470,6 +470,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">41k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">37 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -538,7 +566,7 @@
 <li>监听的文件不受限制。</li>
 </ol>
 <p>下面我们来看下 epoll的实现原理，首先看下调用方法：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成一个 ep 文件，把所有需要监听的文件都放到 ep 文件中</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_create</span><span class="params">(<span class="keyword">int</span> size)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_ctl 添加一个监听的文件</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_ctl</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd,</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> op, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> fd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event *event</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_wait 负责检测可读队列，没有可读的文件则阻塞进程</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_wait</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event * events, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> maxevents, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> timeout</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成一个 ep 文件，把所有需要监听的文件都放到 ep 文件中</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_create</span><span class="params">(<span class="keyword">int</span> <span class="built_in">size</span>)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_ctl 添加一个监听的文件</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_ctl</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd,</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> op, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> fd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event *event</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_wait 负责检测可读队列，没有可读的文件则阻塞进程</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_wait</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event * events, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> maxevents, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> timeout</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>;</span><br></pre></td></tr></table></figure>
 <p>epoll_create 生成一个 ep 文件，通过 epoll_ctl 方法添加/删除文件，epoll_wait 方法只遍历满足条件的可读队列，提高了效率。这三个方法大概的逻辑如下描述。<br><strong>epoll_ctl 主要逻辑：</strong></p>
 <ol>
 <li>定义一个 epitem 结构，代表一个监听的文件，并加入到红黑树中；</li>
@@ -687,7 +715,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">34</span>
+                    <span class="site-state-item-count">36</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -736,7 +764,9 @@
                     
                       
                     
-                    <span class="site-state-item-count">18</span>
+                      
+                    
+                    <span class="site-state-item-count">19</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -989,7 +1019,27 @@
                     
                       
                     
-                    <span class="site-state-item-count">120</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">130</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1051,12 +1101,27 @@
   <span class="author" itemprop="copyrightHolder">Noahsark</span>
 
   
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">296k</span>
+  
 
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:29</span>
   
 </div>
 
 <div class="BbeiAn-info">
     <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
 </div>
 
 

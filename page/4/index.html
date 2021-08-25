@@ -369,6 +369,697 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/29/principles-of-java-lock/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/07/29/principles-of-java-lock/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Java ReentrantLock实现原理</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-07-29 16:32:27" itemprop="dateCreated datePublished" datetime="2019-07-29T16:32:27+08:00">2019-07-29</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/并发编程/" itemprop="url" rel="index"><span itemprop="name">并发编程</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">111k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1:41</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>在Java中要实现资源的互斥访问及线程间的同步，一般有两种方式，一种是通过synchronized（同步块或同步方法）结合Oject.wait()及Object.signal()来实现，另外一种是通过ReentrantLock和Condition来实现。为了解决不同条件下的并发问题，Java还引入了一些高级锁和同步机制，如Semaphore,ReentrantReadWriteLock,CountDownLatch和CyclicBarrier等等。</p>
+<p>在项目开发中，用ReentrantLock相对较多，但对其的理解程序仅限于Java语言层面，对于JVM及操作系统的底层实现并没有了解，没有一个全局的概念，相关知识点存在断层，如ReentrantLock在JVM和操作系统中到底对应什么实体？等待队列存储在什么地方？线程的等待及唤醒对应什么样的操作？JVM及操作系统在ReentrantLock中提供了什么样的功能？正好在学习操作系统的知识，把这些知识重新梳理下，打通认知上的盲点。</p>
+<h2 id="1-整体结构"><a href="#1-整体结构" class="headerlink" title="1. 整体结构"></a>1. 整体结构</h2><p><img src="/images/reentrantlock.jpg" alt="reentrantlock" title="reentrantlock"></p>
+<ol>
+<li>在Java层，维护了锁的state状态及等待队列（包括条件队列），对JVM的依赖只是线程的阻塞和唤醒。给state赋予不同的含义及控制获取锁的方式，Java在语言层面实现丰富的锁结构。</li>
+<li>在JVM层，线程的阻塞和唤醒是通过互斥（pthread_mutex_t）和条件变量(pthread_cond_t)来实现的。_counter用来表示一个许可，通过_counter的值来判断是否在该条件变量上进行等待和唤醒，_counter默认值是0，表示许可未被使用，调用park之后，线程将被阻塞；执行unpark之后，_counter赋值为1，将会唤醒被等待的线程，唤醒的操作是将等待的线程从条件变量（cond）的等待队列移到互斥（mutex）的等待队列上，互斥（mutex）释放之后才将该线程进行调度。</li>
+<li>futex由一个用户空间int类型的地址uaddr及相关联的等待队列组成，uaddr由mutex或cond中定义。在内核中维护一个哈希表的数据结构，以uaddr为key,通过hash操作，添加到对应的列表中，从而可以快速搜索到uaddr对应的等待线程。</li>
+</ol>
+<h2 id="2-ReentrantLock"><a href="#2-ReentrantLock" class="headerlink" title="2. ReentrantLock"></a>2. ReentrantLock</h2><p>在Java中有一个非常重要的并发数据结构AbstractQueuedSynchronizer(AQS),它主要的功能有三个：1）维护状态值（state）;2）线程同步队列的管理；3）封装流程。AQS对锁的实现进行了高度抽象，提供了一套模板方法，对申请锁和释放锁的流程进行了封装，将差异的部分由子类来实现，如state字段含义的解析，同时子类通过扩展tryAcquire,tryRelease,tryAcquireShared,tryReleaseSharede及isHeldExclusivelys方法来实现不同语义的锁。</p>
+<h3 id="2-1-state状态"><a href="#2-1-state状态" class="headerlink" title="2.1 state状态"></a>2.1 state状态</h3><p>ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSync和FairSync），它们都是继承自AQS，差别主要在于tryAcquire的实现，后面会进到，不过对于state的定义是一致的。在ReentrantLock中，state有如下的含义:</p>
+<ul>
+<li>0：表示锁未被占用，可以获取锁，获取锁之后变为1；</li>
+<li>大于0：表示锁被占用，其它线程获取锁会被阻塞，拥有锁的线程可以重复获取锁（可重入的概念），重复获取锁要对state加1。</li>
+</ul>
+<h3 id="2-2-等待队列"><a href="#2-2-等待队列" class="headerlink" title="2.2 等待队列"></a>2.2 等待队列</h3><p>除了状态的管理，ReetrantLock还会维护一个同步队列，线程获取ReentrantLock锁失败后，会将该线程加入到队列的尾部，同时调用LockSupport.park方法让线程阻塞，等待队列是一个双向队列，其结点如下图所示：<br><img src="/images/aqs-node.jpg" alt="aqs-node" title="aqs-node"></p>
+<ul>
+<li>prev:指向前一个结点；</li>
+<li>next:指向后一个结点；</li>
+<li>nextWaiter:1）用在条件队列（在条件变量上挂起的线程列表）中，指向条件队列的下一个结点；2）用来表示锁的模式，是排他还是共享模式；</li>
+<li>thread:对应的线程；</li>
+<li>waitStatus:结点的等待状态，它有五个状态：1)SIGNAL;2)CANCELLED;3)CONDITION(用于条件变量中);4)PROPAGATE;5)0(初始状态)。</li>
+</ul>
+<p>一个包含两个结点的等待队列如下所示：<br><img src="/images/sync-queue.jpg" alt="sync-queue" title="sync-queue"></p>
+<ul>
+<li>在队列中有一个空的head结点，这样可以简化插入到队首的操作；</li>
+<li>SINGAL状态表示其后续结点需要unpark操作。</li>
+</ul>
+<h3 id="2-3-条件队列"><a href="#2-3-条件队列" class="headerlink" title="2.3 条件队列"></a>2.3 条件队列</h3><p><strong>说明：</strong> 条件队列是指阻塞在条件变量上线程等待队列，这里为了与Lock变量上等待队列区分，所以叫做条件队列。</p>
+<p>ReentrantLock可以单独使用，也可以配合条件变量一起使用，使用方式如下所示:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 变量声明</span></span><br><span class="line"><span class="keyword">private</span> ReentrantLock lock;</span><br><span class="line"><span class="keyword">private</span> Condition full;</span><br><span class="line"><span class="keyword">private</span> Condition empty;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="comment">// 初始化</span></span><br><span class="line">lock = <span class="keyword">new</span> ReentrantLock();</span><br><span class="line">full = lock.newCondition();</span><br><span class="line">empty = lock.newCondition();</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="comment">// 使用方式</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    lock.lock();</span><br><span class="line">    <span class="keyword">while</span> (index &gt;= DATA_SIZE) &#123;</span><br><span class="line">        empty.await();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> value = random.nextInt();</span><br><span class="line">    data[index] = value;</span><br><span class="line">    ++index;</span><br><span class="line"></span><br><span class="line">    full.signalAll();</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception ex) &#123;</span><br><span class="line">    ex.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    ++loop;</span><br><span class="line">    lock.unlock();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>条件变量(Codition)通常需要与Lock配合使用，为什么需要配合使用，后面章节会有描述。每一个条件变量都会维护一个条件队列，通过await方法之后，会释放Lock锁，同时将当前线程加入到条件队列中，最后阻塞当前线程。signal/signalAll则会将条件队列中一个或所有线程移到Lock对应的等待队列中，并等待唤醒。拥有两个结点的条件队列如下所示：<br><img src="/images/con-queue.jpg" alt="con-queue" title="con-queue"></p>
+<h3 id="2-4-tryAcquire"><a href="#2-4-tryAcquire" class="headerlink" title="2.4 tryAcquire"></a>2.4 tryAcquire</h3><p>在AQS中定义了一套获取锁的模板方法，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">acquire</span><span class="params">(<span class="keyword">int</span> arg)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!tryAcquire(arg) &amp;&amp;</span><br><span class="line">        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</span><br><span class="line">        selfInterrupt();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>流程如下：</p>
+<ul>
+<li>尝试获取锁，失败之后将线程加入到队列；</li>
+<li>加入队列失败，则执行中断。</li>
+</ul>
+<p>在ReentrantLock中有两个实现，分别是公平锁和不公平锁，差别在于tryAcquire的实现，不公平锁的tryAcquire如下所示：<br>ReentrantLock#NonfairSync.tryAcquire.nonfairTryAcquire:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">nonfairTryAcquire</span><span class="params">(<span class="keyword">int</span> acquires)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Thread current = Thread.currentThread();</span><br><span class="line">    <span class="keyword">int</span> c = getState();</span><br><span class="line">    <span class="keyword">if</span> (c == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (compareAndSetState(<span class="number">0</span>, acquires)) &#123; <span class="comment">// #1</span></span><br><span class="line">            setExclusiveOwnerThread(current);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (current == getExclusiveOwnerThread()) &#123;</span><br><span class="line">        <span class="keyword">int</span> nextc = c + acquires; <span class="comment">// #2</span></span><br><span class="line">        <span class="keyword">if</span> (nextc &lt; <span class="number">0</span>) <span class="comment">// overflow</span></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Maximum lock count exceeded"</span>);</span><br><span class="line">        setState(nextc);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>ReentrantLock#FairSync.tryAcquire<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">tryAcquire</span><span class="params">(<span class="keyword">int</span> acquires)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Thread current = Thread.currentThread();</span><br><span class="line">    <span class="keyword">int</span> c = getState();</span><br><span class="line">    <span class="keyword">if</span> (c == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!hasQueuedPredecessors() &amp;&amp; <span class="comment">// #3</span></span><br><span class="line">            compareAndSetState(<span class="number">0</span>, acquires)) &#123;</span><br><span class="line">            etExclusiveOwnerThread(current);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (current == getExclusiveOwnerThread()) &#123;</span><br><span class="line">        <span class="keyword">int</span> nextc = c + acquires; <span class="comment">// #4</span></span><br><span class="line">        <span class="keyword">if</span> (nextc &lt; <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Maximum lock count exceeded"</span>);</span><br><span class="line">            setState(nextc);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>公平性</strong></p>
+<p>公平锁与不公平锁的区别主要体现在代码#1和#3处，重要的区别在于获取锁时是否允许抢占，在公平锁中（#3）要判断队列中是否有结点，如果有则插入到队尾进行排队；不公平锁（#1）先尝试获取锁，获取失败再进行排队。</p>
+<p><strong>可重入性</strong></p>
+<p>可重入性体现在代码#2和#4处，如果当前线程等于持有锁的线程，则允许获取锁，state字段加1。</p>
+<h3 id="2-5-LockSupport"><a href="#2-5-LockSupport" class="headerlink" title="2.5 LockSupport"></a>2.5 LockSupport</h3><p>如果获取锁失败，会调用LockSupport.park方法阻塞当前线程。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">parkAndCheckInterrupt</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    LockSupport.park(<span class="keyword">this</span>);</span><br><span class="line">    <span class="keyword">return</span> Thread.interrupted();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>LockSupport代码如下所示，它最终会调用UNSAFE.park方法，该方法是一个本地方法，由JVM虚拟机来实现。</p>
+<p>LockSupport.Java<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">park</span><span class="params">(Object blocker)</span> </span>&#123;</span><br><span class="line">    Thread t = Thread.currentThread();</span><br><span class="line">    setBlocker(t, blocker);</span><br><span class="line">    UNSAFE.park(<span class="keyword">false</span>, <span class="number">0L</span>);</span><br><span class="line">    setBlocker(t, <span class="keyword">null</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在ReentrantLock中，线程的唤醒同样依赖于LockSupport中的方法，最终也是调用UNSAFE的本地方法。在UNSAFE中提供给LockSupport使用的就是如下两个方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title">unpark</span><span class="params">(Thread jthread)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 第一个参数代表第二个参数是否是绝对时间，第二个参数代表最长阻塞时间</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title">park</span><span class="params">(<span class="keyword">boolean</span> isAbsolute, <span class="keyword">long</span> time)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>仅仅两个简单的接口，就为上层提供了强大的同步原语。</p>
+<h2 id="3-JVM同步原语"><a href="#3-JVM同步原语" class="headerlink" title="3. JVM同步原语"></a>3. JVM同步原语</h2><p>在HotSpot虚拟机(Oracle JDK和Openjdk)中，park和unpark方法由底层的Parker类来实现，虚拟机中每一个线程都会关联一个Park对象，在这里三个层面的线程，分别是Java线程、jvm线程和操作系统线程，先分析下它们之间的关系。</p>
+<h3 id="3-1-Thread"><a href="#3-1-Thread" class="headerlink" title="3.1 Thread"></a>3.1 Thread</h3><p>HotSpot虚拟机里的Thread类对应着一个OS的Thread, JavaThread类继承自Thread, JavaThread实例持有Java层的Thread实例。所以, 在Java层的Thread, 在操作系统上对应一个thread, linux上就是一个轻量级task。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// thread.hpp</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Thread</span>:</span> <span class="keyword">public</span> ThreadShadow &#123;</span><br><span class="line">    <span class="keyword">friend</span> <span class="class"><span class="keyword">class</span> <span class="title">VMStructs</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// OS data associated with the thread</span></span><br><span class="line">    <span class="keyword">protected</span>:</span><br><span class="line">        OSThread* _osthread;  <span class="comment">// Platform-specific thread information</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">        ParkEvent * _ParkEvent ;        <span class="comment">// for synchronized()</span></span><br><span class="line">        ParkEvent * _SleepEvent ;       <span class="comment">// for Thread.sleep</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// JSR166 per-thread parker</span></span><br><span class="line">    <span class="keyword">private</span>:</span><br><span class="line">        Parker*    _parker;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">JavaThread</span>:</span> <span class="keyword">public</span> Thread &#123;</span><br><span class="line">    <span class="keyword">friend</span> <span class="class"><span class="keyword">class</span> <span class="title">VMStructs</span>;</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span>:</span><br><span class="line">        JavaThread*    _next;          <span class="comment">// The next thread in the Threads list</span></span><br><span class="line">        oop            _threadObj;     <span class="comment">// The Java level thread object</span></span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>线程的创建是最后是通过线程库pthread_create来实现的。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// thread.cpp</span></span><br><span class="line">os::create_thread(<span class="keyword">this</span>, thr_type, stack_sz);</span><br><span class="line"><span class="comment">// linux_os.cpp</span></span><br><span class="line"><span class="keyword">pthread_t</span> tid;</span><br><span class="line"><span class="keyword">int</span> ret = pthread_create(&amp;tid, &amp;attr, (<span class="keyword">void</span>* (*)(<span class="keyword">void</span>*)) thread_native_entry, thread);</span><br></pre></td></tr></table></figure></p>
+<p>另外，Thread类里有两个ParkEvent和一个Parker, 其中_ParkEvent实现synchronized同步功能, _SleepEvent是用来实现Thread.sleep/wait，而parker则是用来实现的park/unpark(阻塞/唤醒)。</p>
+<p><strong>注意：</strong> synchronized的重量级锁和ReentrantLock底层都是基于互斥和条件变量来实现的，从这个角度来看的话，这两者在性能上差别不大。</p>
+<h3 id="3-2-Parker"><a href="#3-2-Parker" class="headerlink" title="3.2 Parker"></a>3.2 Parker</h3><p>Parker对象是实现线程阻塞/唤醒的关键，现在分析下它的结构。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// park.hpp</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Parker</span> :</span> <span class="keyword">public</span> os::PlatformParker &#123;</span><br><span class="line">    <span class="keyword">private</span>:</span><br><span class="line">        <span class="keyword">volatile</span> <span class="keyword">int</span> _counter ;</span><br><span class="line">         Parker * FreeNext ;</span><br><span class="line">        JavaThread * AssociatedWith ; <span class="comment">// Current association</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">        Parker() : PlatformParker() &#123;</span><br><span class="line">            _counter       = <span class="number">0</span> ;    <span class="comment">// 初始化为0</span></span><br><span class="line">            FreeNext       = <span class="literal">NULL</span> ;</span><br><span class="line">            AssociatedWith = <span class="literal">NULL</span> ;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os_linux.cpp </span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PlatformParker</span> :</span> <span class="keyword">public</span> CHeapObj&lt;mtInternal&gt; &#123;</span><br><span class="line">    <span class="keyword">protected</span>:</span><br><span class="line">        <span class="keyword">enum</span> &#123;</span><br><span class="line">            REL_INDEX = <span class="number">0</span>,</span><br><span class="line">            ABS_INDEX = <span class="number">1</span></span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> _cur_index;  <span class="comment">// which cond is in use: -1, 0, 1</span></span><br><span class="line">    <span class="keyword">pthread_mutex_t</span> _mutex [<span class="number">1</span>] ;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 一个是给park用, 另一个是给parkUntil用</span></span><br><span class="line">    <span class="keyword">pthread_cond_t</span>  _cond  [<span class="number">2</span>] ; <span class="comment">// one for relative times and one for abs.</span></span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在Parker对象中有三个比较重要的变量:</p>
+<ul>
+<li>_counter:用来表示获取凭证；</li>
+<li>_mutex,_cond:互斥、条件变量，实现阻塞及唤醒的关键就在这里。</li>
+</ul>
+<h3 id="3-3-阻塞-唤醒"><a href="#3-3-阻塞-唤醒" class="headerlink" title="3.3 阻塞/唤醒"></a>3.3 阻塞/唤醒</h3><p>LockSuport.park/unpark调用UNSAFE.park/unpark，而UNSAFE再调用Parker的park及unpark方法，下面分析Parker对象中的park/unpark流程。</p>
+<h4 id="3-3-1-Parker-park"><a href="#3-3-1-Parker-park" class="headerlink" title="3.3.1 Parker::park"></a>3.3.1 Parker::park</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os_linux.cpp</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Parker::park</span><span class="params">(<span class="keyword">bool</span> isAbsolute, jlong time)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果_counter大于0，表示凭证有效(park之前执行了unpark操作)，则直接返回。</span></span><br><span class="line">    <span class="keyword">if</span> (Atomic::xchg(<span class="number">0</span>, &amp;_counter) &gt; <span class="number">0</span>) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    Thread* thread = Thread::current();</span><br><span class="line">    assert(thread-&gt;is_Java_thread(), <span class="string">"Must be JavaThread"</span>);</span><br><span class="line">    JavaThread *jt = (JavaThread *)thread;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果当前线程有中断信息，则直接返回</span></span><br><span class="line">    <span class="keyword">if</span> (Thread::is_interrupted(thread, <span class="literal">false</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Next, demultiplex/decode time arguments</span></span><br><span class="line">    timespec absTime;</span><br><span class="line">    <span class="keyword">if</span> (time &lt; <span class="number">0</span> || (isAbsolute &amp;&amp; time == <span class="number">0</span>) ) &#123; <span class="comment">// don't wait at all</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (time &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        unpackTime(&amp;absTime, isAbsolute, time);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ... </span><br><span class="line"></span><br><span class="line">    <span class="comment">// Don't wait if cannot get lock since interference arises from</span></span><br><span class="line">    <span class="comment">// unblocking.  Also. check interrupt before trying wait</span></span><br><span class="line">    <span class="comment">// 中断或获取锁失败则返回</span></span><br><span class="line">    <span class="keyword">if</span> (Thread::is_interrupted(thread, <span class="literal">false</span>) || pthread_mutex_trylock(_mutex) != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> status ;</span><br><span class="line">    f (_counter &gt; <span class="number">0</span>)  &#123; <span class="comment">// no wait needed</span></span><br><span class="line">        _counter = <span class="number">0</span>;</span><br><span class="line">        status = pthread_mutex_unlock(_mutex);</span><br><span class="line">        assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>) ;</span><br><span class="line">        <span class="comment">// Paranoia to ensure our locked and lock-free paths interact</span></span><br><span class="line">        <span class="comment">// correctly with each other and Java-level accesses.</span></span><br><span class="line">        OrderAccess::fence();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    assert(_cur_index == <span class="number">-1</span>, <span class="string">"invariant"</span>);</span><br><span class="line">     <span class="comment">// 传入的time参数为0，走这个分支。</span></span><br><span class="line">     <span class="keyword">if</span> (time == <span class="number">0</span>) &#123;</span><br><span class="line">        _cur_index = REL_INDEX; <span class="comment">// arbitrary choice when not timed</span></span><br><span class="line">        status = pthread_cond_wait (&amp;_cond[_cur_index], _mutex) ;  <span class="comment">// 调用条件变量，进行阻塞</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        _cur_index = isAbsolute ? ABS_INDEX : REL_INDEX;</span><br><span class="line">        status = os::Linux::safe_cond_timedwait (&amp;_cond[_cur_index], _mutex, &amp;absTime) ;</span><br><span class="line">        <span class="keyword">if</span> (status != <span class="number">0</span> &amp;&amp; WorkAroundNPTLTimedWaitHang) &#123;</span><br><span class="line">            pthread_cond_destroy (&amp;_cond[_cur_index]) ;</span><br><span class="line">            pthread_cond_init    (&amp;_cond[_cur_index], isAbsolute ? <span class="literal">NULL</span> : os::Linux::condAttr());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _cur_index = <span class="number">-1</span>;</span><br><span class="line">    assert_status(status == <span class="number">0</span> || status == EINTR ||</span><br><span class="line">                status == ETIME || status == ETIMEDOUT,</span><br><span class="line">                status, <span class="string">"cond_timedwait"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 线程被唤醒，_counter设置为0，并释放锁。</span></span><br><span class="line">    _counter = <span class="number">0</span> ;</span><br><span class="line">    status = pthread_mutex_unlock(_mutex) ;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主要流程：</p>
+<ol>
+<li>首先对_counter进行CAS原子操作，将_counter设置为0，并判断旧值是否大于0，若大于0表示凭证有效，直接返回；</li>
+<li>_counter等于0，则尝试获取锁（pthread_mutex_trylock），有中断或获取锁失败直接返回；</li>
+<li>获取锁成功之后，尝试对_counter进行一次判断，如果在这期间，_counter被修改了（大于0），则将_counter设置为0，释放锁，并返回；</li>
+<li>如果_counter未被修改，则调用pthread_cond_wait，阻塞该线程；</li>
+<li>线程被唤醒，_counter设置为0，并释放锁。</li>
+</ol>
+<p><strong>注意：</strong> 在pthread_cond_wait中传入mutex，是为了保证_counter状态的变更和执行条件变量的操作是一个原子操作，避免在对条件变量进行操作的时候，_counter发生了变更。</p>
+<h4 id="3-3-2-Parker-unpark"><a href="#3-3-2-Parker-unpark" class="headerlink" title="3.3.2 Parker::unpark"></a>3.3.2 Parker::unpark</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os_linux.cpp</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Parker::unpark</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> s, status ;</span><br><span class="line">    status = pthread_mutex_lock(_mutex);</span><br><span class="line">    assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>) ;</span><br><span class="line">     s = _counter;</span><br><span class="line">     _counter = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (s &lt; <span class="number">1</span>) &#123;</span><br><span class="line">    <span class="comment">// thread might be parked</span></span><br><span class="line">    <span class="keyword">if</span> (_cur_index != <span class="number">-1</span>) &#123;</span><br><span class="line">      <span class="comment">// thread is definitely parked</span></span><br><span class="line">      <span class="keyword">if</span> (WorkAroundNPTLTimedWaitHang) &#123;</span><br><span class="line">        status = pthread_cond_signal (&amp;_cond[_cur_index]);</span><br><span class="line">        assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>);</span><br><span class="line">        status = pthread_mutex_unlock(_mutex);</span><br><span class="line">        assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        status = pthread_mutex_unlock(_mutex);</span><br><span class="line">        assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>);</span><br><span class="line">        status = pthread_cond_signal (&amp;_cond[_cur_index]);</span><br><span class="line">        assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      pthread_mutex_unlock(_mutex);</span><br><span class="line">      assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>) ;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    pthread_mutex_unlock(_mutex);</span><br><span class="line">    assert (status == <span class="number">0</span>, <span class="string">"invariant"</span>) ;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>主要流程：</strong></p>
+<ol>
+<li>获取锁；</li>
+<li>将_counter值修改为1；</li>
+<li>对_counter的旧值进行判断，如果小于1，则表示有线程阻塞在条件变量，执行pthread_cond_signal唤醒操作。</li>
+<li>释放锁。</li>
+</ol>
+<p>Parker::unpark操作相对比较简单，1）修改_counter赋值为1；2）唤醒进程。同时也可以看到，_counter执行的是赋值操作，执行一次unpark和执行多次unpark效果一样。</p>
+<p><strong>源代码：</strong></p>
+<p><a href="http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.hpp" target="_blank" rel="noopener">thread.hpp</a><br><a href="http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.cpp" target="_blank" rel="noopener">thread.cpp</a><br><a href="http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/os/linux/vm/os_linux.cpp" target="_blank" rel="noopener">linux_os.cpp</a></p>
+<h3 id="3-4-mutex-cond"><a href="#3-4-mutex-cond" class="headerlink" title="3.4. mutex/cond"></a>3.4. mutex/cond</h3><p>通过上面的分析，LockSupport.park最终调用的是pthread_cond_wait，LockSupport.unpark调用的是pthread_cond_signal，阻塞/唤醒操作是通过条件变量来实现的，另外，这两个方法调用需要互斥（mutex）来协助（pthread_mutex_lock,pthread_mutex_unlock和pthread_mutex_trylock），现在我们进一步分析mutex和cond的实现。</p>
+<h4 id="3-4-1-pthread-mutex-t"><a href="#3-4-1-pthread-mutex-t" class="headerlink" title="3.4.1 pthread_mutex_t"></a>3.4.1 pthread_mutex_t</h4><p><strong>1. pthread_mutex_t结构</strong><br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">union</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> __<span class="title">pthread_mutex_s</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        <span class="keyword">int</span> __lock;</span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __count;</span><br><span class="line">        <span class="keyword">int</span> __owner;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> __WORDSIZE == 64</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __nusers;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">        <span class="comment">/* KIND must stay at this position in the structure to maintain</span></span><br><span class="line"><span class="comment">           binary compatibility.  */</span></span><br><span class="line">        <span class="keyword">int</span> __kind;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> __WORDSIZE == 64</span></span><br><span class="line">        <span class="keyword">int</span> __spins;</span><br><span class="line">        <span class="keyword">__pthread_list_t</span> __list;</span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> __PTHREAD_MUTEX_HAVE_PREV  1</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __nusers;</span><br><span class="line">        __extension__ <span class="keyword">union</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">int</span> __spins;</span><br><span class="line">            <span class="keyword">__pthread_slist_t</span> __list;</span><br><span class="line">        &#125;;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">    &#125; __data;</span><br><span class="line">    <span class="keyword">char</span> __size[__SIZEOF_PTHREAD_MUTEX_T];</span><br><span class="line">    <span class="keyword">long</span> <span class="keyword">int</span> __align;</span><br><span class="line">&#125; <span class="keyword">pthread_mutex_t</span>;</span><br></pre></td></tr></table></figure></p>
+<p><strong>主要变量：</strong></p>
+<ul>
+<li>__lock:锁状态；</li>
+<li>__owner:锁的拥有者。</li>
+</ul>
+<p>初始化时这些值都为0。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># <span class="meta-keyword">define</span> PTHREAD_MUTEX_INITIALIZER \</span></span><br><span class="line">  &#123; &#123; <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, __PTHREAD_SPINS, &#123; <span class="number">0</span>, <span class="number">0</span> &#125; &#125; &#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>2. pthread_mutex_lock</strong></p>
+<p>省掉了部分流程，只保留了主要流程：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> __pthread_mutex_lock</span></span><br><span class="line">strong_alias (__pthread_mutex_lock, pthread_mutex_lock)</span><br><span class="line">hidden_def (__pthread_mutex_lock)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// pthread_mutex_lock是__pthread_mutex_lock的别名</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">__pthread_mutex_lock (<span class="keyword">pthread_mutex_t</span> *mutex)</span><br><span class="line">&#123;</span><br><span class="line">    assert (<span class="keyword">sizeof</span> (mutex-&gt;__size) &gt;= <span class="keyword">sizeof</span> (mutex-&gt;__data));</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> type = PTHREAD_MUTEX_TYPE_ELISION (mutex);</span><br><span class="line"> </span><br><span class="line">    LIBC_PROBE (mutex_entry, <span class="number">1</span>, mutex);</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect (type &amp; ~(PTHREAD_MUTEX_KIND_MASK_NP</span><br><span class="line">                 | PTHREAD_MUTEX_ELISION_FLAGS_NP), <span class="number">0</span>))</span><br><span class="line">        <span class="keyword">return</span> __pthread_mutex_lock_full (mutex);</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span> (__glibc_likely (type == PTHREAD_MUTEX_TIMED_NP))</span><br><span class="line">    &#123;</span><br><span class="line">        FORCE_ELISION (mutex, <span class="keyword">goto</span> elision);</span><br><span class="line">        simple:</span><br><span class="line">        <span class="comment">/* Normal mutex.  */</span></span><br><span class="line">        LLL_MUTEX_LOCK (mutex);</span><br><span class="line">        assert (mutex-&gt;__data.__owner == <span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    elseif (...) &#123;</span><br><span class="line">      ...</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">pid_t</span> id = THREAD_GETMEM (THREAD_SELF, tid);</span><br><span class="line"> </span><br><span class="line">    <span class="comment">/* Record the ownership.  */</span></span><br><span class="line">    mutex-&gt;__data.__owner = id;</span><br><span class="line">    <span class="meta">#<span class="meta-keyword">ifndef</span> NO_INCR</span></span><br><span class="line">    ++mutex-&gt;__data.__nusers;</span><br><span class="line">    <span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"> </span><br><span class="line">    LIBC_PROBE (mutex_acquired, <span class="number">1</span>, mutex);</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>主要流程：</strong></p>
+<ul>
+<li>判断锁的类型，普通锁会走LLL_MUTEX_LOCK (mutex)分支；</li>
+<li>获取锁之后会将当前线程线程设置成为锁的拥有者，同时自增mutex变量__nusers的值，表示锁使用人数加1。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># <span class="meta-keyword">define</span> LLL_MUTEX_LOCK(mutex) \</span></span><br><span class="line">    lll_lock ((mutex) -&gt;__data.__lock, PTHREAD_MUTEX_PSHARED (mutex))</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将_data中的__lock作为参数填入lll_lock</span></span><br></pre></td></tr></table></figure>
+<p>对mutex的操作主要是对mutex.__data.__lock的操作。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> lll_lock(futex, private)    \</span></span><br><span class="line">    __lll_lock (&amp;(futex), <span class="keyword">private</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> __lll_lock(futex, private)                                      \</span></span><br><span class="line">  ((<span class="keyword">void</span>)                                                               \</span><br><span class="line">   (&#123;                                                                   \</span><br><span class="line">     <span class="keyword">int</span> *__futex = (futex);                                            \</span><br><span class="line">     <span class="keyword">if</span> (__glibc_unlikely                                               \</span><br><span class="line">         (atomic_compare_and_exchange_bool_acq (__futex, <span class="number">1</span>, <span class="number">0</span>)))        \</span><br><span class="line">       &#123;                                                                \</span><br><span class="line">         <span class="keyword">if</span> (__builtin_constant_p (<span class="keyword">private</span>) &amp;&amp; (<span class="keyword">private</span>) == LLL_PRIVATE) \</span><br><span class="line">           __lll_lock_wait_private (__futex);                           \</span><br><span class="line">         <span class="keyword">else</span>                                                           \</span><br><span class="line">           __lll_lock_wait (__futex, <span class="keyword">private</span>);                          \</span><br><span class="line">       &#125;                                                                \</span><br><span class="line">   &#125;))</span><br></pre></td></tr></table></figure>
+<p><strong>主要流程：</strong></p>
+<ul>
+<li>对__futex进行CAS操作，如果旧值为0，则将__futex修改为1，atomic_compare_and_exchange_bool_acq就是完成这个功能。</li>
+<li>如果修改成功获取锁返回，且__futex值为1；</li>
+<li>如果修改失败，说明__futex不为0，说明其它线程获取到锁，则执行下面的分支。</li>
+</ul>
+<p>atomic_compare_and_exchange_bool_acq(mem, newval, oldval)的定义如下：如果oldval等于*mem，那么设置*mem=newval，并且返回0； 如果*mem的值没有改变，那么就返回非0。 直白一点就是*mem等于oldval就返回0，不等于就返回非0。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Atomically store NEWVAL in *MEM if *MEM is equal to OLDVAL.</span></span><br><span class="line"><span class="comment">   Return zero if *MEM was changed or non-zero if no exchange happened. */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> atomic_compare_and_exchange_bool_acq</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> __arch_compare_and_exchange_bool_32_acq</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> atomic_compare_and_exchange_bool_acq(mem, newval, oldval) \</span></span><br><span class="line">  __atomic_bool_bysize (__arch_compare_and_exchange_bool,acq, \</span><br><span class="line">                mem, newval, oldval)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> atomic_compare_and_exchange_bool_acq(mem, newval, oldval) \</span></span><br><span class="line">  (&#123; <span class="comment">/* Cannot use __oldval here, because macros later in this file might \</span></span><br><span class="line"><span class="comment">    call this macro with __oldval argument. */</span> \</span><br><span class="line">     __typeof (oldval) __atg3_old = (oldval); \</span><br><span class="line">     atomic_compare_and_exchange_val_acq (mem, newval, __atg3_old) \</span><br><span class="line">       != __atg3_old; \</span><br><span class="line">  &#125;)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* This function doesn't get included in libc.  */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> IS_IN (libpthread)</span></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">__lll_lock_wait (<span class="keyword">int</span> *futex, <span class="keyword">int</span> <span class="keyword">private</span>)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">if</span> (*futex == <span class="number">2</span>)</span><br><span class="line">    lll_futex_wait (futex, <span class="number">2</span>, <span class="keyword">private</span>); <span class="comment">/* Wait if *futex == 2.  */</span></span><br><span class="line"> </span><br><span class="line">  <span class="keyword">while</span> (atomic_exchange_acq (futex, <span class="number">2</span>) != <span class="number">0</span>)</span><br><span class="line">    lll_futex_wait (futex, <span class="number">2</span>, <span class="keyword">private</span>); <span class="comment">/* Wait if *futex == 2.  */</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+<p>阻塞的关键操作就在这里：</p>
+<ul>
+<li>如果futex为2，则调用lll_futex_wait进行阻塞；</li>
+<li>如果futex不为2，则将futex修改为2，一般是从1修改为2，再调用lll_futex_wait阻塞线程。</li>
+<li>这里有两种情况：1）当前锁被占用，futex为1，但没有线程被阻塞，这是需要将futex修改为2；2）如果已经有线程被阻塞，说明futex为2，则直接阻塞当前线程。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Wait while *FUTEXP == VAL for an lll_futex_wake call on FUTEXP.  */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> lll_futex_wait(futexp, val, private) \</span></span><br><span class="line">lll_futex_timed_wait (futexp, val, <span class="literal">NULL</span>, <span class="keyword">private</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> lll_futex_timed_wait(futexp, val, timeout, private)     \</span></span><br><span class="line">    lll_futex_syscall (<span class="number">4</span>, futexp,                                 \</span><br><span class="line">            __lll_private_flag (FUTEX_WAIT, <span class="keyword">private</span>),  \</span><br><span class="line">            val, timeout)</span><br></pre></td></tr></table></figure>
+<p>lll_futex_wait的操作最终会调用FUTEX_WAIT，在FUTEX_WAIT中，会传入整数的地址futexp，还有当前值val，如果在系统调用期间val改变了则直接返回，保证了数据的原子性。在lll_futex_timed_wait调用中，futexp表示mutex.__data.__lock，而val为2。</p>
+<p><strong>3. pthread_mutex_unlock</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">__pthread_mutex_unlock (<span class="keyword">pthread_mutex_t</span> *mutex)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> __pthread_mutex_unlock_usercnt (mutex, <span class="number">1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">internal_function attribute_hidden</span><br><span class="line">__pthread_mutex_unlock_usercnt (<span class="keyword">pthread_mutex_t</span> *mutex, <span class="keyword">int</span> decr)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span> type = PTHREAD_MUTEX_TYPE_ELISION (mutex);</span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect (type &amp;</span><br><span class="line">		~(PTHREAD_MUTEX_KIND_MASK_NP|PTHREAD_MUTEX_ELISION_FLAGS_NP), <span class="number">0</span>))</span><br><span class="line">        <span class="keyword">return</span> __pthread_mutex_unlock_full (mutex, decr);</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect (type, PTHREAD_MUTEX_TIMED_NP)</span><br><span class="line">        == PTHREAD_MUTEX_TIMED_NP)</span><br><span class="line">    &#123;</span><br><span class="line">    <span class="comment">/* Always reset the owner field.  */</span></span><br><span class="line">    normal:</span><br><span class="line">        mutex-&gt;__data.__owner = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">if</span> (decr)</span><br><span class="line">	    <span class="comment">/* One less user.  */</span></span><br><span class="line">	    --mutex-&gt;__data.__nusers;</span><br><span class="line"> </span><br><span class="line">         <span class="comment">/* Unlock.  */</span></span><br><span class="line">        lll_unlock (mutex-&gt;__data.__lock, PTHREAD_MUTEX_PSHARED (mutex));</span><br><span class="line"> </span><br><span class="line">        LIBC_PROBE (mutex_release, <span class="number">1</span>, mutex);</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (__glibc_likely (type == PTHREAD_MUTEX_TIMED_ELISION_NP))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (__builtin_expect (PTHREAD_MUTEX_TYPE (mutex)</span><br><span class="line">			      == PTHREAD_MUTEX_RECURSIVE_NP, <span class="number">1</span>))</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (__builtin_expect (PTHREAD_MUTEX_TYPE (mutex)</span><br><span class="line">			      == PTHREAD_MUTEX_ADAPTIVE_NP, <span class="number">1</span>))</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>释放锁的主要操作是：1）线程的拥有者清0；2）线程的使用人数减一；2）lll_unlock唤醒线程。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> __lll_unlock(futex, private)                    \</span></span><br><span class="line">  ((<span class="keyword">void</span>)                                               \</span><br><span class="line">   (&#123;                                                   \</span><br><span class="line">     <span class="keyword">int</span> *__futex = (futex);                            \</span><br><span class="line">     <span class="keyword">int</span> __private = (<span class="keyword">private</span>);                         \</span><br><span class="line">     <span class="keyword">int</span> __oldval = atomic_exchange_rel (__futex, <span class="number">0</span>);   \</span><br><span class="line">     <span class="keyword">if</span> (__glibc_unlikely (__oldval &gt; <span class="number">1</span>))               \</span><br><span class="line">       lll_futex_wake (__futex, <span class="number">1</span>, __private);          \</span><br><span class="line">   &#125;))</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> lll_unlock(futex, private)	\</span></span><br><span class="line">  __lll_unlock (&amp;(futex), <span class="keyword">private</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> lll_futex_wake(futexp, nr, private)                             \</span></span><br><span class="line">  lll_futex_syscall (<span class="number">4</span>, futexp,                                         \</span><br><span class="line">		     __lll_private_flag (FUTEX_WAKE, <span class="keyword">private</span>), nr, <span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+<p><strong>主要流程：</strong></p>
+<ul>
+<li>将futex（mutex.__data.__lock）设置为0并拿到设置之前的值（用户态操作）；</li>
+<li>如果futex之前的值大于1，说明有线程阻塞在mutex上，则调用lll_futex_wake唤醒一个线程；</li>
+</ul>
+<p>lll_futex_wake调用内核FUTEX_WAKE来唤醒线程。</p>
+<p><strong>总结：</strong></p>
+<ul>
+<li>mutex锁有三种状态（mutex.__data.__lock的值），0：锁未被占用；1：锁被占用；2：有一个或多个线程阻塞；</li>
+<li>在内核中通过mutex.__data.__lock地址来确定一个mutex；</li>
+</ul>
+<h4 id="3-4-2-pthread-cond-t"><a href="#3-4-2-pthread-cond-t" class="headerlink" title="3.4.2 pthread_cond_t"></a>3.4.2 pthread_cond_t</h4><ol>
+<li>pthread_cond_t定义<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Data structure for conditional variable handling.  Thestructure of</span></span><br><span class="line"><span class="comment">   the attribute type is not exposed on purpose.  */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="keyword">union</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        <span class="keyword">int</span> __lock; </span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __futex;</span><br><span class="line">        __extension__ <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> __total_seq;</span><br><span class="line">        __extension__ <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> __wakeup_seq;</span><br><span class="line">        __extension__ <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> __woken_seq;</span><br><span class="line">        <span class="keyword">void</span> *__mutex;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __nwaiters;</span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> __broadcast_seq; </span><br><span class="line">     &#125; __data;</span><br><span class="line">    <span class="keyword">char</span> __size[__SIZEOF_PTHREAD_COND_T];</span><br><span class="line">     __extension__ <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> __align;</span><br><span class="line">&#125; <span class="keyword">pthread_cond_t</span>;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p><strong>主要成员：</strong></p>
+<ul>
+<li>__lock: 锁变量，用于条件变量内部状态的互斥访问；</li>
+<li>__futex: 用来执行futex_wait的变量；</li>
+<li>__total_seq：表示执行了多少次wait操作；</li>
+<li>__wakeup_seq：表示执行了多少次唤醒操作；</li>
+<li>__woken_seq：表示已经被真正唤醒的线程数目；</li>
+<li>__mutex：保存pthread_cond_wait传入的互斥锁；</li>
+<li>__nwaiters：表示条件变量现在还有多少个线程在使用；</li>
+<li>__broadcast_seq：表示执行了多少次broadcast。</li>
+</ul>
+<ol start="2">
+<li>pthread_cond_wait</li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">__pthread_cond_wait (cond, mutex)</span><br><span class="line">     <span class="keyword">pthread_cond_t</span> *cond;</span><br><span class="line">     <span class="keyword">pthread_mutex_t</span> *mutex;</span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> _<span class="title">pthread_cleanup_buffer</span> <span class="title">buffer</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> _<span class="title">condvar_cleanup_buffer</span> <span class="title">cbuffer</span>;</span></span><br><span class="line">     <span class="keyword">int</span> err;</span><br><span class="line">    <span class="keyword">int</span> pshared = (cond-&gt;__data.__mutex == (<span class="keyword">void</span> *) ~<span class="number">0l</span>)</span><br><span class="line">        ? LLL_SHARED : LLL_PRIVATE;</span><br><span class="line"></span><br><span class="line">     <span class="comment">/* Make sure we are along.  */</span></span><br><span class="line">     <span class="comment">// 1.获得cond锁，对cond内状态进行互斥访问。</span></span><br><span class="line">    lll_lock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Now we can release the mutex.  */</span></span><br><span class="line">    <span class="comment">// 2.释放mutex锁，即函数传入的互斥锁。</span></span><br><span class="line">    err = __pthread_mutex_unlock_usercnt (mutex, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect (err, <span class="number">0</span>))</span><br><span class="line">    &#123;</span><br><span class="line">        lll_unlock (cond-&gt;__data.__lock, pshared);</span><br><span class="line">        <span class="keyword">return</span> err;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* We have one new user of the condvar.  */</span></span><br><span class="line">  <span class="comment">// 3.修改cond状态</span></span><br><span class="line">  <span class="comment">// 每执行一次wait，__total_seq就会+1</span></span><br><span class="line">  ++cond-&gt;__data.__total_seq;</span><br><span class="line">  <span class="comment">// 用来执行futex_wait的变量</span></span><br><span class="line">  ++cond-&gt;__data.__futex;</span><br><span class="line">  <span class="comment">// 标识该cond还有多少线程在使用。</span></span><br><span class="line">  cond-&gt;__data.__nwaiters += <span class="number">1</span> &lt;&lt; COND_NWAITERS_SHIFT;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Remember the mutex we are using here.  If thereis already a</span></span><br><span class="line"><span class="comment">     different address store this is a bad user bug. Do not store</span></span><br><span class="line"><span class="comment">     anything for pshared condvars.  */</span></span><br><span class="line">  <span class="keyword">if</span> (cond-&gt;__data.__mutex != (<span class="keyword">void</span> *) ~<span class="number">0l</span>)</span><br><span class="line">    cond-&gt;__data.__mutex = mutex;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Prepare structure passed to cancellationhandler.  */</span></span><br><span class="line">  cbuffer.cond = cond;</span><br><span class="line">  cbuffer.mutex = mutex;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Before we block we enable cancellation. Therefore we have to</span></span><br><span class="line"><span class="comment">     install a cancellation handler.  */</span></span><br><span class="line">  __pthread_cleanup_push (&amp;buffer, __condvar_cleanup, &amp;cbuffer);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* The current values of the wakeup counter.  The"woken" counter</span></span><br><span class="line"><span class="comment">     must exceed this value.  */</span></span><br><span class="line">  <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> val;</span><br><span class="line">  <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <span class="keyword">int</span> seq;</span><br><span class="line">  val = seq = cond-&gt;__data.__wakeup_seq;</span><br><span class="line">  <span class="comment">/* Remember the broadcast counter.  */</span></span><br><span class="line">  cbuffer.bc_seq = cond-&gt;__data.__broadcast_seq;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">do</span> &#123;</span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> futex_val =cond-&gt;__data.__futex;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Prepare to wait.  Releasethe condvar futex.  */</span></span><br><span class="line">        <span class="comment">// 4. 释放cond锁</span></span><br><span class="line">        lll_unlock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Enable asynchronouscancellation.  Required by the standard.  */</span></span><br><span class="line">        cbuffer.oldtype = __pthread_enable_asynccancel();</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Wait until woken by signal orbroadcast.  */</span></span><br><span class="line">        <span class="comment">// 5. 在__futex上阻塞线程</span></span><br><span class="line">        lll_futex_wait (&amp;cond-&gt;__data.__futex,futex_val, pshared);</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Disable asynchronouscancellation.  */</span></span><br><span class="line">        <span class="comment">// 如果执行到这里，说明我们已经被signal唤醒。</span></span><br><span class="line">        __pthread_disable_asynccancel (cbuffer.oldtype);</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* We are going to look at shareddata again, so get the lock.  */</span></span><br><span class="line">        <span class="comment">// 6. 获取cond锁。</span></span><br><span class="line">        lll_lock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* If a broadcast happened, weare done.  */</span></span><br><span class="line">        <span class="keyword">if</span> (cbuffer.bc_seq !=cond-&gt;__data.__broadcast_seq)</span><br><span class="line">            <span class="keyword">goto</span> bc_out;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Check whether we are eligiblefor wakeup.  */</span></span><br><span class="line">        val = cond-&gt;__data.__wakeup_seq;</span><br><span class="line">    &#125;<span class="keyword">while</span> (val == seq || cond-&gt;__data.__woken_seq == val); </span><br><span class="line">    <span class="comment">// 如果醒了, 但是woken_seq里并没有变化, 那么继续futex_wait的逻辑</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Another thread woken up.  */</span></span><br><span class="line">    <span class="comment">// 7. 修改cond状态</span></span><br><span class="line">    ++cond-&gt;__data.__woken_seq;</span><br><span class="line"></span><br><span class="line">    bc_out: </span><br><span class="line">    cond-&gt;__data.__nwaiters -= <span class="number">1</span> &lt;&lt;COND_NWAITERS_SHIFT;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* If pthread_cond_destroy was called on this varaiblealready,</span></span><br><span class="line"><span class="comment">        notify the pthread_cond_destroy caller all waitershave left</span></span><br><span class="line"><span class="comment">        and it can be successfully destroyed.  */</span></span><br><span class="line">    <span class="keyword">if</span> (cond-&gt;__data.__total_seq == <span class="number">-1U</span>LL</span><br><span class="line">        &amp;&amp; cond-&gt;__data.__nwaiters &lt; (<span class="number">1</span>&lt;&lt; COND_NWAITERS_SHIFT))</span><br><span class="line">        lll_futex_wake (&amp;cond-&gt;__data.__nwaiters, <span class="number">1</span>,pshared);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* We are done with the condvar.  */</span></span><br><span class="line">    <span class="comment">// 8. 释放cond锁</span></span><br><span class="line">    lll_unlock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The cancellation handling is back to normal, removethe handler.  */</span></span><br><span class="line">    __pthread_cleanup_pop (&amp;buffer, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Get the mutex before returning.  */</span></span><br><span class="line">    <span class="comment">// 9. 获取mutex锁</span></span><br><span class="line">    <span class="keyword">return</span> __pthread_mutex_cond_lock (mutex);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>主要流程：</strong></p>
+<ul>
+<li>获取cond锁，对cond内状态进行互斥访问;</li>
+<li>释放mutex锁，即函数传入的互斥锁;</li>
+<li>修改cond状态;</li>
+<li>释放cond锁;</li>
+<li>在__futex上阻塞线程;</li>
+<li>获取cond锁;</li>
+<li>修改cond状态;</li>
+<li>释放cond锁;</li>
+<li>获取mutex锁。</li>
+</ul>
+<p>在这个流程中有几个关键的地方：</p>
+<p><strong>mutex锁：</strong> 主要是实现外面的条件判断和__pthread_cond_wait是一个原子操作，所以阻塞前要释放mutex锁，唤醒之后要重新获取mutex锁；</p>
+<p><strong>cond锁：</strong> 主要解决cond锁内状态的互斥访问。</p>
+<p><strong>mutex锁的释放：</strong> mutex锁的释放是在获取cond锁之后再释放，这样做的是为了避免在释放cond锁之后获取mutex锁之前有其它线程修改了数据；</p>
+<p><strong>系统调用：</strong> 阻塞的操作是调用lll_futex_wait方法，而该方法最终是调用FUTEX_WAIT；</p>
+<p><strong>等待队列：</strong> 线程有可能阻塞在两个锁变量上，一个是mutex.__data.__lock上，另外一个是cond.__data.__futex上。</p>
+<ol start="2">
+<li>pthread_cond_signal<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">__pthread_cond_signal (cond)</span><br><span class="line">     <span class="keyword">pthread_cond_t</span> *cond;</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span> pshared = (cond-&gt;__data.__mutex == (<span class="keyword">void</span> *) ~<span class="number">0l</span>)</span><br><span class="line">        ? LLL_SHARED : LLL_PRIVATE;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Make sure we are alone.  */</span></span><br><span class="line">    <span class="comment">// 1. 获取cond锁</span></span><br><span class="line">    lll_lock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Are there any waiters to be woken?  */</span></span><br><span class="line">    <span class="comment">// 如果wait次数比唤醒的次数多，那么就进行一个唤醒操作。</span></span><br><span class="line">    <span class="keyword">if</span> (cond-&gt;__data.__total_seq &gt; cond-&gt;__data.__wakeup_seq)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">/* Yes.  Mark one of them as woken. */</span></span><br><span class="line">        <span class="comment">// 2. 修改cond状态</span></span><br><span class="line">        ++cond-&gt;__data.__wakeup_seq;</span><br><span class="line">        ++cond-&gt;__data.__futex;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Wake one.  */</span></span><br><span class="line">        <span class="keyword">if</span> (! __builtin_expect (lll_futex_wake_unlock(&amp;cond-&gt;__data.__futex, <span class="number">1</span>,</span><br><span class="line">           <span class="number">1</span>,&amp;cond-&gt;__data.__lock,</span><br><span class="line">           pshared), <span class="number">0</span>))</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 3. 唤醒一个线程</span></span><br><span class="line">        lll_futex_wake(&amp;cond-&gt;__data.__futex, <span class="number">1</span>, pshared);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* We are done.  */</span></span><br><span class="line">    <span class="comment">// 4. 释放cond锁</span></span><br><span class="line">    lll_unlock (cond-&gt;__data.__lock, pshared);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p><strong>主要流程：</strong></p>
+<ul>
+<li>获取cond锁；</li>
+<li>修改cond状态；</li>
+<li>如果wait次数大于wakeup次数，则唤醒一个线程；</li>
+<li>释放cond锁。</li>
+</ul>
+<ol start="3">
+<li>pthread_cond_broadcast<br>与pthread_cond_signal类似，区别在于一次性唤醒所有线程。<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lll_futex_wake (&amp;cond-&gt;__data.__futex, INT_MAX, pshared);</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h4 id="3-4-3-总结"><a href="#3-4-3-总结" class="headerlink" title="3.4.3 总结"></a>3.4.3 总结</h4><ol>
+<li>条件变量(cond)与互斥(mutex)配合一起使用，以保证条件判断和阻塞操作是一个原子操作；</li>
+<li>条件变量(cond)内部有一个cond锁，实现对cond内部状态进行互斥访问；</li>
+<li>条件变量(cond)和互斥(mutex)阻塞/唤醒线程都是通过FUTEX_WAIT和FUTEX_WAKE系统调用来实现。</li>
+</ol>
+<h2 id="4-线程中断"><a href="#4-线程中断" class="headerlink" title="4. 线程中断"></a>4. 线程中断</h2><p>唤醒阻塞的线程，除了使用SupportLock.park，也可以调用Thread.interrupt()。调用interrupt，可以设置线程的中断状态，同时唤醒因为调用Object.wait(), Thread.join()，Thread.sleep()及AQS而被阻塞的线程。现在我们来看下interrupt的流程。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//Thread.Java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">interrupt</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span> != Thread.currentThread())</span><br><span class="line">        checkAccess();</span><br><span class="line">    <span class="keyword">synchronized</span> (blockerLock) &#123;</span><br><span class="line">        Interruptible b = blocker;   <span class="comment">//中断触发器</span></span><br><span class="line">        <span class="keyword">if</span> (b != <span class="keyword">null</span>) &#123;</span><br><span class="line">            interrupt0();           </span><br><span class="line">            b.interrupt(<span class="keyword">this</span>);   <span class="comment">//触发回调接口</span></span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    interrupt0();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这里，有两个关键的点，1）我们可以对中断调用设置回调接口，以满足某些特殊场景，如InterruptibleChannel；2）中断功能最终通过本地方法interrupt0()来实现。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> native <span class="keyword">void</span> <span class="title">interrupt0</span><span class="params">()</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>在Hotspot虚拟机中，该方法会调用Thread对象中的interrupt方法。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//os_linux.cpp</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">os::interrupt</span><span class="params">(Thread* thread)</span> </span>&#123;</span><br><span class="line">    assert(Thread::current() == thread || Threads_lock-&gt;owned_by_self(),</span><br><span class="line">        <span class="string">"possibility of dangling Thread pointer"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//     </span></span><br><span class="line">    OSThread* osthread = thread-&gt;osthread();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!osthread-&gt;interrupted()) &#123;</span><br><span class="line">        osthread-&gt;set_interrupted(<span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// More than one thread can get here with the same value of osthread,</span></span><br><span class="line">        <span class="comment">// resulting in multiple notifications.  We do, however, want the store</span></span><br><span class="line">        <span class="comment">// to interrupted() to be visible to other threads before we execute unpark().</span></span><br><span class="line">        OrderAccess::fence();</span><br><span class="line">        ParkEvent * <span class="keyword">const</span> slp = thread-&gt;_SleepEvent ;</span><br><span class="line">        <span class="keyword">if</span> (slp != <span class="literal">NULL</span>) slp-&gt;unpark() ;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// For JSR166. Unpark even if interrupt status already was set</span></span><br><span class="line">    <span class="keyword">if</span> (thread-&gt;is_Java_thread())</span><br><span class="line">        ((JavaThread*)thread)-&gt;parker()-&gt;unpark();</span><br><span class="line"></span><br><span class="line">    ParkEvent * ev = thread-&gt;_ParkEvent ;</span><br><span class="line">    <span class="keyword">if</span> (ev != <span class="literal">NULL</span>) ev-&gt;unpark() ;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>每一个Java线程都与一个osthread一一对应，如果相应的os线程没有被中断，则会设置osthread的interrupt标志位为true（对应一个volatile int），并唤醒线程的SleepEvent。随后唤醒线程的parker和ParkEvent。简而言之，interrupt操作会对三种事件进行unpark唤醒，分别是thread-&gt;_SleepEvent、thread-&gt;parker()和thread-&gt;_ParkEvent。在3.1节可以看到这些变量的具体声明。Parker对象我们在上面的内容中已经讲过，现在来看下ParkEvent。</p>
+<h3 id="4-1-ParkEvent"><a href="#4-1-ParkEvent" class="headerlink" title="4.1 ParkEvent"></a>4.1 ParkEvent</h3><p>Thread类中包含了两种作用不同的ParkEvent，_ParkEvent变量用于synchronized同步块和Object.wait()，_SleepEvent变量用于Thread.sleep()，ParkEvent类的声明如下：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ParkEvent</span> :</span> <span class="keyword">public</span> os::PlatformEvent &#123;</span><br><span class="line">    ... <span class="comment">// 略</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os_linux.cpp</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PlatformEvent</span> :</span> <span class="keyword">public</span> CHeapObj &#123;</span><br><span class="line">    <span class="keyword">private</span>:</span><br><span class="line">        <span class="keyword">pthread_mutex_t</span> _mutex  [<span class="number">1</span>] ;</span><br><span class="line">        <span class="keyword">pthread_cond_t</span>  _cond   [<span class="number">1</span>] ;</span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">        PlatformEvent() &#123;</span><br><span class="line">            <span class="keyword">int</span> status;</span><br><span class="line">            status = pthread_cond_init (_cond, <span class="literal">NULL</span>);</span><br><span class="line">            assert_status(status == <span class="number">0</span>, status, <span class="string">"cond_init"</span>);</span><br><span class="line">            status = pthread_mutex_init (_mutex, <span class="literal">NULL</span>);</span><br><span class="line">            assert_status(status == <span class="number">0</span>, status, <span class="string">"mutex_init"</span>);</span><br><span class="line">            _Event   = <span class="number">0</span> ;</span><br><span class="line">            _nParked = <span class="number">0</span> ;</span><br><span class="line">            _Assoc   = <span class="literal">NULL</span> ;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">park</span> <span class="params">()</span> </span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">unpark</span> <span class="params">()</span> </span>;</span><br><span class="line">    <span class="function"><span class="keyword">int</span>  <span class="title">park</span> <span class="params">(jlong millis)</span> </span>;</span><br><span class="line">    ...</span><br><span class="line">&#125; ;</span><br></pre></td></tr></table></figure></p>
+<p>在这里可以看到，PlatformEvent跟Parker一样，也是基于pthread_mutex_t和pthread_cond_t实现的。_ParkEvent和_SleepEvent都会在Thread.interrupt()时触发unpark()动作，而PlatformEvent::unpark()方法会调用库函数pthread_cond_signal(_cond)唤醒被阻塞的线程，pthread_cond_signal方法已经在上面讲过，总之一句话，PlatformEvent阻塞和唤醒线程的逻辑跟Parker是一致的，这里不在描述。</p>
+<h3 id="4-2-InterruptedException"><a href="#4-2-InterruptedException" class="headerlink" title="4.2 InterruptedException"></a>4.2 InterruptedException</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Thread.Java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title">sleep</span><span class="params">(<span class="keyword">long</span> millis)</span> <span class="keyword">throws</span> InterruptedException</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Thread.Java </span></span><br><span class="line"><span class="comment">// join方法是通过object.wait来实现的。</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">join</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">    join(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Ojbect.Java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title">wait</span><span class="params">(<span class="keyword">long</span> timeout)</span> <span class="keyword">throws</span> InterruptedException</span>;</span><br></pre></td></tr></table></figure>
+<p>调用中断，从Object.wait(), Thread.join()及Thread.sleep()返回时，一般都会抛出InterruptedException，通常以下三种处理办法：</p>
+<ol>
+<li>如果自己很清楚当前线程被中断后的处理方式，则按自己的方式处理，通常是做好善后工作，主动退出线程；</li>
+<li>直接在方法声明中throws InterruptedException，丢给上层处理；</li>
+<li>重新设置中断标记位，Thread.currentThread().interrupt()，交给后续方法处理，原因是底层抛出InterruptedException时会清除中断标记位，捕获到异常后如果不想处理，可以重新设置中断标记位。</li>
+</ol>
+<p><strong>注意：</strong> 请不要吞掉InterruptedException，可能会导致上层的调用方出现不可预料的结果。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Unsafe.Java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title">park</span><span class="params">(<span class="keyword">boolean</span> var1, <span class="keyword">long</span> var2)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>在AQS相关类中线程阻塞在UNSAFE.park方法上，调用中断之后，不会抛出InterruptedException。线程被唤醒后，会根据中断标记位来判断是否从中断中退出，一般有两种做法，1）检测到中断，构造InterruptedException向上抛出，带InterruptedException声明的方法就是这种处理办法；2）重新设置中断标记位,由上层业务处理，以AQS的acquire方法为例:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractQueuedSynchronizer.Java</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 1. 抛出InterruptedException</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">acquireInterruptibly</span><span class="params">(<span class="keyword">int</span> arg)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (Thread.interrupted())</span><br><span class="line">        <span class="comment">// 抛出InterruptedException</span></span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">    <span class="keyword">if</span> (!tryAcquire(arg))</span><br><span class="line">        doAcquireInterruptibly(arg);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. 重置中断标记位</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">acquire</span><span class="params">(<span class="keyword">int</span> arg)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!tryAcquire(arg) &amp;&amp;</span><br><span class="line">        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</span><br><span class="line">        selfInterrupt();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// selfInterrupt,重置中断标记位</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">selfInterrupt</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Thread.currentThread().interrupt();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-3-总结"><a href="#4-3-总结" class="headerlink" title="4.3 总结"></a>4.3 总结</h3><p>Java提供了Thread.interrupt()方法，该方法设置线程中的中断标记位，并唤醒可中断的阻塞方法，包括Thread.sleep()，Object.wait()，nio通道的IO等待，以及LockSupport.park()。识别一个方法是否会被中断，只需要看其声明中是否会throws InterruptedException或ClosedByInterruptException。<br>每个Java线程都会对应一个osthread，它持有了三种条件变量，分别用于Thread.sleep()，Object.wait()和unsafe.park()。Thread.interrupt()会依次唤醒三个条件变量，以达到中断的目的。线程的同步与唤醒最终都使用了pthread_cond_wait和pthread_cond_signal这些pthread库函数</p>
+<h2 id="5-Futex"><a href="#5-Futex" class="headerlink" title="5.Futex"></a>5.Futex</h2><p>Futex，Fast Userspace muTEXes，按英文翻译过来就是快速用户空间互斥体。在Futex之前，Linux内核中锁主要针对一个内核对象来操作，并在这个基础上实现了进程的睡眠与唤醒。使用这样的机制，能很好的支持进程阻塞等待。但是最大的缺点是每次lock与unlock都是一次系统调用，即使没有锁冲突，也必须要通过系统调用进入内核之后才能识别。为了解决这个问题，Futex就应运而生。Futex是一种用户态和内核态混合的同步机制，锁变量位于用户空间，对锁冲突的检测是在用户空间完成，如果有竞争才会进行系统调用，进行阻塞和唤醒操作。</p>
+<h3 id="5-1-Futex结构"><a href="#5-1-Futex结构" class="headerlink" title="5.1 Futex结构"></a>5.1 Futex结构</h3><p>Futex满足了两个需求：1）支持一种锁粒度的睡眠与唤醒操作；2）管理进程/线程挂起时的等待队列。Futex主要有futex_wait和futex_wake两个操作:<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 在uaddr指向的这个锁变量上挂起等待（仅当*uaddr==val时）</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">futex_wait</span><span class="params">(<span class="keyword">int</span> *uaddr, <span class="keyword">int</span> val)</span></span>;</span><br><span class="line"><span class="comment">// 唤醒n个在uaddr指向的锁变量上挂起等待的进程</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">futex_wake</span><span class="params">(<span class="keyword">int</span> *uaddr, <span class="keyword">int</span> n)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>futex_wait传入一个用户空间的地址uaddr,第二个参数表示当前uaddr的值，只有*uaddr==val时，当前线程才会被阻塞加入到等待队列中，作这样的判断主要是为了保证在系统调用前该值没有被改变，如果有其它线程修改了val值，则直接返回，尝试重新获取锁。futex_wake唤醒绑定在uaddr变量上的n个线程。</p>
+<p>Futex实现了锁粒度的等待队列，而这个锁却并不需要事先向内核申明。任何时候，用户态调用futex_wait传入一个uaddr，内核就会维护起与之配对的等待队列。Futex维护的这个等待队列由若干个带spinlock的链表构成。调用futex_wait挂起的进程，通过其uaddr hash到某一个具体的链表上去。这样一方面能分散对等待队列的竞争、另一方面减小单个队列的长度，便于futex_wake时的查找。每个链表各自持有一把spinlock，将“*uaddr和val的比较操作”与“把进程加入队列的操作”保护在一个临界区中。下图可以做一个形象的说明：<br><img src="/images/futex.png" alt="futex" title="futex"></p>
+<h3 id="5-2-相关优化"><a href="#5-2-相关优化" class="headerlink" title="5.2 相关优化"></a>5.2 相关优化</h3><p>pthread_cond_broadcast会唤醒所有等待者，这些等待者被唤醒之后第一件事情便是重新获取与条件变量配合使用的互斥锁（pthread_mutex_t），所有等待者同时争抢mutex，但实际只会有一个抢到锁，其它等待者又被阻塞在互斥锁上，造成资源的浪费，这就是“惊群”现象，作为一种优化，Futex提供了Requeue接口，定义如下：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">futex_requeue</span><span class="params">(<span class="keyword">int</span> *uaddr, <span class="keyword">int</span> n, <span class="keyword">int</span> *uaddr2, <span class="keyword">int</span> n2)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">futex_cmp_requeue</span><span class="params">(<span class="keyword">int</span> *uaddr, <span class="keyword">int</span> n, <span class="keyword">int</span> *uaddr2, <span class="keyword">int</span> n2, <span class="keyword">int</span> val)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>功能跟futex_wake有点相似，但不仅仅是唤醒n个等待uaddr的进程/线程，而更进一步，将n2个等待uaddr的进程移到uaddr2的等待队列中（相当于也futex_wake它们，然后强制让它们futex_wait在uaddr2上面）。<br>在futex_requeue的基础上，futex_cmp_requeue多了一个判断，仅当*uaddr与val相等时才执行操作，否则直接返回，让用户态去重试。<br>对于pthread_cond_broadcast而言，不应该用futex_wake去唤醒所有等待者，而应该用futex_requeue唤醒一个等待者，然后将其他进程都转移到mutex的等待队列上去（随后再由mutex的unlock来逐个唤醒）。这与Java条件变量ContdtionObject中的实现是一样的。</p>
+<h2 id="6-总结"><a href="#6-总结" class="headerlink" title="6. 总结"></a>6. 总结</h2><p>从上面的分析中，要通过Java语言、JVM虚拟机及linux内核各个层级的配合，实现了ReentrantLock的功能：1）AQS（Java层面）实现锁状态及等待队列的管理，对JVM虚拟机的依赖仅仅是线程的阻塞及唤醒；2）在JVM中，每一个线程绑定一个Parker对象，Parker对象包含一个互斥锁和一个条件变量，线程的阻塞及唤醒就是通过互斥锁或条件变量来实现；3）在内核中，互斥锁和条件变量依赖Futex提供等待队列、阻塞及唤醒的功能，而在内核中要实现原子操作的功能，依赖cpu的CAS指令xchg。可见，基于硬件的CAS指令，操作系统构造了锁级别的等待队列Futex；基于Futex，glibc实现了锁、条件变量及信号量等同步机制；基于gblic中的同步机制，JVM封装了线程阻塞及唤醒的基本操作（UNSAFE.park及unpark）,Java语言实现了如ReentrantLock、Semaphore、ReentrantReadWriteLock、CountDownLatch及CyclicBarrier等高级锁结构，简化了上层业务编写同步及互斥的代码，极大提高了编程效率。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://github.com/farmerjohngit/myblog/issues/7" target="_blank" rel="noopener">1. 关于同步的一点思考-下</a></p>
+<p><a href="http://kexianda.info/2017/08/16/%E5%B9%B6%E5%8F%91%E7%B3%BB%E5%88%97-4-%E4%BB%8EAQS%E5%88%B0futex-%E4%BA%8C-JVM%E7%9A%84Thread%E5%92%8CParker/" target="_blank" rel="noopener">2. HotSpot的JavaThread和Parker</a></p>
+<p><a href="https://yq.aliyun.com/articles/6043" target="_blank" rel="noopener">3. linux futex浅析</a></p>
+<p><a href="http://fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" target="_blank" rel="noopener">4. Thread.interrupt()相关源码分析</a></p>
+<p><a href="https://blog.csdn.net/luoyuyou/article/details/73498640" target="_blank" rel="noopener">5. pthread_mutex_lock实现</a></p>
+<p><a href="https://blog.51cto.com/1038741/1939661" target="_blank" rel="noopener">6. pthread_cond_wait</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/20/memcached-memory-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/07/20/memcached-memory-model/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Memcached 内存模型</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-07-20 09:57:07" itemprop="dateCreated datePublished" datetime="2019-07-20T09:57:07+08:00">2019-07-20</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/memcached/" itemprop="url" rel="index"><span itemprop="name">memcached</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">13k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">12 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>Memcached是一个基于内存的缓存系统，存储的是key/value的键值对，与Redis类似。不过相对于Redis，值是无类型的字节数组（类比于Reidis中的String类型）。在Reidis中构建了一个对象系统来存储键值对，Memcached内部是如何处理的？抱着这份好奇心来分析下Memcached的内存模型。</p>
+<h2 id="1-整体结构"><a href="#1-整体结构" class="headerlink" title="1. 整体结构"></a>1. 整体结构</h2><p>在开始之前，先说明一些概念：</p>
+<ol>
+<li>item：存储key/value的数据结构，同时维护了hashtable、LRU链表的指针的信息，是数据的载体；</li>
+<li>chunk：存放item，具有固定大小的内存块;</li>
+<li>slab：是Memcached一次申请内存的最小单位，默认为1M，然后切分为chunk大小的内存块，是chunk的容器；</li>
+<li>slabclass：是管理slab及chunk的数据结构，一个slabclass可分配多个slab，一个slab可分配多个chunk，同时一个slabclass中的chunk具有相同的大小；</li>
+<li>slabclass []：管理多个slabclass，不同的slabclass成员管理不同大小的chunk（同一个slabclass中的chunk大小一样）；</li>
+<li>LRU list: 管理各个slabclass的最近访问过的item, 以便进行item的清理，list头部是最近访问过的item，每一个slabclass都有一个LRU list；</li>
+<li>hashtable: 用于item寻址，对key计算hash值，定位到item所在数组下标，再从item链表中找到对应的item。</li>
+<li>slots list: slabclass中用于管理当前slabclass中空闲的item list。</li>
+</ol>
+<p>下面是Memcached内存模型的整体结构：<br><img src="/images/memcached-memory-model.jpg" alt="memory-model" title="memory-model"></p>
+<ol>
+<li>slabclass中的slots字段指向空闲链表的头指点，通过item中的next及prev指针形成一个双向链表，新创建且未使用的item或过期释放的item会加入到该链表中；</li>
+<li>每一个slabclass都有个LRU list，可以从链表头部和尾部访问LRU链表，一旦item被分配出去，就将该item从空闲链表移到LRU链表中；</li>
+<li>一个item指针数组加上item链表构成了一个hashtable，item中的h_next字段指向冲突的下一个结点；</li>
+<li>item是非常关键的数据结构，不仅存储了key/value数据，同时也作为hashtable，空闲链表及LRU链表中的元素，存放相关的指针信息。</li>
+</ol>
+<h2 id="2-数据结构"><a href="#2-数据结构" class="headerlink" title="2. 数据结构"></a>2. 数据结构</h2><h3 id="2-1-slabclass"><a href="#2-1-slabclass" class="headerlink" title="2.1 slabclass"></a>2.1 slabclass</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="built_in">size</span>;      <span class="comment">/* item的大小*/</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> perslab;   <span class="comment">/* 单个slab可存放的item的个数*/</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">void</span> *slots;            <span class="comment">/* item空闲链表 */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> sl_curr;   <span class="comment">/* 当前位置*/</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> slabs;     <span class="comment">/* 表示已经使用的slab_list的大小*/</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">void</span> **slab_list;       <span class="comment">/* 分配的slab数组 */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> list_size; <span class="comment">/* 表示分配的slab_list的大小*/</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> killing;   <span class="comment">/* 在进行slab reassign时使用*/</span></span><br><span class="line">    <span class="keyword">size_t</span> requested;       <span class="comment">/* 此slabclass所占用的实际空间的大小*/</span></span><br><span class="line">&#125; <span class="keyword">slabclass_t</span>;</span><br></pre></td></tr></table></figure>
+<p><strong>重点说明的字段：</strong></p>
+<ol>
+<li>size&amp;perslab：表示item的大小及一个slab包含item的数量；</li>
+<li>slots：指向第一个空闲的item；</li>
+<li>slab_list：分配的slab数组；</li>
+</ol>
+<p>slabclass管理了一系列的slab，每一个slab又被切分为相同大小的chunk，而chunk存储最终的item，其关系如下图所示：<br><img src="/images/memcached-slabclass.jpg" alt="slabclass" title="slabclass"></p>
+<p>Memcached把slab分为40类（class1～class40），每一个类的slab在内部由一个slabclass数据结构来维护，在slabclass 1中，chunk的大小为96字节，一个slab的大小是固定的1M（1048576字节），因此在slabclass 1中最多可以有perslab = 10922个chunk：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">10922</span> × <span class="number">80</span> + <span class="number">64</span> = <span class="number">1048576</span></span><br></pre></td></tr></table></figure></p>
+<p>在slabclass 1中，剩余的64字节因为不够一个chunk的大小（96byte），因此会被浪费掉。</p>
+<p>每类chunk的大小有一定的计算公式，假定i代表分类，class i的计算公式如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">chunk <span class="title">size</span><span class="params">(class i)</span> </span>= (default_size + item_size) * f^(i<span class="number">-1</span>) + CHUNK_ALIGN_BYTES</span><br></pre></td></tr></table></figure></p>
+<ol>
+<li>default_size：默认大小为48字节,也就是Memcached默认的key+value的大小为48字节，启动时可以使用-n参数来调节其大小；</li>
+<li>item_size：item结构体的长度，固定为48字节。default_size大小为48字节,item_size为48字节，因此slabclass 1的chunk大小为48+48=96字节；</li>
+<li>f：f为factor，是chunk变化大小的因素，默认值为1.25，调节f可以影响chunk的步进大小，启动时可以使用-f参数来指定;</li>
+<li>CHUNK_ALIGN_BYTES：CHUNK_ALIGN_BYTES是一个修正值，用来保证chunk的大小是某个值的整数倍（在32位机器上要求chunk的大小是4的整数倍）。</li>
+</ol>
+<p>Memcached分配内存的时候, 根据请求内存块的大小, 找到大小最合适的chunk所在的 slabclass, 然后从这个slabclass找空闲的chunk分配出去. 所谓最合适就是指chunk 的大小能够满足要求, 而且碎片最小。</p>
+<h3 id="2-2-item"><a href="#2-2-item" class="headerlink" title="2.2 item"></a>2.2 item</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> _<span class="title">stritem</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> _<span class="title">stritem</span> *<span class="title">next</span>;</span>      <span class="comment">/* 指向LRU list或空闲列表中的下一个item */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> _<span class="title">stritem</span> *<span class="title">prev</span>;</span>      <span class="comment">/* 指向在LRU list或空闲列表中的上一个item*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> _<span class="title">stritem</span> *<span class="title">h_next</span>;</span>    <span class="comment">/* 指向此Hashtable中的下一个item*/</span></span><br><span class="line">    <span class="keyword">rel_time_t</span>      time;       <span class="comment">/* 最近的访问时间*/</span></span><br><span class="line">    <span class="keyword">rel_time_t</span>      exptime;    <span class="comment">/* 过期时间*/</span></span><br><span class="line">    <span class="keyword">int</span>             nbytes;     <span class="comment">/* 数据的长度*/</span></span><br><span class="line">    <span class="keyword">unsigned</span> short  refcount;   <span class="comment">/* 引用次数*/</span></span><br><span class="line">    <span class="keyword">uint8_t</span>         nsuffix;    <span class="comment">/* 标志及长度的后辍串的长度*/</span></span><br><span class="line">    <span class="keyword">uint8_t</span>         it_flags;   <span class="comment">/* ITEM的状态 */</span></span><br><span class="line">    <span class="keyword">uint8_t</span>         slabs_clsid;<span class="comment">/* 位于的slabclass的id */</span></span><br><span class="line">    <span class="keyword">uint8_t</span>         nkey;       <span class="comment">/* key的长度*/</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        <span class="keyword">uint64_t</span> cas;</span><br><span class="line">        <span class="keyword">char</span> <span class="built_in">end</span>;</span><br><span class="line">    &#125; data[];</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* 如果启用cas则在结构尾部接8byte的cas数，即uint64_t*/</span></span><br><span class="line">    <span class="comment">/* 然后是1byte的终止符\0 */</span></span><br><span class="line">    <span class="comment">/* then " flags length\r\n" (no terminating null) */</span></span><br><span class="line">    <span class="comment">/* then data with terminating \r\n (no terminating null; it's binary!) */</span></span><br><span class="line">&#125; item;</span><br></pre></td></tr></table></figure>
+<p><strong>重点说明的字段：</strong></p>
+<ol>
+<li>指针：next,prev用于LRU list及空闲列表，而h_next指向相同哈希值的下一个item；</li>
+<li>时间：time,exptime记录了最近访问的时间及过期的时间；</li>
+<li>数据长度：nbytes,nkey分别记录了数据的长度及key的长度，nkey的数据类型为uint8_t,决定了key的最大长度为256(8位无符号整数的最大值)；而数据的最大长度由一个slab的值决定，即1M。</li>
+<li>data：存储的数据，包括四个部分：cas(可行) + key + suffix + value，整体的结构如下图所示：<br><img src="/images/memcached-item.jpg" alt="item" title="item"></li>
+</ol>
+<h3 id="2-3-hashtable"><a href="#2-3-hashtable" class="headerlink" title="2.3 hashtable"></a>2.3 hashtable</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> item** primary_hashtable = <span class="number">0</span>;        <span class="comment">//main hashtable</span></span><br></pre></td></tr></table></figure>
+<p>hashtable由两部分组成：item哈希数组+item链表，其中primary_hashtable便是哈希数组，根据key计算哈希值，从而快速定位到key所在数组中的index；为了解决key冲突的问题，引入了链表，将冲突的key用链表连接起来，如在整体结构图中所示：item4与item5具有相同的index，用h_next串连起来。</p>
+<h3 id="2-4-LRU-list"><a href="#2-4-LRU-list" class="headerlink" title="2.4 LRU list"></a>2.4 LRU list</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//LRU list</span></span><br><span class="line"><span class="keyword">static</span> item *heads[LARGEST_ID];   <span class="comment">//指向各slabclass的LRU链表的head结点</span></span><br><span class="line"><span class="keyword">static</span> item *tails[LARGEST_ID];   <span class="comment">//指向各slabclass的LRU链表的tail结点</span></span><br></pre></td></tr></table></figure>
+<p> 当Memcached没有足够的内存使用时,根据LRU算法回收item, 这就需要维护一个按照最近访问时间排序的LRU 队列。 在Memcached 中,每个slabclass 维护一个链表, 比如 slabclass[i]的链表头指针为heads[i], 尾指针为tails[i],已分配出去的item都存储在链表中。而且链表中item按照最近访问时间排序, 这相当于一个LRU 队列。</p>
+<h2 id="3-内存分配"><a href="#3-内存分配" class="headerlink" title="3. 内存分配"></a>3. 内存分配</h2><p>结合数据模型，对slab及item的使用做一下总结：</p>
+<ol>
+<li>初始化slabclass数组，每个元素slabclass[i]都是不同size的slabclass；</li>
+<li>每分配一个新的slab，都会根据所在的slabclass的size来切分chunk，切分完chunk之后，把chunk空间初始化成一个个free item，并插入到slot链表中；</li>
+<li>每使用一个free item都会从slot链表中删除掉并插入到LRU链表相应的位置；</li>
+<li>每当一个used item被访问的时候都会更新它在LRU链表中的位置，以保证LRU链表从尾到头淘汰的权重是由高到低的；</li>
+<li>会有另一个叫“item爬虫”的线程慢慢地从LRU链表中去爬，把过期的item淘汰掉然后重新插入到slot链表中；</li>
+<li>当进行内存分配时，例如一个SET命令，它的一般步骤是：<ol>
+<li>计算出要保存的数据的大小，选择相应的slabclass；</li>
+<li>从相应的slabclass LRU链表的尾部开始，尝试找几次（默认是5次），看看有没有过期的item，如果有就利用这个过期的item空间；</li>
+<li>如果没找到过期的，则尝试去slot链表中拿空闲的free item；</li>
+<li>如果slot链表中没有空闲的free item了，尝试申请内存，分配一块新的slab，分配成功后，slot链表就有可用的free item了，返回可用的free item.</li>
+<li>如果分配不了新的slab那说明内存都已经满了，用完了，只能淘汰，所以用LRU链表尾部找出一个item并将其淘汰，返回该item。</li>
+</ol>
+</li>
+</ol>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>在Memcached的内存模型中，没有为hashtable及LRU list定义单独的数据结构，而是和slabclass共用了item，分配和释放item的时候只需要修改相应的指针，整体结构比较紧凑，有效利用了内存空间。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="http://yaowhat.com/2014/10/02/memcached-memory-manage.html" target="_blank" rel="noopener">1.memcached系列二——内存模型</a></p>
+<p><a href="https://www.zybuluo.com/phper/note/443547" target="_blank" rel="noopener">2.彻底弄清楚memcached</a></p>
+<p><a href="http://calixwu.com/2014/11/memcached-yuanmafenxi-neicunguanli.html" target="_blank" rel="noopener">3.Memcached源码分析之内存管理</a></p>
+<p><a href="https://kenby.iteye.com/blog/1423989" target="_blank" rel="noopener">4.Memcached源码分析之内存管理篇</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/13/redis-object-system/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -465,6 +1156,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">16k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">14 分钟</span>
+              
+            </div>
           
 
           
@@ -894,6 +1613,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">28k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">25 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -948,7 +1695,7 @@
 </ol>
 <p>key字段保存着键值对中的键，而v字段键值对中的值，其值可以是一个指针，或者是一个uint64_t整数，又或者是一个int64_t整数。</p>
 <ol start="2">
-<li>哈希表<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictht</span> &#123;</span></span><br><span class="line">    <span class="comment">// 哈希表数组</span></span><br><span class="line">    dictEntry **table;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> size;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小掩码，用于计算索引值</span></span><br><span class="line">    <span class="comment">// 等于size-1</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> sizemask;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点的数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> used;</span><br><span class="line">&#125; dictht;</span><br></pre></td></tr></table></figure>
+<li>哈希表<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictht</span> &#123;</span></span><br><span class="line">    <span class="comment">// 哈希表数组</span></span><br><span class="line">    dictEntry **table;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="built_in">size</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 哈希表大小掩码，用于计算索引值</span></span><br><span class="line">    <span class="comment">// 等于size-1</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> sizemask;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 节点的数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> used;</span><br><span class="line">&#125; dictht;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
 <p>哈希表实际上就是一个数组+链表的实现，具有相同哈希值的键值对放在同一个链表里面，解决键冲突的问题。</p>
@@ -1171,6 +1918,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">62k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">56 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -1227,12 +2002,12 @@
 <li>theme：使用的主题</li>
 </ul>
 <h3 id="3-2-定义JS-CSS等文件"><a href="#3-2-定义JS-CSS等文件" class="headerlink" title="3.2 定义JS,CSS等文件"></a>3.2 定义JS,CSS等文件</h3><p>在static目录下新建themes/base目录，需要以theme名称命名，所使用的静态文件统一放在该目录下，如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static</span><br><span class="line">└─themes</span><br><span class="line">    └─base</span><br><span class="line">        ├─css</span><br><span class="line">        ├─fonts</span><br><span class="line">        ├─images</span><br><span class="line">        └─js</span><br></pre></td></tr></table></figure></p>
-<h3 id="3-3-定义theme属性文件"><a href="#3-3-定义theme属性文件" class="headerlink" title="3.3 定义theme属性文件"></a>3.3 定义theme属性文件</h3><p>在resources下新建以theme名称命名的属性文件，如base.properties，在该文件中定义文件路径，方便在模板中引用，如下所示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">cas.standard.css.file=/css/cas.css</span><br><span class="line"># base theme</span><br><span class="line">cas.ico.shortcut=/themes/base/images/favicon.ico</span><br><span class="line">cas.css.bootstrap=/themes/base/css/bootstrap.min.css</span><br><span class="line">cas.css.font=/themes/base/css/font-awesome.min.css</span><br><span class="line">cas.css.animate=/themes/base/css/animate.min.css</span><br><span class="line">cas.css.style=/themes/base/css/style.min.css</span><br><span class="line">cas.css.whole=/themes/base/css/whole.css</span><br><span class="line">cas.css.login=/themes/base/css/login.css</span><br><span class="line">cas.css.layer=/themes/base/js/plugins/layer/skin/layer.css</span><br><span class="line">cas.css.layer.ext=/themes/base/js/plugins/layer/skin/layer.ext.css</span><br><span class="line">cas.page.title=BASE CAS Server</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-3-定义theme属性文件"><a href="#3-3-定义theme属性文件" class="headerlink" title="3.3 定义theme属性文件"></a>3.3 定义theme属性文件</h3><p>在resources下新建以theme名称命名的属性文件，如base.properties，在该文件中定义文件路径，方便在模板中引用，如下所示：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">cas.standard.css.file</span>=<span class="string">/css/cas.css</span></span><br><span class="line"><span class="comment"># base theme</span></span><br><span class="line"><span class="meta">cas.ico.shortcut</span>=<span class="string">/themes/base/images/favicon.ico</span></span><br><span class="line"><span class="meta">cas.css.bootstrap</span>=<span class="string">/themes/base/css/bootstrap.min.css</span></span><br><span class="line"><span class="meta">cas.css.font</span>=<span class="string">/themes/base/css/font-awesome.min.css</span></span><br><span class="line"><span class="meta">cas.css.animate</span>=<span class="string">/themes/base/css/animate.min.css</span></span><br><span class="line"><span class="meta">cas.css.style</span>=<span class="string">/themes/base/css/style.min.css</span></span><br><span class="line"><span class="meta">cas.css.whole</span>=<span class="string">/themes/base/css/whole.css</span></span><br><span class="line"><span class="meta">cas.css.login</span>=<span class="string">/themes/base/css/login.css</span></span><br><span class="line"><span class="meta">cas.css.layer</span>=<span class="string">/themes/base/js/plugins/layer/skin/layer.css</span></span><br><span class="line"><span class="meta">cas.css.layer.ext</span>=<span class="string">/themes/base/js/plugins/layer/skin/layer.ext.css</span></span><br><span class="line"><span class="meta">cas.page.title</span>=<span class="string">BASE CAS Server</span></span><br></pre></td></tr></table></figure></p>
 <h3 id="3-4-定义模板文件"><a href="#3-4-定义模板文件" class="headerlink" title="3.4 定义模板文件"></a>3.4 定义模板文件</h3><p>在resources下新建templates/base目录，在该目录下存放登录页面casLoginView.html，目录如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">templates</span><br><span class="line">└─base</span><br><span class="line">     └─ casLoginView.html</span><br></pre></td></tr></table></figure></p>
 <p>casLoginView.html文件为登录页面文件，可以根据需要，使用定制的css,js及字体文件，这些文件在 theme属性文件中定义，在模板文件中可以直接使用，如下所示：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"shortcut icon"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.ico.shortcut')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.bootstrap')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.font')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.animate')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.style')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.whole')&#125;&#125;"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.login')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.layer')&#125;&#125;"</span>  /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">"stylesheet"</span> <span class="attr">th:href</span>=<span class="string">"@&#123;$&#123;#themes.code('cas.css.layer.ext')&#125;&#125;"</span> /&gt;</span></span><br></pre></td></tr></table></figure></p>
 <p><strong>注意：</strong> 定制登录页面主要是修改相应的样式，表单的name,id及其它属性不要改变。</p>
-<h3 id="3-5-修改系统默认的主题"><a href="#3-5-修改系统默认的主题" class="headerlink" title="3.5 修改系统默认的主题"></a>3.5 修改系统默认的主题</h3><p>将base主题修改为系统默认主题，在application.properties文件中加入下面的配置：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># defaultThemeName</span><br><span class="line">cas.theme.defaultThemeName=base</span><br></pre></td></tr></table></figure></p>
-<h3 id="3-6-定义登录成功之后的页面"><a href="#3-6-定义登录成功之后的页面" class="headerlink" title="3.6 定义登录成功之后的页面"></a>3.6 定义登录成功之后的页面</h3><p>登录成功之后，CAS跳转到默认页面，在实际项目中可以对跳转页面进行更改，在application.properties中加入如下配置：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># Defines a default URL to which CAS may redirect if there is no service</span><br><span class="line"># provided in the authentication request.</span><br><span class="line">cas.view.defaultRedirectUrl=https://www.github.com</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-5-修改系统默认的主题"><a href="#3-5-修改系统默认的主题" class="headerlink" title="3.5 修改系统默认的主题"></a>3.5 修改系统默认的主题</h3><p>将base主题修改为系统默认主题，在application.properties文件中加入下面的配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># defaultThemeName</span></span><br><span class="line"><span class="meta">cas.theme.defaultThemeName</span>=<span class="string">base</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="3-6-定义登录成功之后的页面"><a href="#3-6-定义登录成功之后的页面" class="headerlink" title="3.6 定义登录成功之后的页面"></a>3.6 定义登录成功之后的页面</h3><p>登录成功之后，CAS跳转到默认页面，在实际项目中可以对跳转页面进行更改，在application.properties中加入如下配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Defines a default URL to which CAS may redirect if there is no service</span></span><br><span class="line"><span class="comment"># provided in the authentication request.</span></span><br><span class="line"><span class="meta">cas.view.defaultRedirectUrl</span>=<span class="string">https://www.github.com</span></span><br></pre></td></tr></table></figure></p>
 <h2 id="4、自定义用户鉴权"><a href="#4、自定义用户鉴权" class="headerlink" title="4、自定义用户鉴权"></a>4、自定义用户鉴权</h2><p>在这里不使用系统自带的JDBC认证方式，而是自定义验证逻辑，需要继承AuthenticationHandler类，并注册到系统当中去。<br>在CAS系统中，鉴权的逻辑路径如下所示：<br>DefaultAuthenticationTransactionManager –&gt;<br>PolicyBasedAuthenticationManager –&gt;<br>AuthenticationEventExecutionPlan –&gt;<br>AuthenticationEventExecutionPlanConfigurer –&gt;<br>AuthenticationHandler<br>系统中可以注册多个AuthenticationHandler，AuthenticationHandler通过AuthenticationEventExecutionPlanConfigurer类注入到AuthenticationManager中。这里有个疑问，AuthenticationEventExecutionPlanConfigurer是如何将AuthenticationHandler注册到AuthenticationManager中的? 在CasCoreAuthenticationConfiguration类中，看到如下代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ConditionalOnMissingBean</span>(</span><br><span class="line">    name = &#123;<span class="string">"authenticationEventExecutionPlan"</span>&#125;</span><br><span class="line">)</span><br><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> AuthenticationEventExecutionPlan <span class="title">authenticationEventExecutionPlan</span><span class="params">(List&lt;AuthenticationEventExecutionPlanConfigurer&gt; configurers)</span> </span>&#123;</span><br><span class="line">    DefaultAuthenticationEventExecutionPlan plan = <span class="keyword">new</span> DefaultAuthenticationEventExecutionPlan();</span><br><span class="line">    configurers.forEach((c) -&gt; &#123;</span><br><span class="line">        String name = StringUtils.removePattern(c.getClass().getSimpleName(), <span class="string">"\\$.+"</span>);</span><br><span class="line">        LOGGER.debug(<span class="string">"Configuring authentication execution plan [&#123;&#125;]"</span>, name);</span><br><span class="line">        c.configureAuthenticationExecutionPlan(plan);</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> plan;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>在这里可以看到，通过Spring容器自动收集所有的AuthenticationEventExecutionPlanConfigurer类，并执行configureAuthenticationExecutionPlan方法，在该方法中，将AuthenticationHandler注册到AuthenticationEventExecutionPlan中，代码如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configureAuthenticationExecutionPlan</span><span class="params">(AuthenticationEventExecutionPlan plan)</span> </span>&#123;</span><br><span class="line">    plan.registerAuthenticationHandler(usernamePasswordCaptchaAuthenticationHandler());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>最终将AuthenticationEventExecutionPlan注入到PolicyBasedAuthenticationManager类中，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ConditionalOnMissingBean</span>(</span><br><span class="line">    name = &#123;<span class="string">"casAuthenticationManager"</span>&#125;</span><br><span class="line">)</span><br><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> AuthenticationManager <span class="title">casAuthenticationManager</span><span class="params">(@Qualifier(<span class="string">"authenticationEventExecutionPlan"</span>)</span> AuthenticationEventExecutionPlan authenticationEventExecutionPlan) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> PolicyBasedAuthenticationManager(authenticationEventExecutionPlan, <span class="keyword">this</span>.casProperties.getPersonDirectory().isPrincipalResolutionFailureFatal(), <span class="keyword">this</span>.applicationEventPublisher);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
@@ -1242,7 +2017,7 @@
 <p>UsernamePasswordCaptchaAuthenticationHandler继承了AbstractPreAndPostProcessingAuthenticationHandler类，可以在该AuthenticationHandle引用业务代码，如UserService，实现用户的查询及验证功能。doAuthentication方法是鉴权的核心方法，在该方法中，可以自定义返回的用户信息。supports方法主要是判断该AuthenticationHandle所支持的Credential类型，CAS会将登录页面表单字段映射为一个Credential对象，默认是UsernamePasswordCredential类。每一个AuthenticationHandle支持的Credential对象不一样，执行的逻辑也不一样的，通过该方法，可以决定AuthenticationHandle是否被执行。<br>另外，AuthenticationHandle在系统中可能有多个，在UsernamePasswordCaptchaAuthenticationHandler构造函数中，要求传入一个int类型的order值，这个参数决定了AuthenticationHandle执行的顺序。</p>
 <h3 id="4-2-生成AuthenticationEventExecutionPlanConfigurer类"><a href="#4-2-生成AuthenticationEventExecutionPlanConfigurer类" class="headerlink" title="4.2 生成AuthenticationEventExecutionPlanConfigurer类"></a>4.2 生成AuthenticationEventExecutionPlanConfigurer类</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span>(<span class="string">"casCaptchaConfiguration"</span>)</span><br><span class="line"><span class="meta">@EnableConfigurationProperties</span>(&#123;CasConfigurationProperties<span class="class">.<span class="keyword">class</span>&#125;)</span></span><br><span class="line"><span class="class"><span class="title">public</span> <span class="title">class</span> <span class="title">CasCaptchaConfiguration</span> <span class="keyword">implements</span> <span class="title">AuthenticationEventExecutionPlanConfigurer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> CasConfigurationProperties casProperties;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="meta">@Qualifier</span>(<span class="string">"servicesManager"</span>)</span><br><span class="line">    <span class="keyword">private</span> ServicesManager servicesManager;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="meta">@Qualifier</span>(<span class="string">"userService"</span>)</span><br><span class="line">    <span class="keyword">private</span> UserService userService;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> AuthenticationHandler <span class="title">usernamePasswordCaptchaAuthenticationHandler</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        UsernamePasswordCaptchaAuthenticationHandler handler = <span class="keyword">new</span> UsernamePasswordCaptchaAuthenticationHandler(</span><br><span class="line">                UsernamePasswordCaptchaAuthenticationHandler<span class="class">.<span class="keyword">class</span>.<span class="title">getSimpleName</span>(),</span></span><br><span class="line"><span class="class">                <span class="title">servicesManager</span>,</span></span><br><span class="line"><span class="class">                <span class="title">new</span> <span class="title">DefaultPrincipalFactory</span>(),</span></span><br><span class="line"><span class="class">                1)</span>;</span><br><span class="line">        handler.setUserService(userService);</span><br><span class="line">        <span class="keyword">return</span> handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configureAuthenticationExecutionPlan</span><span class="params">(AuthenticationEventExecutionPlan plan)</span> </span>&#123;</span><br><span class="line">        plan.registerAuthenticationHandler(usernamePasswordCaptchaAuthenticationHandler());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>CasCaptchaConfiguration类继承了AuthenticationEventExecutionPlanConfigurer类，主要是生成UsernamePasswordCaptchaAuthenticationHandler类，并将UsernamePasswordCaptchaAuthenticationHandler注册到AuthenticationEventExecutionPlan类中。</p>
-<h3 id="4-3-将CasCaptchaConfiguration类注册到Spirng容器中"><a href="#4-3-将CasCaptchaConfiguration类注册到Spirng容器中" class="headerlink" title="4.3 将CasCaptchaConfiguration类注册到Spirng容器中"></a>4.3 将CasCaptchaConfiguration类注册到Spirng容器中</h3><p>通过Springboot的AutoConfiguration机制，将CasCaptchaConfiguration类注册到Spring容器中，在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.CasCaptchaConfiguration</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-3-将CasCaptchaConfiguration类注册到Spirng容器中"><a href="#4-3-将CasCaptchaConfiguration类注册到Spirng容器中" class="headerlink" title="4.3 将CasCaptchaConfiguration类注册到Spirng容器中"></a>4.3 将CasCaptchaConfiguration类注册到Spirng容器中</h3><p>通过Springboot的AutoConfiguration机制，将CasCaptchaConfiguration类注册到Spring容器中，在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">org.springframework.boot.autoconfigure.EnableAutoConfiguration</span>=<span class="string">net.noahsark.cas.common.config.CasCaptchaConfiguration</span></span><br></pre></td></tr></table></figure></p>
 <h3 id="4-4-实现业务方法"><a href="#4-4-实现业务方法" class="headerlink" title="4.4 实现业务方法"></a>4.4 实现业务方法</h3><p>在上面的内容中，提到将业务逻辑加入到UsernamePasswordCaptchaAuthenticationHandler类中，如UserService，加入的方式相对简单略过不表。</p>
 <h2 id="5、加入验证码"><a href="#5、加入验证码" class="headerlink" title="5、加入验证码"></a>5、加入验证码</h2><p>加入验证码，包含如下步骤：</p>
 <ul>
@@ -1258,18 +2033,18 @@
 <h4 id="5-3-1-生成CasWebflowConfigurer对象"><a href="#5-3-1-生成CasWebflowConfigurer对象" class="headerlink" title="5.3.1 生成CasWebflowConfigurer对象"></a>5.3.1 生成CasWebflowConfigurer对象</h4><p>CasWebflowConfigurer对象主要是用来获取Flow对象，并绑定自定义Credential对象，如代码如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">DefaultCaptchaWebflowConfigurer</span> <span class="keyword">extends</span> <span class="title">AbstractCasWebflowConfigurer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">DefaultCaptchaWebflowConfigurer</span><span class="params">(FlowBuilderServices flowBuilderServices, FlowDefinitionRegistry flowDefinitionRegistry, ApplicationContext applicationContext, CasConfigurationProperties casProperties)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(flowBuilderServices, flowDefinitionRegistry, applicationContext, casProperties);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">doInitialize</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        Flow flow = <span class="keyword">this</span>.getLoginFlow();</span><br><span class="line">        <span class="keyword">if</span> (flow != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (casProperties.getTicket().getTgt().getRememberMe().isEnabled()) &#123;</span><br><span class="line">                createFlowVariable(flow, CasWebflowConstants.VAR_ID_CREDENTIAL, RememberMeUsernamePasswordCaptchaCredential<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> ViewState state = getState(flow, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM, ViewState<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> BinderConfiguration cfg = getViewStateBinderConfiguration(state);</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"rememberMe"</span>, <span class="keyword">null</span>, <span class="keyword">false</span>));</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"captcha"</span>, <span class="keyword">null</span>, <span class="keyword">true</span>));</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                createFlowVariable(flow, CasWebflowConstants.VAR_ID_CREDENTIAL, UsernamePasswrodCaptchaCredential<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> ViewState state = getState(flow, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM, ViewState<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">final</span> BinderConfiguration cfg = getViewStateBinderConfiguration(state);</span><br><span class="line">                cfg.addBinding(<span class="keyword">new</span> BinderConfiguration.Binding(<span class="string">"captcha"</span>, <span class="keyword">null</span>, <span class="keyword">true</span>));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>在<strong>doInitialize</strong>方法中会绑定<strong>RememberMeUsernamePasswordCaptchaCredential</strong>或<strong>UsernamePasswrodCaptchaCredential</strong>对象。</p>
 <h4 id="5-3-2-生成Spring配置对象CaptchaWebflowConfiguration"><a href="#5-3-2-生成Spring配置对象CaptchaWebflowConfiguration" class="headerlink" title="5.3.2 生成Spring配置对象CaptchaWebflowConfiguration"></a>5.3.2 生成Spring配置对象CaptchaWebflowConfiguration</h4><p>CaptchaWebflowConfiguration是一个普通的Configuration对象，用于生成DefaultCaptchaWebflowConfigurer对象并注册到Spring容器中，并通过@AutoConfigureBefore(value = CasWebflowContextConfiguration.class)注解来保证在CasWebflowContextConfiguration配置对象之前执行，在CasWebflowContextConfiguration中有默认的CasWebflowConfigurer对象，该对象会绑定默认的Credential对象。</p>
-<h4 id="5-3-3-自动加载CaptchaWebflowConfiguration对象"><a href="#5-3-3-自动加载CaptchaWebflowConfiguration对象" class="headerlink" title="5.3.3 自动加载CaptchaWebflowConfiguration对象"></a>5.3.3 自动加载CaptchaWebflowConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.CaptchaWebflowConfiguration</span><br></pre></td></tr></table></figure></p>
+<h4 id="5-3-3-自动加载CaptchaWebflowConfiguration对象"><a href="#5-3-3-自动加载CaptchaWebflowConfiguration对象" class="headerlink" title="5.3.3 自动加载CaptchaWebflowConfiguration对象"></a>5.3.3 自动加载CaptchaWebflowConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">org.springframework.boot.autoconfigure.EnableAutoConfiguration</span>=<span class="string">net.noahsark.cas.common.config.CaptchaWebflowConfiguration</span></span><br></pre></td></tr></table></figure></p>
 <h3 id="5-4-后台生成验证码"><a href="#5-4-后台生成验证码" class="headerlink" title="5.4 后台生成验证码"></a>5.4 后台生成验证码</h3><h4 id="5-4-1-引入依赖"><a href="#5-4-1-引入依赖" class="headerlink" title="5.4.1 引入依赖"></a>5.4.1 引入依赖</h4><p>引入com.google.code.kaptcha:kaptcha:2.3类，在pom.xml中加入依赖：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.google.code.kaptcha<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>kaptcha<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.3<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
 <h4 id="5-4-2-配置生成验证码的Servlet对象"><a href="#5-4-2-配置生成验证码的Servlet对象" class="headerlink" title="5.4.2 配置生成验证码的Servlet对象"></a>5.4.2 配置生成验证码的Servlet对象</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">KaptchaConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ServletRegistrationBean <span class="title">kaptchaServlet</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        KaptchaServlet servlet = <span class="keyword">new</span> KaptchaServlet();</span><br><span class="line"></span><br><span class="line">        ServletRegistrationBean registration = <span class="keyword">new</span> ServletRegistrationBean(servlet);</span><br><span class="line">        registration.addUrlMappings(<span class="string">"/captcha.jpg"</span>);</span><br><span class="line"></span><br><span class="line">        Map&lt;String, String&gt; parameters = Maps.newHashMap();</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.border"</span>,<span class="string">"no"</span>);</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.textproducer.char.space"</span>,<span class="string">"4"</span>);</span><br><span class="line">        parameters.put(<span class="string">"kaptcha.textproducer.char.length"</span>,<span class="string">"4"</span>);</span><br><span class="line">        registration.setInitParameters(parameters);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> registration;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>配置的访问路径为/captcha.jpg，该路径需要在登录页面中配置。</p>
-<h4 id="5-4-3-自动加载KaptchaConfiguration对象"><a href="#5-4-3-自动加载KaptchaConfiguration对象" class="headerlink" title="5.4.3 自动加载KaptchaConfiguration对象"></a>5.4.3 自动加载KaptchaConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.KaptchaConfiguration</span><br></pre></td></tr></table></figure></p>
+<h4 id="5-4-3-自动加载KaptchaConfiguration对象"><a href="#5-4-3-自动加载KaptchaConfiguration对象" class="headerlink" title="5.4.3 自动加载KaptchaConfiguration对象"></a>5.4.3 自动加载KaptchaConfiguration对象</h4><p>在META-INF/spring.factories文件中加入配置项：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">org.springframework.boot.autoconfigure.EnableAutoConfiguration</span>=<span class="string">net.noahsark.cas.common.config.KaptchaConfiguration</span></span><br></pre></td></tr></table></figure></p>
 <h4 id="5-4-4-修改AuthenticationHandler对象，加入验证码逻辑"><a href="#5-4-4-修改AuthenticationHandler对象，加入验证码逻辑" class="headerlink" title="5.4.4. 修改AuthenticationHandler对象，加入验证码逻辑"></a>5.4.4. 修改AuthenticationHandler对象，加入验证码逻辑</h4><p>验证码的验证逻辑是在AuthenticationHandler对象的doAuthentication方法中，上面的UsernamePasswordCaptchaAuthenticationHandler对象中已经包含对验证码的处理逻辑，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> AuthenticationHandlerExecutionResult <span class="title">doAuthentication</span><span class="params">(Credential credential)</span> <span class="keyword">throws</span> GeneralSecurityException, PreventedException </span>&#123;</span><br><span class="line"></span><br><span class="line">    String requestCaptcha = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (credential <span class="keyword">instanceof</span>  RememberMeUsernamePasswordCaptchaCredential) &#123;</span><br><span class="line">        RememberMeUsernamePasswordCaptchaCredential rmupc = (RememberMeUsernamePasswordCaptchaCredential)credential;</span><br><span class="line">        requestCaptcha = rmupc.getCaptcha();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (credential <span class="keyword">instanceof</span> UsernamePasswrodCaptchaCredential) &#123;</span><br><span class="line">        UsernamePasswrodCaptchaCredential upc = (UsernamePasswrodCaptchaCredential)credential;</span><br><span class="line">        requestCaptcha = upc.getCaptcha();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();</span><br><span class="line">    Object attribute = attributes.getRequest().getSession().getAttribute(com.google.code.kaptcha.Constants.KAPTCHA_SESSION_KEY);</span><br><span class="line"></span><br><span class="line">    String realCaptcha = attribute == <span class="keyword">null</span> ? <span class="keyword">null</span> : attribute.toString();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(StringUtils.isBlank(requestCaptcha) || !requestCaptcha.equals(realCaptcha))&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> FailedCaptchaException(<span class="string">"Verification code does not match!"</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        attributes.getRequest().getSession().removeAttribute(com.google.code.kaptcha.Constants.KAPTCHA_SESSION_KEY);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证用户名/密码逻辑</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> createHandlerResult(credential, <span class="keyword">this</span>.principalFactory.createPrincipal(username));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <h2 id="6、自定义登录错误信息"><a href="#6、自定义登录错误信息" class="headerlink" title="6、自定义登录错误信息"></a>6、自定义登录错误信息</h2><p>在UsernamePasswordCaptchaAuthenticationHandler对象中，会对验证码及用户名/密码进行验证，如果验证失败，可以定制显示的错误信息。</p>
 <h3 id="6-1-生成异常对象"><a href="#6-1-生成异常对象" class="headerlink" title="6.1 生成异常对象"></a>6.1 生成异常对象</h3><p>生成异常对象，该对象可以继承自AccountException对象（子对象），如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FailedCaptchaException</span> <span class="keyword">extends</span> <span class="title">AccountExpiredException</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">7267347853421454216L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">FailedCaptchaException</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">FailedCaptchaException</span><span class="params">(String msg)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <h3 id="6-2-配置语言文件"><a href="#6-2-配置语言文件" class="headerlink" title="6.2 配置语言文件"></a>6.2 配置语言文件</h3><p>从cas-server-webapp-tomcat-5.3.9中拷贝messages.properties或messages_zh_CN.properties文件到resources目录下，按照如下格式配置：<br><strong>authenticationFailure.异常=错误信息</strong><br>以FailedCaptchaException为例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># Customer Error</span><br><span class="line">authenticationFailure.FailedCaptchaException=验证码不匹配</span><br></pre></td></tr></table></figure></p>
 <h2 id="7、其它配置"><a href="#7、其它配置" class="headerlink" title="7、其它配置"></a>7、其它配置</h2><h3 id="7-1-配置数据源及业务对象"><a href="#7-1-配置数据源及业务对象" class="headerlink" title="7.1 配置数据源及业务对象"></a>7.1 配置数据源及业务对象</h3><p>可以定义一个Configuration对象，如DataSourceConfig，配置Druid数据源及其相关对象。</p>
 <h3 id="7-2-配置Spring容器的扫描目录，加载Service及Dao对象"><a href="#7-2-配置Spring容器的扫描目录，加载Service及Dao对象" class="headerlink" title="7.2 配置Spring容器的扫描目录，加载Service及Dao对象"></a>7.2 配置Spring容器的扫描目录，加载Service及Dao对象</h3><p>可以定义一个Configuration对象，如SpringConfig，指定扫描的目录，自动加载业务对象。</p>
-<h3 id="7-3-加载DataSourceConfig及SpringConfig对象"><a href="#7-3-加载DataSourceConfig及SpringConfig对象" class="headerlink" title="7.3 加载DataSourceConfig及SpringConfig对象"></a>7.3 加载DataSourceConfig及SpringConfig对象</h3><p>在META-INF/spring.factories文件中加入相应的配置，最后文件内容为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.common.config.SpringConfig,\</span><br><span class="line">  net.noahsark.cas.common.config.CasCaptchaConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.CaptchaWebflowConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.KaptchaConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.DataSourceConfig</span><br></pre></td></tr></table></figure></p>
+<h3 id="7-3-加载DataSourceConfig及SpringConfig对象"><a href="#7-3-加载DataSourceConfig及SpringConfig对象" class="headerlink" title="7.3 加载DataSourceConfig及SpringConfig对象"></a>7.3 加载DataSourceConfig及SpringConfig对象</h3><p>在META-INF/spring.factories文件中加入相应的配置，最后文件内容为：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">org.springframework.boot.autoconfigure.EnableAutoConfiguration</span>=<span class="string">net.noahsark.cas.common.config.SpringConfig,\</span></span><br><span class="line">  net.noahsark.cas.common.config.CasCaptchaConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.CaptchaWebflowConfiguration,\</span><br><span class="line">  net.noahsark.cas.common.config.KaptchaConfiguration,\</span><br><span class="line">  <span class="attr">net.noahsark.cas.common.config.DataSourceConfig</span></span><br></pre></td></tr></table></figure></p>
 
           
         
@@ -1422,6 +2197,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">25k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">23 分钟</span>
+              
+            </div>
           
 
           
@@ -1624,7 +2427,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">34</span>
+                    <span class="site-state-item-count">36</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -1673,7 +2476,9 @@
                     
                       
                     
-                    <span class="site-state-item-count">18</span>
+                      
+                    
+                    <span class="site-state-item-count">19</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1926,7 +2731,27 @@
                     
                       
                     
-                    <span class="site-state-item-count">120</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">130</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1972,12 +2797,27 @@
   <span class="author" itemprop="copyrightHolder">Noahsark</span>
 
   
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">296k</span>
+  
 
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:29</span>
   
 </div>
 
 <div class="BbeiAn-info">
     <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
 </div>
 
 

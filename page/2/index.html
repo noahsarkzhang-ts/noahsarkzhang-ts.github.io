@@ -369,6 +369,605 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/10/08/select-and-epoll/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2020/10/08/select-and-epoll/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">Select 和 Epoll实现</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-10-08 18:17:33" itemprop="dateCreated datePublished" datetime="2020-10-08T18:17:33+08:00">2020-10-08</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/网络协议/" itemprop="url" rel="index"><span itemprop="name">网络协议</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">41k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">37 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。</p>
+<h2 id="1-知识储备"><a href="#1-知识储备" class="headerlink" title="1. 知识储备"></a>1. 知识储备</h2><p>在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。</p>
+<h3 id="1-1-poll-函数"><a href="#1-1-poll-函数" class="headerlink" title="1.1 poll 函数"></a>1.1 poll 函数</h3><p>在 linux 中，设备的操作抽象为文件的操作，对网络设备的操作同样也是文件操作。为了实现非阻塞的数据读取，文件提供了 poll 操作，该操作为上层应用提供了探测设备文件是否有数据可读的接口，同时结合文件的等待队列，上层应用可以对感兴趣的事件添加处理函数，这个处理函数通常是向等待队列中添加一个等待结点，这个等待结点会关联一个 callback 函数，当相关事件满足时触发 callback 函数，最后 poll 函数返回当前设备文件的状态，上层应用根据返回状态决定是否阻塞该线程，poll 函数不阻塞线程。通过这种方式，设备文件提供了基于事件处理的回调机制，select/poll/epoll 就是基于这种方式来实现的。 </p>
+<p><img src="/images/tcp/poll.jpg" alt="poll" title="poll"></p>
+<p>poll 函数分为三个步骤：</p>
+<ol>
+<li>获取事件对应的等待队列；</li>
+<li>初始化一个等待结点，设置 callback 函数，并将等待结点加入到等待队列中，此时并不阻塞调用线程；</li>
+<li>获取设备当前的状态并返回。</li>
+</ol>
+<p>在 poll 函数中，上层应用可以根据业务的不同可以自定义 poll_queue_proc 和 唤醒 callback 函数，从而实现不同的功能，select/poll/epoll 分别实现了这两个函数，它们之间的差异从这两个函数中也可以看出。下面是一个 poll 函数实例。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">scull_p_poll</span><span class="params">(struct file *filp, poll_table *wait)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	Scull_Pipe *dev = filp-&gt;private_data;</span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">int</span> mask = <span class="number">0</span>;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	* The buffer is circular; it is considered full</span></span><br><span class="line"><span class="comment">	* if "wp" is right behind "rp". "left" is 0 if the</span></span><br><span class="line"><span class="comment">	* buffer is empty, and it is "1" if it is completely full.</span></span><br><span class="line"><span class="comment">	*/</span></span><br><span class="line">	<span class="comment">// 处理私有业务</span></span><br><span class="line">	<span class="keyword">int</span> left = (dev-&gt;rp + dev-&gt;buffersize - dev-&gt;wp) % dev-&gt;buffersize;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 在不同的等待队列上调用 poll_wait 函数</span></span><br><span class="line">	poll_wait(filp, &amp;dev-&gt;inq, wait);</span><br><span class="line">	poll_wait(filp, &amp;dev-&gt;outq, wait);</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/* readable */</span></span><br><span class="line">	<span class="keyword">if</span> (dev-&gt;rp != dev-&gt;wp) mask |= POLLIN | POLLRDNORM;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/* writable */</span></span><br><span class="line">	<span class="keyword">if</span> (left != <span class="number">1</span>) mask |= POLLOUT | POLLWRNORM;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">return</span> mask;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>poll 函数的定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">// 文件操作  </span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">file_operations</span> &#123;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 提供给 poll/select/epoll 使用，获取文件当前状态, 以及就绪通知接口函数</span></span><br><span class="line">    <span class="function"><span class="keyword">unsigned</span> <span class="title">int</span> <span class="params">(*poll)</span> <span class="params">(struct file *, struct poll_table_struct *)</span></span>; </span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 向文件注册事件及处理函数  </span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">poll_table_struct</span> &#123;</span></span><br><span class="line">    <span class="comment">// 处理函数</span></span><br><span class="line">    poll_queue_proc _qproc;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 事件</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>  _key;  </span><br><span class="line">&#125; poll_table;</span><br><span class="line"></span><br><span class="line"><span class="comment">// poll_queue_proc 函数定义</span></span><br><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">void</span> <span class="params">(*poll_queue_proc)</span><span class="params">(struct file *, <span class="keyword">wait_queue_head_t</span> *, struct poll_table_struct *)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<h3 id="1-2-wakeup-callback机制"><a href="#1-2-wakeup-callback机制" class="headerlink" title="1.2 wakeup callback机制"></a>1.2 wakeup callback机制</h3><p>在上节的 poll 函数中，会检查文件的状态（可读/可写/可连接），同时在事件的等待队列添加一个等待结点，待续结点中注册一个 callback 回调函数，事件触发时，再调用 callback 回调函数，唤醒结点中的 task 来处理事件。这种机制正时使用了 linux 内核 wakeup callback机制。<br>Linux 内核通过睡眠队列来组织所有等待某个事件的 task，而 wakeup 机制则可以异步唤醒整个睡眠队列上的 task，每一个睡眠队列上的节点都拥有一个 callback，wakeup 逻辑在唤醒睡眠队列时，会遍历该队列链表上的每一个节点，调用每一个节点的 callback，如果遍历过程中遇到某个节点是排他节点，则终止遍历，不再继续遍历后面的节点。总体上的逻辑可以用下面的伪代码表示：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">define sleep_list;</span><br><span class="line">define wait_entry;</span><br><span class="line">wait_entry.task = current_task;</span><br><span class="line">wait_entry.callback = func1;</span><br><span class="line"><span class="keyword">if</span> (something_not_ready); then</span><br><span class="line">    <span class="comment"># 将任务加入等待队列</span></span><br><span class="line">    add_entry_to_list(wait_entry, sleep_list);</span><br><span class="line">go_on:</span><br><span class="line">    <span class="comment"># 根据情况进行睡眠或唤醒</span></span><br><span class="line">    schedule();</span><br><span class="line">    <span class="keyword">if</span> (something_not_ready); then</span><br><span class="line">        goto go_on;</span><br><span class="line">    endif</span><br><span class="line">    del_entry_from_list(wait_entry, sleep_list);</span><br><span class="line">endif</span><br></pre></td></tr></table></figure></p>
+<p>唤醒的流程：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">something_ready;</span><br><span class="line">for_each(sleep_list) <span class="keyword">as</span> wait_entry; do</span><br><span class="line">    wait_entry.callback(...);</span><br><span class="line">    <span class="keyword">if</span>(wait_entry.exclusion); then</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    endif</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
+<p>callback 函数包含于唤醒的主要逻辑，伪代码如下所示：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">common_callback_func(...)</span><br><span class="line">&#123;</span><br><span class="line">    do_something_private;</span><br><span class="line">    wakeup_common;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 poll/select/epoll 中都会定义各自的 callback 函数，该函数一般包括两部分：1）私有逻辑；2）唤醒 task。callback 函数由驱动来调用（在 NIC 中由软件中断调用）。</p>
+<h3 id="1-3-I-O-多路复用"><a href="#1-3-I-O-多路复用" class="headerlink" title="1.3 I/O 多路复用"></a>1.3 I/O 多路复用</h3><p>I/O 多路复用是一种优化技术，它是为了避免一个线程处理一个 I/O 设备文件，转而由一个线程来监听多个 I/O 文件，来提供系统的效率。poll/select/epoll 底层使用了这种 I/O 模式。<br><img src="/images/tcp/io-multiplexing.jpg" alt="io-multiplexing" title="io-multiplexing"></p>
+<h2 id="2-select"><a href="#2-select" class="headerlink" title="2. select"></a>2. select</h2><h3 id="2-1-整体流程"><a href="#2-1-整体流程" class="headerlink" title="2.1 整体流程"></a>2.1 整体流程</h3><p>select 方法调用：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FD_SETSIZE 1024</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> NFDBITS (8 * sizeof(unsigned long))</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> __FDSET_LONGS (FD_SETSIZE/NFDBITS)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 数据结构 </span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> fds_bits[__FDSET_LONGS];</span><br><span class="line">&#125; fd_set;</span><br><span class="line"></span><br><span class="line"><span class="comment">// select 文件调用</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">select</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">int</span> max_fd,  <span class="comment">/* 最大文件数 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *readset, <span class="comment">/* 读事件文件集合 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *writeset, <span class="comment">/* 写事件文件集合 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *exceptset, </span></span></span><br><span class="line"><span class="function"><span class="params">    struct timeval *timeout</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span></span>; <span class="comment">// 返回值就绪描述符的数目</span></span><br></pre></td></tr></table></figure></p>
+<p>从 select 方法定义来看，每次调用都需要将文件集合在用户空间及内核空间进行复制，并且文件最大的数量限制在 1024 个。组合上面的内容，可以知道 select 会定义两个函数 poll_queue_proc 和 唤醒 callback 函数，注册到 poll 函数中，在这里，这两个函数分别对应：__pollwait() 和 pollwake。其整体的流程如下所示：</p>
+<p><img src="/images/tcp/select.jpg" alt="select" title="select"></p>
+<p>select 调用主要做了三件事情：</p>
+<ol>
+<li>初始化poll_wqueues结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；</li>
+<li>循环遍历监测的文件描述符，并且调用 f_op-&gt;poll() 函数，如果有监测条件满足，则会跳出循环；</li>
+<li>在监测的文件描述符都不满足条件时，会让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒。</li>
+</ol>
+<p>select 函数的循环退出条件有三个：</p>
+<ol>
+<li>检测的文件描述符满足条件；</li>
+<li>超时；</li>
+<li>由等待事件触发。</li>
+</ol>
+<h3 id="2-2-数据结构"><a href="#2-2-数据结构" class="headerlink" title="2.2 数据结构"></a>2.2 数据结构</h3><p>接下来再看下 select 内部的数据结构：<br><img src="/images/tcp/select_data_struct.jpg" alt="select_data_struct" title="select_data_struct"><br>在 select 方法中，会维护一个 struct poll_wqueues 结构，其中两个关键字段：</p>
+<ol>
+<li>poll_table：该结构体中的函数指针_qproc指向__pollwait函数；</li>
+<li>struct poll_table_entry[]：存放不同文件的 poll_table_entry，这些条目的增加是在驱动调用 __pollwait() 时进行初始化并完成添加的，每一个文件都会添加一个条目。</li>
+</ol>
+<p>在这个数据结构可以看出，调用 poll 函数之后，会在所有文件的等待队列中加入一个结点，这个结点会持有当前 task 的信息，当事件触发之后，从而可以知道唤醒那一个进程；</p>
+<p>从上面的分析可以看出，select 有以下的缺点：</p>
+<ol>
+<li>每次 select 方法调用都会传入文件集合参数，涉及到用户空间及内核空间的两次复制；</li>
+<li>每一次调用都需要遍历所有的文件调用 poll 函数，效率较低（在用户空间中，也需要遍历所有文件查看那些文件有事件触发）；</li>
+<li>监听的文件数量有限，最大 1024 个。</li>
+</ol>
+<h2 id="3-epoll"><a href="#3-epoll" class="headerlink" title="3. epoll"></a>3. epoll</h2><h3 id="3-1-整体流程"><a href="#3-1-整体流程" class="headerlink" title="3.1 整体流程"></a>3.1 整体流程</h3><p>epoll 解决了 select 的缺点，在大并发场景下，epoll 得到了广泛的应用，它从以下几个方面解决了 select 的缺点：</p>
+<ol>
+<li>生成一个 epoll 文件，将监听的文件描述符加入到这个文件的数据结构（红黑树）中，只用添加一次，避免了数据的来回复制；</li>
+<li>epoll 文件中维护了一个可读文件队列，每次只遍历该队列，避免所有文件的遍历；</li>
+<li>监听的文件不受限制。</li>
+</ol>
+<p>下面我们来看下 epoll的实现原理，首先看下调用方法：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成一个 ep 文件，把所有需要监听的文件都放到 ep 文件中</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_create</span><span class="params">(<span class="keyword">int</span> <span class="built_in">size</span>)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_ctl 添加一个监听的文件</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_ctl</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd,</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> op, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> fd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event *event</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_wait 负责检测可读队列，没有可读的文件则阻塞进程</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_wait</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event * events, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> maxevents, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> timeout</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>epoll_create 生成一个 ep 文件，通过 epoll_ctl 方法添加/删除文件，epoll_wait 方法只遍历满足条件的可读队列，提高了效率。这三个方法大概的逻辑如下描述。<br><strong>epoll_ctl 主要逻辑：</strong></p>
+<ol>
+<li>定义一个 epitem 结构，代表一个监听的文件，并加入到红黑树中；</li>
+<li>生成一个等待结点，加入到这文件 （socket 文件）的等待队列中；</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">define epitem</span><br><span class="line">add_epitem_to_rbtree(epitem) </span><br><span class="line"></span><br><span class="line">define wait_entry</span><br><span class="line">wait_entry.socket = this_socket;</span><br><span class="line">wait_entry.callback = epoll_wakecallback;</span><br><span class="line">add_entry_to_list(wait_entry, this_socket.sleep_list);</span><br></pre></td></tr></table></figure>
+<p><strong>epoll_wait 主要逻辑：</strong></p>
+<ol>
+<li>定义一个等待结点，将结点的 task （实际为 private 字段，为了简要描述，定义为 task） 设置为当前 task （调用 epoll_wait的进程），并设置回调函数；</li>
+<li>判断当前可读队列是否为空，如果为空则将等待结点加入到 ep 文件的等待队列上，并阻塞该进程；</li>
+<li>如果当前可读队列不为空，则遍历准备好的可读队列，返回数据给用户进程；</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">define single_wait_list</span><br><span class="line">define single_wait_entry</span><br><span class="line">single_wait_entry.callback = wakeup_common;</span><br><span class="line">single_wait_entry.task = current_task;</span><br><span class="line"><span class="keyword">if</span> (ready_list_is_empty); then</span><br><span class="line">    <span class="comment"># 等待结点加入到 ep 文件的等待队列中</span></span><br><span class="line">    add_entry_to_list(single_wait_entry, single_wait_list);</span><br><span class="line">go_on:  </span><br><span class="line">    <span class="comment"># 阻塞进程</span></span><br><span class="line">    schedule();</span><br><span class="line">    <span class="keyword">if</span> (sready_list_is_empty); then</span><br><span class="line">        goto go_on;</span><br><span class="line">    endif</span><br><span class="line">    del_entry_from_list(single_wait_entry, single_wait_list);</span><br><span class="line">endif</span><br><span class="line"><span class="comment"># 遍历准备好的可读队列</span></span><br><span class="line">for_each_ready_list <span class="keyword">as</span> sk; do</span><br><span class="line">    event.evt = sk.poll(...);</span><br><span class="line">    event.sk = sk;</span><br><span class="line">    put_event_to_user;</span><br><span class="line">done;</span><br></pre></td></tr></table></figure>
+<p>在这里需要注意的是，当前进程不像 select 方法，进程是阻塞在监听文件（socket 文件）的等待队列上，而是阻塞在 ep 文件自己的阻塞队列上，如上面的流程所述。这里有问题，如何唤醒阻塞的进程？答案在注册到监听文件的回调函数上，在 epoll_ctl 中，我们同样在监听文件的等待队列上加入了一个等待结点，当文件可读时，调用该回调函数，借助该函数，再唤醒阻塞在 ep 文件等待队列上的进程，其流程如下所述：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">epoll_wakecallback(...)</span><br><span class="line">&#123;</span><br><span class="line">    add_this_socket_to_ready_list;</span><br><span class="line">    wakeup_single_epoll_waitlist;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在唤醒进程之前，会将该文件加入到可读队列中。</p>
+<p>epoll_wait 流程如下图所示：<br><img src="/images/tcp/epoll.jpg" alt="epoll" title="epoll"></p>
+<h3 id="3-2-数据结构"><a href="#3-2-数据结构" class="headerlink" title="3.2 数据结构"></a>3.2 数据结构</h3><p>数据结构如下所示：<br><img src="/images/tcp/epoll_data_struct.jpg" alt="epoll_data_struct" title="epoll_data_struct"><br>关键点说明：</p>
+<ol>
+<li>进程阻塞在 epoll 文件的等待队列上，不是监听文件的等待队列上；</li>
+<li>epoll 会将满足条件的文件提前放在可读文件队列 rdllist 中，减少文件遍历的数量；</li>
+<li>epoll 将监听的文件使用红黑树管理，可有效地进行文件的添加及删除；</li>
+<li>唤醒操作由监听文件等待队列中的回调函数触发，然后再唤醒阻塞在 epoll 文件上的进程。</li>
+</ol>
+<p>对应的数据结构定义为：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">/* 每创建一个epoll 文件, 内核就会分配一个eventpoll与之对应 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">eventpoll</span> &#123;</span></span><br><span class="line">    <span class="comment">/* Protect the this structure access */</span></span><br><span class="line">    <span class="keyword">spinlock_t</span> lock;</span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * This mutex is used to ensure that files are not removed</span></span><br><span class="line"><span class="comment">     * while epoll is using them. This is held during the event</span></span><br><span class="line"><span class="comment">     * collection loop, the file cleanup path, the epoll file exit</span></span><br><span class="line"><span class="comment">     * code and the ctl operations.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">mutex</span> <span class="title">mtx</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Wait queue used by sys_epoll_wait() */</span></span><br><span class="line">    <span class="comment">/* epoll 文件等待队列，进程就是阻塞在该队列上 */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> wq;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Wait queue used by file-&gt;poll() */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> poll_wait;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List of ready file descriptors */</span></span><br><span class="line">    <span class="comment">/* 所有已经准备好的可读文件队列 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">rdllist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* RB tree root used to store monitored fd structs */</span></span><br><span class="line">    <span class="comment">/* 红黑树，存储所有监听的文件 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rb_root</span> <span class="title">rbr</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * This is a single linked list that chains all the "struct epitem" that</span></span><br><span class="line"><span class="comment">     * happened while transfering ready events to userspace w/out</span></span><br><span class="line"><span class="comment">     * holding -&gt;lock.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">ovflist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The user that created the eventpoll descriptor */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">user_struct</span> *<span class="title">user</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Each file descriptor added to the eventpoll interface will</span></span><br><span class="line"><span class="comment"> * have an entry of this type linked to the "rbr" RB tree.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="comment">/* epitem 表示一个被监听的文件 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> &#123;</span></span><br><span class="line">    <span class="comment">/* RB tree node used to link this structure to the eventpoll RB tree */</span></span><br><span class="line">    <span class="comment">/* 代表在红黑树中的结点 */</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">		<span class="comment">/* RB tree node links this structure to the eventpoll RB tree */</span></span><br><span class="line">		<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> <span class="title">rbn</span>;</span></span><br><span class="line">		<span class="comment">/* Used to free the struct epitem */</span></span><br><span class="line">		<span class="class"><span class="keyword">struct</span> <span class="title">rcu_head</span> <span class="title">rcu</span>;</span></span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List header used to link this structure to the eventpoll ready list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">rdllink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Works together "struct eventpoll"-&gt;ovflist in keeping the</span></span><br><span class="line"><span class="comment">     * single linked chain of items.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">next</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The file descriptor information this item refers to */</span></span><br><span class="line">    <span class="comment">/* epitem对应的文件和 struct file */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_filefd</span> <span class="title">ffd</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Number of active wait queue attached to poll operations */</span></span><br><span class="line">    <span class="keyword">int</span> nwait;</span><br><span class="line">    <span class="comment">/* List containing poll wait queues */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">pwqlist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The "container" of this item */</span></span><br><span class="line">    <span class="comment">/* 关联的eventpoll结构 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">eventpoll</span> *<span class="title">ep</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List header used to link this item to the "struct file" items list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">fllink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The structure that describe the interested events and the source fd */</span></span><br><span class="line">    <span class="comment">/* 当前文件关心的事件 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">event</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 红黑树结点 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">long</span>  __rb_parent_color;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_right</span>;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_left</span>;</span></span><br><span class="line">&#125; __attribute__((aligned(<span class="keyword">sizeof</span>(<span class="keyword">long</span>))));</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 红黑树根结点 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rb_root</span> &#123;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_node</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epoll_filefd</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">file</span> *<span class="title">file</span>;</span></span><br><span class="line">    <span class="keyword">int</span> fd;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Wait structure used by the poll hooks */</span></span><br><span class="line"><span class="comment">/* 用于构造回调函数的数据结构，在 ep_ptable_queue_proc 中使用 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">eppoll_entry</span> &#123;</span></span><br><span class="line">    <span class="comment">/* List header used to link this structure to the "struct epitem" */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">llink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The "base" pointer is set to the container "struct epitem" */</span></span><br><span class="line">    <span class="comment">/* 关联的 epitem */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">base</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Wait queue item that will be linked to the target file wait</span></span><br><span class="line"><span class="comment">     * queue head.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">/* 添加到监听文件等待队列中的等待结点 */</span></span><br><span class="line">    <span class="keyword">wait_queue_t</span> wait;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The wait queue head that linked the "wait" wait queue item */</span></span><br><span class="line">    <span class="comment">/* 监听文件等待队列队首结点 */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> *whead;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Wrapper struct used by poll queueing */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ep_pqueue</span> &#123;</span></span><br><span class="line">    poll_table pt;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">epi</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Used by the ep_send_events() function as callback private data */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ep_send_events_data</span> &#123;</span></span><br><span class="line">    <span class="keyword">int</span> maxevents;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> __<span class="title">user</span> *<span class="title">events</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>通过对 select 及 epoll 方法的分析，可以知道，epoll 从各个方面进行了优化，相对 select, 在大部分场景下，性能有了质的飞跃，这也是网络中间件中大部分选用 epoll 的原因。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://coderbee.net/index.php/linux/20190919/1942" target="_blank" rel="noopener">1. Linux select/poll/epoll 原理（一）实现基础</a><br><a href="https://blog.csdn.net/eZiMu/article/details/54896708" target="_blank" rel="noopener">2. inux驱动—file_operations之poll</a><br><a href="https://mp.weixin.qq.com/s/bjM3uEDg61vhNN8Y661L7w" target="_blank" rel="noopener">3. Linux select/poll机制原理分析</a><br><a href="https://blog.csdn.net/dog250/article/details/50528373" target="_blank" rel="noopener">4. Linux内核中网络数据包的接收-第二部分 select/poll/epoll</a><br><a href="https://my.oschina.net/alchemystar/blog/3008840" target="_blank" rel="noopener">5. 从linux源码看epoll</a><br><a href="https://blog.csdn.net/russell_tao/article/details/17119729" target="_blank" rel="noopener">6. 高性能网络编程5–IO复用与并发编程</a><br><a href="https://blog.nowcoder.net/n/dade4d8c53d144dfa78157887e2cb33e" target="_blank" rel="noopener">7. epoll源码分析</a><br><a href="https://zhuanlan.zhihu.com/p/60713292" target="_blank" rel="noopener">8. 带您进入内核开发的大门 | 内核中的等待队列</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/09/20/illustrated-TCP-protocol/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2020/09/20/illustrated-TCP-protocol/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">图解TCP协议</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-09-20 16:58:48" itemprop="dateCreated datePublished" datetime="2020-09-20T16:58:48+08:00">2020-09-20</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/网络协议/" itemprop="url" rel="index"><span itemprop="name">网络协议</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">17k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">15 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>这篇文章讲述网络报文从网卡 NIC （network interface controller）接收，再到操作系统网络协议栈处理，最后到用户程序接收报文处理报文的简化过程，希望能对TCP协议进行一个整体、概括性的总结。</p>
+<h2 id="1-网络子系统"><a href="#1-网络子系统" class="headerlink" title="1. 网络子系统"></a>1. 网络子系统</h2><p>从网络中发送过来的网络报文首先到达网卡 NIC，使用 DMA 技术将报文拷贝到内存中，再发起中断请求 CPU 进行中断处理，CPU 调用驱动中的方法处理网络报文，处理完毕之后传给网络协议栈处理，如流程如下图所示：</p>
+<p><img src="/images/tcp/data-received.jpg" alt="data-received" title="data-received"></p>
+<ol>
+<li>网卡 NIC 从外部网络收到报文；</li>
+<li>网卡 NIC 通过 DMA 技术直接将报文拷贝到 RAM 中，以 SKB(Socket Buffer)结构存储。NIC 一般都会在 RAM 中申请一个环形的接收队列，代表了接收的能力（同时也会发送环形队列，用于报文的发送）；</li>
+<li>网卡 NIC 向 CPU 触发一次硬件中断，通知有报文需要处理，如果只有一个 CPU，没有其它选择；如果是多 CPU 的情况，会涉及到 CPU 的选择，后面我们会进行讲述；</li>
+<li>CPU 处理中断，调用 NIC 驱动注册到内核中的的中断处理函数，在这里我们以 NAPI 为例（NAPI 合并 IRQ(Interrupt ReQuest),减少中断次数）；</li>
+<li>中断处理函数会关闭中断，后续报文直接由拷贝到内存中，避免后续报文重复触发中断；</li>
+<li>触发软中断，进行报文处理，中断处理包含两个阶段：1）硬件中断，响应 NIC 中断信号，触发软件中断；2）软件中断，由专门的内核线程来执行，网络报文的处理是由软件中断来执行。</li>
+</ol>
+<p>上面的流程是简要的一个流程，有些知识链条是断裂的，下面将补充三个知识点：1）软件中断；2） NIC 与环形队列的关系；3） CPU 的选择问题。</p>
+<h3 id="1-1-软件中断"><a href="#1-1-软件中断" class="headerlink" title="1.1 软件中断"></a>1.1 软件中断</h3><p>在设备驱动中，一般通过中断的方式告诉 CPU 数据已经准备好，可以来取数据了。在内核中，中断处理函数优先级非常高，同时会阻塞其它中断处理。所以要求硬件中断处理函数必须尽可能快、效率尽可能高。为了减少中断处理时间，引入了软件中断，将复杂的处理延迟到软件中断中处理，如网络报文的处理，而在硬件中断中触发软件中断。</p>
+<p>系统在启动时，会为每一个 CPU 分配一个内核线程 ksoftirqd 线程，专门处理软件中断，目前能够处理的软件中断有6个，其中网络处理的有两个，分别是接收中断 NET_RX_SOFTIRQ 和 发送中断 NET_TX_SOFTIRQ。这两个中断在net_dev_init方法中注册到内核。初始化的流程如下所示：<br><img src="/images/tcp/softirq.jpg" alt="softirq" title="softirq"></p>
+<ol>
+<li>系统启动时，创建 ksoftirad 内核线程，处理软件中断，每一个 CPU 对应一个线程；</li>
+<li>ksoftirqd 内部是一个事件处理处理函数 run_ksoftirqd，不断接收中断处理事件；</li>
+<li>驱动为每一个 CPU 生成 poll_list 链表，主要是存放触发中断事件的 NIC设备；</li>
+<li>注册软件中断处理函数 net_rx_action, 中断号为 NET_RX_SOFTIRQ(同时也会注册NET_TX_SOFTIRQ)，负责报文接收工作；</li>
+<li>收到报文时，驱动为将触发中断的 NIC 加入到 CPU 的 poll_list中；</li>
+<li>驱动设置 softirq_pending 中的 NET_RX_SOFTIRQ 标志位，表明需要处理 NET_RX_SOFTIRQ 中断；</li>
+<li>run_ksoftirqd 检查到 softirq_pending 标志位，如果有设置标志位，执行 __do_softirq 函数；</li>
+<li>__do_softirq 查找到 NET_RX_SOFTIRQ 对应的中断处理函数 net_rx_action，并执行该函数，处理报文的接收。</li>
+</ol>
+<h3 id="1-2-RSS"><a href="#1-2-RSS" class="headerlink" title="1.2 RSS"></a>1.2 RSS</h3><p>在多核的系统中，为了充分利用多核处理的优势，提高网络处理的吞吐量，NIC 引入了 RSS(Receive Side Scaling) 或 multiqueue 的技术。这种技术将 NIC 接收队列抽象为多个队列，每一个队列分配一个唯一的中断号，再将队列与某个 CPU 建立映射关系。输入的报文根据 NIC中的 hash 函数（根据Src ip, Src port, Dest ip, Dest port, Protocol）负载到指定的接收队列中，再根据对应的中断号触发硬件中断，后续的报文者将由指定的 CPU 来处理，整体的流程如下图所示：<br><img src="/images/tcp/RSS.jpg" alt="RSS" title="RSS"></p>
+<ol>
+<li>NIC 接收到外部报文；</li>
+<li>使用 DMA 技术将报文拷贝到 SKB 双向链表中；</li>
+<li>使用 hash 函数，将该报文负载到指定的队列中，将触发中断，每一个接收队列都对应一个环形队列，有大小的限制，超过容量之后，报文会丢弃；</li>
+<li>在硬件中断中处理软件中断，与上面的内容一致。</li>
+</ol>
+<p>如果支持 RSS 的话，NIC 为每个队列分配一个 IRQ，通过 /proc/interrupts 进行查看，如下所示：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ cat /proc/interrupts</span><br><span class="line">           CPU0       CPU1       CPU2       CPU3</span><br><span class="line"> 56:   20209820    4671909   34469139    1896297   PCI-MSI-edge      ens160-rxtx-0</span><br><span class="line"> 57:    3259205    5165620    2125138    4534929   PCI-MSI-edge      ens160-rxtx-1</span><br><span class="line"> 58:    5883233   10958192    2339523   22326712   PCI-MSI-edge      ens160-rxtx-2</span><br><span class="line"> 59:    4307729    2329793    9003652   25191926   PCI-MSI-edge      ens160-rxtx-3</span><br></pre></td></tr></table></figure></p>
+<p>可以看到，中断号 56~59 分别分配给了 4 个队列，通过 /proc/irq/IRQ_NUMBER/smp_affinity 设置某个中断由某个 CPU 触发，我们可以查看中断号 56 的配置情况。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cat /proc/irq/56/smp_affinity</span><br><span class="line">4</span><br></pre></td></tr></table></figure></p>
+<p>0 号 CPU 的掩码是 0x1 (0001)，1 号 CPU 掩码是 0x2 (0010)，2 号 CPU 掩码是 0x4 (0100)，3 号 CPU 掩码是 0x8 (1000) 依此类推。4 表示使用 CPU 2，另外可以查看或配置环形队列的长度。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">$ ethtool -g ens160</span><br><span class="line">Ring parameters <span class="keyword">for</span> ens160:</span><br><span class="line">Pre-set maximums:</span><br><span class="line">RX:             4096</span><br><span class="line">RX Mini:        0</span><br><span class="line">RX Jumbo:       4096</span><br><span class="line">TX:             4096</span><br><span class="line">Current hardware settings:</span><br><span class="line">RX:             256</span><br><span class="line">RX Mini:        0</span><br><span class="line">RX Jumbo:       128</span><br><span class="line">TX:             512</span><br></pre></td></tr></table></figure></p>
+<p>在 NIC 中引入 RSS 技术，有效地提高了网络处理的吞吐量。如果硬件不支持 RSS 技术，内核提供了 RPS(Receive Packet Steering) 技术，通过软件的技术来实现多核处理网络报文。PRS 技术的原理是：硬件中断只由一个 CPU 处理，然后根据报文计算 hash 值并负载到特定的 CPU 上，通过 Inter-processor Interrupt(IPI) 通知特定的 CPU 来进行软件中断处理。 Receive Flow Steering(RFS) 一般和 RPS 配合一起工作。RPS 是将收到的报文分配到不同的 CPU 以实现负载均衡，保证同一个 Flow 的数据包都由一个 CPU 处理，类似会话绑定的技术。</p>
+<p><img src="/images/tcp/RPS.jpg" alt="RPS" title="RPS"></p>
+<p>可以通过 /proc/sys/net/core/netdev_max_backlog 查看 netdev_max_backlog 的默认值。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cat /proc/sys/net/core/netdev_max_backlog</span><br><span class="line">1000</span><br></pre></td></tr></table></figure></p>
+<h3 id="1-3-报文处理"><a href="#1-3-报文处理" class="headerlink" title="1.3 报文处理"></a>1.3 报文处理</h3><p>上面的内容讲述了硬件中断的相关内容，接下来进入软件中断的处理流程，其流程（以NAPI为例）如下所示：<br><img src="/images/tcp/net-rx-action.jpg" alt="net-rx-action" title="net-rx-action"><br>net_rx_action 函数处理当前 CPU 中设备列表中的设备( NAPI poll structure)，这些设备主要来自两个地方：1）驱动中调用 napi_schedule 方法加入；2）使用 Inter-processor Interrupt 方法加入（RPS），具体流程如下：</p>
+<ol>
+<li>遍历当前 CPU 的设备列表 poll_list，处理所有的 NAPI 设备；</li>
+<li>检查 budget 及软件中断的运行时间，避免处理函数占用过多的 CPU 时间，控制 budget 可以影响执行的时间，它可以通过 net.core.netdev_budget 参数进行配置；</li>
+<li>调用驱动中注册的 poll函数，在 igb 驱动中调用的是 igb_poll 函数；</li>
+<li>poll 函数读取环形队列中的 packet ；</li>
+<li>如果设备支持 GRO，则需要调用 napi_gro_receive 函数，Generic Receive Offloading(GRO) 是 Large receive offload 的一个实现，LRO 就是在收到多个数据包的时候将同一个 Flow 的多个数据包按照一定的规则合并起来交给上层处理，这样就能减少上层需要处理的数据包数量；</li>
+<li>报文传给 net_receive_skb，进行下一步处理。</li>
+</ol>
+<p>在 netif_receive_skb 方法中，会根据是否开启 RPS 来进行不同处理，如果开启了 RPS，会使用 IRI (Inter-processor Interrupt )技术，将报文转给远程 CPU 进行处理，实现类似硬件 RSS 的技术；如果未开启，除了将报文分发给 taps(PCAP), 实现抓包功能，同时将报文传给 IP 协议层，由 IP 协议进行下一步处理，其流程如下所示：<br><img src="/images/tcp/netif-receive-skb.jpg" alt="netif-receive-skb" title="netif-receive-skb"><br>开启 RPS 功能：</p>
+<ol>
+<li>将报文传给 enqueue_to_backlog 方法；</li>
+<li>报文加入到远程 CPU 的输入队列中；</li>
+<li>将 NIC 加入到远程 CPU 的设备列表中，使用 IRI, 触发过程 CPU 的软件中断；</li>
+<li>远程 CPU 读取输入队列中的报文；</li>
+<li>将报文传给 __net_receive_skb_core 方法；</li>
+<li>将报文分发给 taps(PCAP), 实现抓包功能；</li>
+<li>将报文传给 IP 协议层，进行下一步处理。</li>
+</ol>
+<p>未开启 RPS 功能：</p>
+<ol>
+<li>将报文传给 __net_receive_skb_core 方法；</li>
+<li>将报文分发给 taps(PCAP), 实现抓包功能；</li>
+<li>将报文传给 IP 协议层，进行下一步处理。</li>
+</ol>
+<h2 id="2-IP-协议层"><a href="#2-IP-协议层" class="headerlink" title="2. IP 协议层"></a>2. IP 协议层</h2><p>IP 协议层主要是实现路由功能，结合 netfilter 定义的钩子函数，可以通过 iptables 配置 ip 路由功能，流程如下所示：<br><img src="/images/tcp/ip-rcv.jpg" alt="ip-rcv" title="ip-rcv"><br>在这里有三个 netfilter 钩子函数：</p>
+<ol>
+<li>NF_INET_PRE_ROUTING：可以在路由前对数据包进行修改或丢弃；</li>
+<li>NF_INET_FORWARD：实现转发功能；</li>
+<li>NF_INET_LOCAL_IN：本地 IP 的入口，触发相应的配置。</li>
+</ol>
+<h2 id="3-TCP-协议层"><a href="#3-TCP-协议层" class="headerlink" title="3. TCP 协议层"></a>3. TCP 协议层</h2><p>报文到了 TCP 协议层，会根据 socket 锁被占用的状态，将报文发送到不同的接收队列，在这里有 4 个队列，分别是：receive queue, out_of_order queue, prequeue queue, backlog queue。通过接收队列，内核软件中断线程与 socket 线程实现了数据的交换。<br><img src="/images/tcp/tcp-v4-rcv.jpg" alt="tcp-v4-rcv" title="tcp-v4-rcv"></p>
+<p>4 个队列使用场景：</p>
+<ol>
+<li>receive queue ：当 socket 没有被线程占用的时候，报文会加入到该队列；</li>
+<li>out_of_order queue ：临时存放乱序的报文；</li>
+<li>prequeue queue ：当 socket 被占用且 tcp_low_latency 值为 0 时，报文加入该队列；</li>
+<li>backlog queue ：当 socket 正在被读取时，新收到的所有报文加入到该队列（如果报文是乱序的，后续还要加入到out_of_order queue）。</li>
+</ol>
+<p>如果 tcp_low_latency 值为 1 时，报文不加入到 prequeue queue，内核软件中断线程直接将数据复制到用户态。</p>
+<blockquote>
+<p>接收缓存<br>对收消息过程来说，Socket 占用内存量就是 Receive Queue、Prequeue、Backlog、Out of order 队列内排队的 sk_buff(SKB) 占用内存总数。在内核中可以使用两个参数进行配置：net.core.rmem_max 和 net.core.rmem_default。</p>
+</blockquote>
+<p>最后数据拷贝到用户态之后，表示用户线程已经接到了数据，至此接收流程结束。</p>
+<h2 id="4-报文发送"><a href="#4-报文发送" class="headerlink" title="4. 报文发送"></a>4. 报文发送</h2><p>报文接收流程已经讲述完毕，接下来我们再看下报文的接收流程。</p>
+<h3 id="4-1-TCP-协议层"><a href="#4-1-TCP-协议层" class="headerlink" title="4.1 TCP 协议层"></a>4.1 TCP 协议层</h3><p>报文发送流程从 TCP 协议层开始，其主要流程如下所示：<br><img src="/images/tcp/tcp-sendmsg.jpg" alt="tcp-sendmsg" title="tcp-sendmsg"></p>
+<ol>
+<li>用户线程调用 send 方法发送用户态的数据；</li>
+<li>sk_stream_wait_memory：判断发送队列是否有足够的空间发送数据，如果没有则等待一定时间，等待已经发送数据的 ACK 确认信息，如果收到则释放 SKB 数据，腾出空间以便后续数据的发送。TCP 连接分配的发送缓存是有限的，可以通过（ /proc/sys/net/core/wmem_default ）进行配置；</li>
+<li>tcp_sendmsg ：将用户态的数据按照 MSS ( Maximum Segment Size ) 进行分片，并封装到 SKB 结构中。为了避免数据链路层进行分片，TCP 层传输的数据应小于该层的最大传输单元（MTU）,以太网 MTU 为 1500 字节，扣除 TCP, IP 头的 40 个字节，MSS 最大的值为 1460 字节；</li>
+<li>tcp_push ：根据 Nagle 算法，将发送的队列发送到 IP 协议层，这里会受滑动窗口和拥塞窗口的影响。</li>
+</ol>
+<blockquote>
+<p>滑动窗口<br>TCP 连接上的双方都会通知对方自己的接收窗口大小。而对方的接收窗口大小就是自己的发送窗口大小。tcp_push 在发送数据时需要与发送窗口打交道。发送窗口是一个时刻变化的值，随着 ACK 的到达会变大，随着发出新的数据包会变小。当然，最大也只能到三次握手时对方通告的窗口大小。</p>
+</blockquote>
+<blockquote>
+<p>拥塞窗口<br>拥塞窗主要是根据网络的拥塞情况控制报文发送的数量，从而达到改善网络传输的目的。TCP 连接刚建立时，拥塞窗口的大小远小于发送窗口，它实际上是一个 MSS。每收到一个 ACK，拥塞窗口扩大一个 MSS 大小，当然，拥塞窗口最大只能到对方通告的接收窗口大小。当然，为了避免指数式增长，拥塞窗口大小的增长会更慢一些，是线性的平滑的增长过程。所以，在tcp_push发送消息时，还会检查拥塞窗口，飞行中的报文数要小于拥塞窗口个数，而发送数据的长度也要小于拥塞窗口的长度。</p>
+</blockquote>
+<h3 id="4-2-IP-协议层"><a href="#4-2-IP-协议层" class="headerlink" title="4.2 IP 协议层"></a>4.2 IP 协议层</h3><p>IP 协议层将 IP 转换为 MAC 地址，进行下一跳数据的发送。在发送前，可以对 IP 地址进行重写，重写进行路由，实现 SNAT 功能。<br><img src="/images/tcp/ip_send_skb.jpg" alt="ip_send_skb" title="ip_send_skb"></p>
+<p>在发送阶段，同样涉及到 netfilter 钩子函数，包括：</p>
+<ol>
+<li>NF_INET_LOCAL_OUT ：从本机发出的数据包，在查询路由成功之后，会调用__ip_local_out_sk 函数,首先进行必要字段设置和校验和计算，然后经过 NF_INET_LOCAL_OUT 钩子点，之后会调用 dst_output_sk 继续完成数据包输出的其他工作；</li>
+<li>NF_INET_POST_ROUTING ：转发的数据包或者是本地输出的数据包，最后都会经过 ip_output 进行输出，设置设备和协议之后，经过NF_INET_POST_ROUTING 钩子点，之后调用 ip_finish_output 进行后续输出操作，其中包括了分片等</li>
+</ol>
+<h3 id="4-3-网络子系统"><a href="#4-3-网络子系统" class="headerlink" title="4.3 网络子系统"></a>4.3 网络子系统</h3><p><img src="/images/tcp/dev_queue_xmit.jpg" alt="dev_queue_xmit" title="dev_queue_xmit"></p>
+<ol>
+<li>dev_queue_xmit：在该函数中，会先获取设备对应的qdisc，如果没有的话（如loopback或者IP tunnels），就直接调用dev_hard_start_xmit，否则数据包将经过 Traffic Control 模块进行处理；</li>
+<li>Traffic Control: 进行一些过滤和优先级处理，在这里，如果队列满了的话，数据包会被丢掉；</li>
+<li>dev_hard_start_xmit： 该函数中，首先是拷贝一份 SKB 给 “packet taps” ，tcpdump 就是从这里得到数据的，然后调用 ndo_start_xmit。如果 dev_hard_start_xmit 返回错误的话，则触发软件中断 NET_TX_SOFTIRQ，交给软件中断处理程序 net_tx_action 稍后重试。</li>
+<li>ndo_start_xmit：会调用驱动中的函数进行数据的发送。</li>
+</ol>
+<h3 id="4-4-驱动"><a href="#4-4-驱动" class="headerlink" title="4.4 驱动"></a>4.4 驱动</h3><p>ndo_start_xmit 调用驱动中的函数，进行数据的发送，其大概的流程如下：</p>
+<ol>
+<li>将 SKB 放入网卡自己的发送队列 （环形队列）；</li>
+<li>通知网卡发送数据包；</li>
+<li>网卡发送完成后发送中断给CPU；</li>
+<li>收到中断后进行 SKB 的清理工作。</li>
+</ol>
+<h2 id="5-其它"><a href="#5-其它" class="headerlink" title="5. 其它"></a>5. 其它</h2><p>在上面的内容中提到每一个 CPU 都会关联一个 softnet_data 类型的数据结构，这个数据结构存放了与网络相关的信息，其结构如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">softnet_data</span></span></span><br><span class="line"><span class="class">&#123;</span>           </span><br><span class="line">    <span class="comment">/*throttle用于拥塞控制,当拥塞时被设置,此后来的数据包都被丢弃*/</span></span><br><span class="line">    <span class="keyword">int</span> throttle;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*netif_rx返回的拥塞级别*/</span></span><br><span class="line">    <span class="keyword">int</span> cng_level;</span><br><span class="line">    <span class="keyword">int</span> avg_blog;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*input_pkt_queue是skb的队列,接收到的skb全都进入到此队列等待后续处理*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sk_buff_head</span> <span class="title">input_pkt_queue</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*poll_list是一个双向链表,链表的成员是有接收数据等待处理的device*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">poll_list</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*net_device链表,成员为有数据报要发送的device*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> *<span class="title">output_queue</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*完成发送的数据包等待释放的队列*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sk_buff</span> *<span class="title">completion_queue</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*注意,backlog_dev不是一个指针,而是一个net_device实体,代表了调用net_rx_action时的device*/</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> <span class="title">backlog_dev</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h2 id="6-总结"><a href="#6-总结" class="headerlink" title="6. 总结"></a>6. 总结</h2><p>这篇文章从整体的维度分析了 TCP 接收和发送报文的流程，这个流程只是一个大概且略显粗糙，如果读完这篇文章，能够对 TCP 有一个系统性的理解，目的也就达到了。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://segmentfault.com/a/1190000008836467" target="_blank" rel="noopener">1. Linux网络 - 数据包的接收过程</a><br><a href="https://segmentfault.com/a/1190000008926093" target="_blank" rel="noopener">2. Linux网络 - 数据包的发送过程</a><br><a href="https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/" target="_blank" rel="noopener">3. Monitoring and Tuning the Linux Networking Stack: Sending Data</a><br><a href="https://blog.packagecloud.io/eng/2016/10/11/monitoring-tuning-linux-networking-stack-receiving-data-illustrated/" target="_blank" rel="noopener">4. Illustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</a><br><a href="https://ylgrgyq.github.io/2017/08/01/linux-receive-packet-3/" target="_blank" rel="noopener">5. Linux 网络协议栈收消息过程-TCP Protocol Layer</a><br><a href="https://ylgrgyq.github.io/2017/07/23/linux-receive-packet-1/" target="_blank" rel="noopener">6. Linux 网络协议栈收消息过程-Ring Buffer</a><br><a href="https://ylgrgyq.github.io/2017/07/24/linux-receive-packet-2/" target="_blank" rel="noopener">7. Linux 网络协议栈收消息过程-Per CPU Backlog</a><br><a href="https://blog.csdn.net/russell_tao/article/details/9950615" target="_blank" rel="noopener">8. 高性能网络编程3—-TCP消息的接收</a><br><a href="https://blog.csdn.net/russell_tao/article/details/9370109" target="_blank" rel="noopener">9. 高性能网络编程2—-TCP消息的发送</a><br><a href="https://blog.csdn.net/cloudvtech/article/details/80182074" target="_blank" rel="noopener">10. 容器云负载均衡之三：RSS、RPS、RFS和XPS调整</a><br><a href="https://blog.51cto.com/enchen/191923" target="_blank" rel="noopener">11. 数据报的接收过程详解</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/08/09/pointer-determination-and-heap-traversal/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -466,6 +1065,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">23k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">21 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -543,7 +1170,7 @@
 <li>元数据指针，用来存储 klass 指针，对应的klass 指针指向一个存储类的元数据的 Klass 对象。</li>
 </ol>
 <p>instanceOopDesc 用于表示 Java 对象，instanceKlass 用于描述 instanceOopDesc，instanceKlassKlass 用来描述 instanceKlass，为了避免无限描述下去，所以有个klassKlass作为这个描述链上的终结符。</p>
-<p>对象中的 OopMap 就是在 Klass 对象中存放，其布局如下所示：<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">InstanceKlass layout:</span><br><span class="line">  [C++ vtbl pointer           ] Klass</span><br><span class="line">  [subtype cache              ] Klass</span><br><span class="line">  [instance size              ] Klass</span><br><span class="line">  [java mirror                ] Klass</span><br><span class="line">  [super                      ] Klass</span><br><span class="line">  [access_flags               ] Klass</span><br><span class="line">  [name                       ] Klass</span><br><span class="line">  [first subklass             ] Klass</span><br><span class="line">  [next sibling               ] Klass</span><br><span class="line">  [<span class="built_in">array</span> klasses              ]</span><br><span class="line">  [methods                    ]</span><br><span class="line">  [local interfaces           ]</span><br><span class="line">  [transitive interfaces      ]</span><br><span class="line">  [fields                     ]</span><br><span class="line">  [constants                  ]</span><br><span class="line">  [<span class="class"><span class="keyword">class</span> <span class="title">loader</span>               ]</span></span><br><span class="line"><span class="class">  [<span class="title">source</span> <span class="title">file</span> <span class="title">name</span>           ]</span></span><br><span class="line"><span class="class">  [<span class="title">inner</span> <span class="title">classes</span>              ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">field</span> <span class="title">size</span>          ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">field</span> <span class="title">size</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">oop</span> <span class="title">fields</span> <span class="title">size</span>     ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">oop</span> <span class="title">maps</span> <span class="title">size</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">has</span> <span class="title">finalize</span> <span class="title">method</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">deoptimization</span> <span class="title">mark</span> <span class="title">bit</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">initialization</span> <span class="title">state</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">initializing</span> <span class="title">thread</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">Java</span> <span class="title">vtable</span> <span class="title">length</span>         ]</span></span><br><span class="line"><span class="class">  [<span class="title">oop</span> <span class="title">map</span> <span class="title">cache</span> (<span class="title">stack</span> <span class="title">maps</span>) ]</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">Java</span> <span class="title">vtable</span>             ] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">vtable_len</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span>] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">nonstatic_oop_map_size</span></span></span><br><span class="line"><span class="class">    <span class="title">The</span> <span class="title">embedded</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span> <span class="title">are</span> <span class="title">short</span> <span class="title">pairs</span> (<span class="title">offset</span>, <span class="title">length</span>)</span></span><br><span class="line"><span class="class">    <span class="title">indicating</span> <span class="title">where</span> <span class="title">oops</span> <span class="title">are</span> <span class="title">located</span> <span class="title">in</span> <span class="title">instances</span> <span class="title">of</span> <span class="title">this</span> <span class="title">klass</span>.</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">implementor</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interface</span>] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">interface</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">host</span> <span class="title">klass</span>        ] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">an</span> <span class="title">anonymous</span> <span class="title">class</span> (<span class="title">JSR</span> 292 <span class="title">enabled</span>)</span></span><br></pre></td></tr></table></figure></p>
+<p>对象中的 OopMap 就是在 Klass 对象中存放，其布局如下所示：<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">InstanceKlass layout:</span><br><span class="line">  [C++ vtbl pointer           ] Klass</span><br><span class="line">  [subtype cache              ] Klass</span><br><span class="line">  [instance <span class="built_in">size</span>              ] Klass</span><br><span class="line">  [java mirror                ] Klass</span><br><span class="line">  [super                      ] Klass</span><br><span class="line">  [access_flags               ] Klass</span><br><span class="line">  [name                       ] Klass</span><br><span class="line">  [first subklass             ] Klass</span><br><span class="line">  [next sibling               ] Klass</span><br><span class="line">  [<span class="built_in">array</span> klasses              ]</span><br><span class="line">  [methods                    ]</span><br><span class="line">  [local interfaces           ]</span><br><span class="line">  [transitive interfaces      ]</span><br><span class="line">  [fields                     ]</span><br><span class="line">  [constants                  ]</span><br><span class="line">  [<span class="class"><span class="keyword">class</span> <span class="title">loader</span>               ]</span></span><br><span class="line"><span class="class">  [<span class="title">source</span> <span class="title">file</span> <span class="title">name</span>           ]</span></span><br><span class="line"><span class="class">  [<span class="title">inner</span> <span class="title">classes</span>              ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">field</span> <span class="title">size</span>          ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">field</span> <span class="title">size</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">static</span> <span class="title">oop</span> <span class="title">fields</span> <span class="title">size</span>     ]</span></span><br><span class="line"><span class="class">  [<span class="title">nonstatic</span> <span class="title">oop</span> <span class="title">maps</span> <span class="title">size</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">has</span> <span class="title">finalize</span> <span class="title">method</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">deoptimization</span> <span class="title">mark</span> <span class="title">bit</span>    ]</span></span><br><span class="line"><span class="class">  [<span class="title">initialization</span> <span class="title">state</span>       ]</span></span><br><span class="line"><span class="class">  [<span class="title">initializing</span> <span class="title">thread</span>        ]</span></span><br><span class="line"><span class="class">  [<span class="title">Java</span> <span class="title">vtable</span> <span class="title">length</span>         ]</span></span><br><span class="line"><span class="class">  [<span class="title">oop</span> <span class="title">map</span> <span class="title">cache</span> (<span class="title">stack</span> <span class="title">maps</span>) ]</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">Java</span> <span class="title">vtable</span>             ] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">vtable_len</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span>] <span class="title">size</span> <span class="title">in</span> <span class="title">words</span> = <span class="title">nonstatic_oop_map_size</span></span></span><br><span class="line"><span class="class">    <span class="title">The</span> <span class="title">embedded</span> <span class="title">nonstatic</span> <span class="title">oop</span>-<span class="title">map</span> <span class="title">blocks</span> <span class="title">are</span> <span class="title">short</span> <span class="title">pairs</span> (<span class="title">offset</span>, <span class="title">length</span>)</span></span><br><span class="line"><span class="class">    <span class="title">indicating</span> <span class="title">where</span> <span class="title">oops</span> <span class="title">are</span> <span class="title">located</span> <span class="title">in</span> <span class="title">instances</span> <span class="title">of</span> <span class="title">this</span> <span class="title">klass</span>.</span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">implementor</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interface</span>] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">interface</span></span></span><br><span class="line"><span class="class">  [<span class="title">EMBEDDED</span> <span class="title">host</span> <span class="title">klass</span>        ] <span class="title">only</span> <span class="title">exist</span> <span class="title">for</span> <span class="title">an</span> <span class="title">anonymous</span> <span class="title">class</span> (<span class="title">JSR</span> 292 <span class="title">enabled</span>)</span></span><br></pre></td></tr></table></figure></p>
 <p>在上面的布局中可以看到有一个 oop map cache 的字段，猜测就是用来存放 OopMap相关的信息。</p>
 <h4 id="1-3-3-小结"><a href="#1-3-3-小结" class="headerlink" title="1.3.3 小结"></a>1.3.3 小结</h4><p>用一句话来描述，OopMap 存放了堆、栈及寄存器上指针信息，借助 OopMap 不仅可以准确判定一个数值是否是指针，同时直接扫描 OopMap 集合可以加快标记的速度，从而提高垃圾回收的效率。</p>
 <h2 id="2-堆的遍历"><a href="#2-堆的遍历" class="headerlink" title="2. 堆的遍历"></a>2. 堆的遍历</h2><h3 id="2-1-内存分配"><a href="#2-1-内存分配" class="headerlink" title="2.1 内存分配"></a>2.1 内存分配</h3><p>在垃圾回收算法中，需要对堆进行清除及整理操作，这时候就需要对堆从头到尾进行遍历，遍历的方式跟内存的分配方式极为相关，我们先介绍内存的分配方式。内存的分配方式有两种基本的分配策略：1）顺序分配；2）空闲链表分配。</p>
@@ -715,6 +1342,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">304</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1 分钟</span>
+              
+            </div>
           
 
           
@@ -891,6 +1546,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">37k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">34 分钟</span>
+              
+            </div>
           
 
           
@@ -1169,6 +1852,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">278</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -1344,6 +2055,34 @@
 
           
 
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">9.7k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">9 分钟</span>
+              
+            </div>
           
 
           
@@ -1636,6 +2375,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">15k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">13 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -1880,6 +2647,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">9.3k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">8 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -2111,6 +2906,34 @@
           
 
           
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">4.8k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">4 分钟</span>
+              
+            </div>
+          
 
           
 
@@ -2200,392 +3023,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/25/non-functional-features-1/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2020/04/25/non-functional-features-1/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">系统设计-非功能性特性</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2020-04-25 20:49:32" itemprop="dateCreated datePublished" datetime="2020-04-25T20:49:32+08:00">2020-04-25</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/非功能性特性/" itemprop="url" rel="index"><span itemprop="name">非功能性特性</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>在大多数软件系统中，功能特性决定了系统能做什么，而非功能特性决定了系统能走多远，本篇文章专注于非功能特性中三个比较重要的特性：</p>
-<ul>
-<li>可靠性（Reliability）：当出现意外情况如硬件、软件故障、人为失误等，系统应可以继续正常运转：虽然性能可能有所降低，但确保功能正确。</li>
-<li>可扩展性（Scalability）:随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种增长。</li>
-<li>可维护性（Maintainability）：随着时间的推移，许多新的人员参与到系统开发和运维，以维护现有功能或适配新场景等，系统都应高效运转。</li>
-</ul>
-<h2 id="1-可靠性"><a href="#1-可靠性" class="headerlink" title="1. 可靠性"></a>1. 可靠性</h2><p>可靠性意味着即使发生故障，系统也可以正常工作。故障包括硬件（通常是随机的，不相关的），软件（缺陷通常是系统的，更加难以处理）以及人为（总是很难避免时不时会出错）方面。容错技术可以很好地隐藏某种类型故障，避免影响最终用户。</p>
-<h2 id="2-可扩展性"><a href="#2-可扩展性" class="headerlink" title="2. 可扩展性"></a>2. 可扩展性</h2><p>可扩展性是指负载增加时，有效保持系统性能的相关技术策略。即使系统现在工作可靠，并不意味着它将来一定能够可靠运转。发生退化的一常见原因是负载增加：例如并发用户从最初的10 000个增长到100 000个，或从100万到1000万；又或者系统目前要处理的数据量超出之前很多倍。可扩展性是用来描述系统应对负载增加能力的术语，为了讨论可扩展性，首先需要明确如何定量描述负载和性能？</p>
-<h3 id="2-1-负载"><a href="#2-1-负载" class="headerlink" title="2.1 负载"></a>2.1 负载</h3><p>负载可以用称为负载参数的若干数字来描述，参数的最佳选择取决于系统的体系结构，它可能是Web服务器的每秒请求处理次数，数据库写入的比例，聊天室的同时活动用户数量，缓存命中率等。有时平均值很重要，有时系统瓶颈来自于少数峰值。</p>
-<p>以Twitter为例，使用其2012年11月发布的数据。Twitter的两个典型业务操作是：</p>
-<ul>
-<li>发布tweet消息：用户可以快速推送新消息到所有的关注者，平均大约4.6k requests/sec，峰值约12k requests/sec。</li>
-<li>主页时间线（Home timeline）浏览：平均300k requests/sec 查看关注对象的最新消息。</li>
-</ul>
-<h3 id="2-2-性能"><a href="#2-2-性能" class="headerlink" title="2.2 性能"></a>2.2 性能</h3><p>如果负载增加将会发生什么，有两种考虑方式：</p>
-<ul>
-<li>负载增加，但系统资源（如CPU、内存、网络带宽等）保持不变，系统性能会发生什么变化；</li>
-<li>负载增加，如果要保持性能不变，需要增加多少资源？</li>
-</ul>
-<p>这两个问题都会关注性能指标，那如何描述系统性能？</p>
-<p>在批处理系统中如Hadoop中，通常关心吞吐量(throughput)，即每秒可处理的记录条数，或者在某指定数据集上运行作业所需的总时间；而在线系统通常更重服务的响应时间(response time)，即客户端从发送请求到接收响应之间的间隔。</p>
-<p>服务的响应时间通常是使用服务请求的平均响应时间，即n个请求响应时间的算术平均值。然而，如果想知道多少用户实际经历了多少延迟，最好使用百分位数(percentiles)。如果已经搜集到响应时间信息，将其从最快到最慢排序，中位数(median)就是列表中间的响应时间。例如，如果中位数响应时间为200ms，那意味着有一半的请求响应不到200ms，而另一半请求则需要更长的时间。</p>
-<p>中位数指标非常适合描述多少用户需要等待多长时间：一半的用户请求的响应时间少于中位数响应时间，另一半则多于中位数的时间。因此中位数也称为50百分位数，有时也缩写为p50。为了弄清楚异常有多糟糕，需要关注更大的百分位数如常见的第95、99和99.9（缩写为p95、p99和p999）值。作为典型的响应时间阈值，它们分别表示为95%、99%或99.9%的请求响应时间快于阈值。例如95百分位数响应时间为1.5s，这意味着100个请求中的95个请求快于1.5s，而5个请求则需要1.5s或更长的时间。</p>
-<h2 id="3-可维护性"><a href="#3-可维护性" class="headerlink" title="3. 可维护性"></a>3. 可维护性</h2><p>可维护性则意味着许多方面，但究其本质是为了让工程和运营团队更为轻松。良好的抽象可以帮助降低复杂性，并使系统更易于修改和适配新场景。良好的可操作性意味着对系统健康状况有良好的可观测性和有效的管理方法。</p>
-<p>可运维性在软件设计时就需要开始考虑，尽可能减少维护期间的麻烦，甚至避免造出容易过期的系统。为此，需要特别关注软件系统的三个设计原则：</p>
-<ul>
-<li>可运维性：方便运营团队来保持系统平衡地运行；</li>
-<li>简单性：简化系统复杂性，使新工程师能够轻松理解系统。</li>
-<li>可演化性：后续工程师能够轻松对系统进行改进，并根据需求变化将其适配到非典型场景，也称为可延伸性、易修改性或可塑性。</li>
-</ul>
-<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>知易行难，使应用程序可靠、可扩展或可维护并不容易，需要结合使用的场景选择不同的策略和技术。</p>
-<p><strong>参考：</strong></p>
-<hr>
-<p><a href="https://book.douban.com/subject/30329536/" target="_blank" rel="noopener">1. 数据密集型应用系统设计</a></p>
-
-          
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2020/01/20/rocketmq-namesrv-overview/" class="post-title-link" itemprop="http://yoursite.com/page/2/index.html">RocketMQ系列：NameServer概览</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2020-01-20 18:27:30" itemprop="dateCreated datePublished" datetime="2020-01-20T18:27:30+08:00">2020-01-20</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/rocketmq系列/" itemprop="url" rel="index"><span itemprop="name">rocketmq系列</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。<br><img src="/images/rocketmq-namesrv-overview.jpg" alt="rocketmq-namesrv-overview" title="rocketmq-namesrv-overview"><br>NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，如同步调用，异步调用及单向调用（发出请求不需要响应数据）；c）响应超时处理；d）IO事件处理。3）业务层，实现请求处理器及事件监听器注册接口，处理NameServer相关的数据，如broker地址及保活信息、topic队列信息及服务器过滤信息。</p>
-<ul>
-<li><p>通信层：Netty 使用 Reactors 的多线程模型，MainReactor 负责客户端的连接请求，并将请求转交给 SubReactor，SubReactor 负责相应通道的 IO 读写请求。在这里，BossGroup 承担MainReactor的角色，一般只需要一个线程即可（一个 EventLoop 实质就是一个线程），Work Group 承担 SubReactor 的角色，在RomcketMQ中默认是三个线程。从上面的关系可以看出，EventLoopGroup 包含多个 EventLoop，而一个 EventLoop 代表了一个独立的事件循环，循环等待 IO 事件，一般由一个线程来处理，一个 EventLoop 可以同时处理多个 tcp 连接（Channel），同时一个 Channel 所有事件只能在一个 EventLoop 中处理，一个 Channel 一旦分配给一个 EventLoop 之后将不会改变这种关联关系。在 Netty 中事件处理使用了责任链的模式，将事件处理分为不同的处理单元，让数据以水流的方式在管道中流动处理，每一个阀门都有一个独立的处理逻辑，这些处理单元包括但不限此，如数据的编/解码、数据的转换、空闲连接的检测及数据的消费，在 Netty 中，这些处理单元叫做 Handler 对象。每一个 Handler 对象存储在 ChannelHandlerContext 对象中，再将 ChannelHandlerContext 对象串连起来，形成一个双向链表。根据处理事件的不同，Handler 对象可以分为出站或入站对象，入站代表读事件，出站代表了写事件，所以，访问 ChannelHandlerContext 链表也分为出站和入站两种，入站从链首开始，正向访问，而出站则从链尾开始，反向访问。 在 ChannelPipeline 对象中，存储 ChannelHandlerContext 链表的链首及链尾对象，每一个 Channel 对象都会关联一个 ChannelPipeline 对象，在处理事件的时候，可方便调用相应的 Handler 对象，上层应用只要定义相应的 Handle对象 到Netty中即可。下图是 EventLoop 处理事件的流程。<br><img src="/images/rocketmq-namesrv-netty.jpg" alt="rocketmq-namesrv-netty" title="rocketmq-namesrv-netty"><br>可以看到，EventLoop 主要处理三件事：1）在多路复用器 Selector 上调用 select 方法，监听所有的 Channel的 IO 事件；2）执行 IO 处理流程，调用 ChannelHandlerContext 链表，执行业务处理；3）执行提交的任务，在 EventLoop 中，可以处理定时任务，在处理完业务逻辑之后，会调用已经到期的任务执行。定时任务存放在一个优先级队列（scheduleTaskQueue队列，实现类为PriorityQueue队列）中，按照时间进行排序，执行任务前会将已经到期的任务移到 taskQueue 队列中，然后依次执行 taskQueue 队列中的所有任务。</p>
-</li>
-<li><p>服务层：定义了四个基本功能，1）统一请求处理流程，每一个命令可以注册一个处理器（Processor对象）及处理线程池，不同业务请求可以由不同的线程池处理，这样有做到业务隔离和提高并发处理能力；2）定义了三种调用方式，分别是同步调用、异步调用及单向调用（发出请求不需要响应数据），同步调用及异步调用都是使用 Future 对象来实现，区别在于：同步调用需要在 Future 对象上等待一个超时时间，而异步调用只需定义一个回调方法即可；3）响应超时处理，在异步调用中，调用结束之后程序已经返回了，响应的数据需要在另外一个线程处理，为了方便响应数据找到对应的请求，需要构造一个 Future 对象存储到响应结果表中，请求及响应数据包含相同的请求序号，可以方便地从表中检索到 Future 对象，调用对应的回调函数。在这里，有一个问题，如果一直没有响应怎么办？这就需要一个线程定时扫描响应结果表，将已经超时的请求移除响应结果表；4）IO事件处理，主要包括连接、空闲、关闭及异常事件，上层应用注册事件监听器（ChannelEventListener）来处理相关的事件。</p>
-</li>
-<li><p>业务层：业务层维护了 broker 地址及保活信息、topic 队列信息及服务器过滤信息，Broker 定期向 NameServer 发送心跳信息，心跳信息中就包含了这些信息，另外生产者和消费者也会向 NameServer查询Broker及topic的信息，业务层通过向服务层注册请求处理器（Processor对象）及事件监听器（ChannelEventListener对象），来处理心跳、查询等请求。</p>
-</li>
-</ul>
-<p>通过上面的分析可以看出，NameServer 在设计结构比较清晰，在业务处理过程中，使用了异步的处理方式，大大提高了服务器的处理能力。</p>
-
-          
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2633,7 +3070,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">34</span>
+                    <span class="site-state-item-count">36</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -2682,7 +3119,9 @@
                     
                       
                     
-                    <span class="site-state-item-count">18</span>
+                      
+                    
+                    <span class="site-state-item-count">19</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -2935,7 +3374,27 @@
                     
                       
                     
-                    <span class="site-state-item-count">120</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">130</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -2981,12 +3440,27 @@
   <span class="author" itemprop="copyrightHolder">Noahsark</span>
 
   
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">296k</span>
+  
 
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:29</span>
   
 </div>
 
 <div class="BbeiAn-info">
     <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
 </div>
 
 
