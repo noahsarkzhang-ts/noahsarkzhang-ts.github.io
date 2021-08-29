@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+<meta name="keywords" content="select,epoll">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Select 和 Epoll实现">
+<meta property="og:url" content="http://yoursite.com/2020/10/08/select-and-epoll/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/tcp/poll.jpg">
+<meta property="og:image" content="http://yoursite.com/images/tcp/io-multiplexing.jpg">
+<meta property="og:image" content="http://yoursite.com/images/tcp/select.jpg">
+<meta property="og:image" content="http://yoursite.com/images/tcp/select_data_struct.jpg">
+<meta property="og:image" content="http://yoursite.com/images/tcp/epoll.jpg">
+<meta property="og:image" content="http://yoursite.com/images/tcp/epoll_data_struct.jpg">
+<meta property="og:updated_time" content="2020-11-09T11:56:02.868Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Select 和 Epoll实现">
+<meta name="twitter:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+<meta name="twitter:image" content="http://yoursite.com/images/tcp/poll.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/10/08/select-and-epoll/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Select 和 Epoll实现 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/10/08/select-and-epoll/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Select 和 Epoll实现
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-10-08 18:17:33" itemprop="dateCreated datePublished" datetime="2020-10-08T18:17:33+08:00">2020-10-08</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2020-11-09 19:56:02" itemprop="dateModified" datetime="2020-11-09T19:56:02+08:00">2020-11-09</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/网络协议/" itemprop="url" rel="index"><span itemprop="name">网络协议</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">41k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">37 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。</p>
+<h2 id="1-知识储备"><a href="#1-知识储备" class="headerlink" title="1. 知识储备"></a>1. 知识储备</h2><p>在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。</p>
+<h3 id="1-1-poll-函数"><a href="#1-1-poll-函数" class="headerlink" title="1.1 poll 函数"></a>1.1 poll 函数</h3><p>在 linux 中，设备的操作抽象为文件的操作，对网络设备的操作同样也是文件操作。为了实现非阻塞的数据读取，文件提供了 poll 操作，该操作为上层应用提供了探测设备文件是否有数据可读的接口，同时结合文件的等待队列，上层应用可以对感兴趣的事件添加处理函数，这个处理函数通常是向等待队列中添加一个等待结点，这个等待结点会关联一个 callback 函数，当相关事件满足时触发 callback 函数，最后 poll 函数返回当前设备文件的状态，上层应用根据返回状态决定是否阻塞该线程，poll 函数不阻塞线程。通过这种方式，设备文件提供了基于事件处理的回调机制，select/poll/epoll 就是基于这种方式来实现的。 </p>
+<p><img src="/images/tcp/poll.jpg" alt="poll" title="poll"></p>
+<p>poll 函数分为三个步骤：</p>
+<ol>
+<li>获取事件对应的等待队列；</li>
+<li>初始化一个等待结点，设置 callback 函数，并将等待结点加入到等待队列中，此时并不阻塞调用线程；</li>
+<li>获取设备当前的状态并返回。</li>
+</ol>
+<p>在 poll 函数中，上层应用可以根据业务的不同可以自定义 poll_queue_proc 和 唤醒 callback 函数，从而实现不同的功能，select/poll/epoll 分别实现了这两个函数，它们之间的差异从这两个函数中也可以看出。下面是一个 poll 函数实例。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">scull_p_poll</span><span class="params">(struct file *filp, poll_table *wait)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	Scull_Pipe *dev = filp-&gt;private_data;</span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">int</span> mask = <span class="number">0</span>;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	* The buffer is circular; it is considered full</span></span><br><span class="line"><span class="comment">	* if "wp" is right behind "rp". "left" is 0 if the</span></span><br><span class="line"><span class="comment">	* buffer is empty, and it is "1" if it is completely full.</span></span><br><span class="line"><span class="comment">	*/</span></span><br><span class="line">	<span class="comment">// 处理私有业务</span></span><br><span class="line">	<span class="keyword">int</span> left = (dev-&gt;rp + dev-&gt;buffersize - dev-&gt;wp) % dev-&gt;buffersize;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 在不同的等待队列上调用 poll_wait 函数</span></span><br><span class="line">	poll_wait(filp, &amp;dev-&gt;inq, wait);</span><br><span class="line">	poll_wait(filp, &amp;dev-&gt;outq, wait);</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/* readable */</span></span><br><span class="line">	<span class="keyword">if</span> (dev-&gt;rp != dev-&gt;wp) mask |= POLLIN | POLLRDNORM;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">/* writable */</span></span><br><span class="line">	<span class="keyword">if</span> (left != <span class="number">1</span>) mask |= POLLOUT | POLLWRNORM;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">return</span> mask;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>poll 函数的定义如下：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">// 文件操作  </span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">file_operations</span> &#123;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 提供给 poll/select/epoll 使用，获取文件当前状态, 以及就绪通知接口函数</span></span><br><span class="line">    <span class="function"><span class="keyword">unsigned</span> <span class="title">int</span> <span class="params">(*poll)</span> <span class="params">(struct file *, struct poll_table_struct *)</span></span>; </span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 向文件注册事件及处理函数  </span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">poll_table_struct</span> &#123;</span></span><br><span class="line">    <span class="comment">// 处理函数</span></span><br><span class="line">    poll_queue_proc _qproc;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 事件</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>  _key;  </span><br><span class="line">&#125; poll_table;</span><br><span class="line"></span><br><span class="line"><span class="comment">// poll_queue_proc 函数定义</span></span><br><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">void</span> <span class="params">(*poll_queue_proc)</span><span class="params">(struct file *, <span class="keyword">wait_queue_head_t</span> *, struct poll_table_struct *)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<h3 id="1-2-wakeup-callback机制"><a href="#1-2-wakeup-callback机制" class="headerlink" title="1.2 wakeup callback机制"></a>1.2 wakeup callback机制</h3><p>在上节的 poll 函数中，会检查文件的状态（可读/可写/可连接），同时在事件的等待队列添加一个等待结点，待续结点中注册一个 callback 回调函数，事件触发时，再调用 callback 回调函数，唤醒结点中的 task 来处理事件。这种机制正时使用了 linux 内核 wakeup callback机制。<br>Linux 内核通过睡眠队列来组织所有等待某个事件的 task，而 wakeup 机制则可以异步唤醒整个睡眠队列上的 task，每一个睡眠队列上的节点都拥有一个 callback，wakeup 逻辑在唤醒睡眠队列时，会遍历该队列链表上的每一个节点，调用每一个节点的 callback，如果遍历过程中遇到某个节点是排他节点，则终止遍历，不再继续遍历后面的节点。总体上的逻辑可以用下面的伪代码表示：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">define sleep_list;</span><br><span class="line">define wait_entry;</span><br><span class="line">wait_entry.task = current_task;</span><br><span class="line">wait_entry.callback = func1;</span><br><span class="line"><span class="keyword">if</span> (something_not_ready); then</span><br><span class="line">    <span class="comment"># 将任务加入等待队列</span></span><br><span class="line">    add_entry_to_list(wait_entry, sleep_list);</span><br><span class="line">go_on:</span><br><span class="line">    <span class="comment"># 根据情况进行睡眠或唤醒</span></span><br><span class="line">    schedule();</span><br><span class="line">    <span class="keyword">if</span> (something_not_ready); then</span><br><span class="line">        goto go_on;</span><br><span class="line">    endif</span><br><span class="line">    del_entry_from_list(wait_entry, sleep_list);</span><br><span class="line">endif</span><br></pre></td></tr></table></figure></p>
+<p>唤醒的流程：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">something_ready;</span><br><span class="line">for_each(sleep_list) <span class="keyword">as</span> wait_entry; do</span><br><span class="line">    wait_entry.callback(...);</span><br><span class="line">    <span class="keyword">if</span>(wait_entry.exclusion); then</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    endif</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
+<p>callback 函数包含于唤醒的主要逻辑，伪代码如下所示：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">common_callback_func(...)</span><br><span class="line">&#123;</span><br><span class="line">    do_something_private;</span><br><span class="line">    wakeup_common;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 poll/select/epoll 中都会定义各自的 callback 函数，该函数一般包括两部分：1）私有逻辑；2）唤醒 task。callback 函数由驱动来调用（在 NIC 中由软件中断调用）。</p>
+<h3 id="1-3-I-O-多路复用"><a href="#1-3-I-O-多路复用" class="headerlink" title="1.3 I/O 多路复用"></a>1.3 I/O 多路复用</h3><p>I/O 多路复用是一种优化技术，它是为了避免一个线程处理一个 I/O 设备文件，转而由一个线程来监听多个 I/O 文件，来提供系统的效率。poll/select/epoll 底层使用了这种 I/O 模式。<br><img src="/images/tcp/io-multiplexing.jpg" alt="io-multiplexing" title="io-multiplexing"></p>
+<h2 id="2-select"><a href="#2-select" class="headerlink" title="2. select"></a>2. select</h2><h3 id="2-1-整体流程"><a href="#2-1-整体流程" class="headerlink" title="2.1 整体流程"></a>2.1 整体流程</h3><p>select 方法调用：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FD_SETSIZE 1024</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> NFDBITS (8 * sizeof(unsigned long))</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> __FDSET_LONGS (FD_SETSIZE/NFDBITS)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 数据结构 </span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> fds_bits[__FDSET_LONGS];</span><br><span class="line">&#125; fd_set;</span><br><span class="line"></span><br><span class="line"><span class="comment">// select 文件调用</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">select</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">int</span> max_fd,  <span class="comment">/* 最大文件数 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *readset, <span class="comment">/* 读事件文件集合 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *writeset, <span class="comment">/* 写事件文件集合 */</span></span></span></span><br><span class="line"><span class="function"><span class="params">    fd_set *exceptset, </span></span></span><br><span class="line"><span class="function"><span class="params">    struct timeval *timeout</span></span></span><br><span class="line"><span class="function"><span class="params">    )</span></span>; <span class="comment">// 返回值就绪描述符的数目</span></span><br></pre></td></tr></table></figure></p>
+<p>从 select 方法定义来看，每次调用都需要将文件集合在用户空间及内核空间进行复制，并且文件最大的数量限制在 1024 个。组合上面的内容，可以知道 select 会定义两个函数 poll_queue_proc 和 唤醒 callback 函数，注册到 poll 函数中，在这里，这两个函数分别对应：__pollwait() 和 pollwake。其整体的流程如下所示：</p>
+<p><img src="/images/tcp/select.jpg" alt="select" title="select"></p>
+<p>select 调用主要做了三件事情：</p>
+<ol>
+<li>初始化poll_wqueues结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；</li>
+<li>循环遍历监测的文件描述符，并且调用 f_op-&gt;poll() 函数，如果有监测条件满足，则会跳出循环；</li>
+<li>在监测的文件描述符都不满足条件时，会让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒。</li>
+</ol>
+<p>select 函数的循环退出条件有三个：</p>
+<ol>
+<li>检测的文件描述符满足条件；</li>
+<li>超时；</li>
+<li>由等待事件触发。</li>
+</ol>
+<h3 id="2-2-数据结构"><a href="#2-2-数据结构" class="headerlink" title="2.2 数据结构"></a>2.2 数据结构</h3><p>接下来再看下 select 内部的数据结构：<br><img src="/images/tcp/select_data_struct.jpg" alt="select_data_struct" title="select_data_struct"><br>在 select 方法中，会维护一个 struct poll_wqueues 结构，其中两个关键字段：</p>
+<ol>
+<li>poll_table：该结构体中的函数指针_qproc指向__pollwait函数；</li>
+<li>struct poll_table_entry[]：存放不同文件的 poll_table_entry，这些条目的增加是在驱动调用 __pollwait() 时进行初始化并完成添加的，每一个文件都会添加一个条目。</li>
+</ol>
+<p>在这个数据结构可以看出，调用 poll 函数之后，会在所有文件的等待队列中加入一个结点，这个结点会持有当前 task 的信息，当事件触发之后，从而可以知道唤醒那一个进程；</p>
+<p>从上面的分析可以看出，select 有以下的缺点：</p>
+<ol>
+<li>每次 select 方法调用都会传入文件集合参数，涉及到用户空间及内核空间的两次复制；</li>
+<li>每一次调用都需要遍历所有的文件调用 poll 函数，效率较低（在用户空间中，也需要遍历所有文件查看那些文件有事件触发）；</li>
+<li>监听的文件数量有限，最大 1024 个。</li>
+</ol>
+<h2 id="3-epoll"><a href="#3-epoll" class="headerlink" title="3. epoll"></a>3. epoll</h2><h3 id="3-1-整体流程"><a href="#3-1-整体流程" class="headerlink" title="3.1 整体流程"></a>3.1 整体流程</h3><p>epoll 解决了 select 的缺点，在大并发场景下，epoll 得到了广泛的应用，它从以下几个方面解决了 select 的缺点：</p>
+<ol>
+<li>生成一个 epoll 文件，将监听的文件描述符加入到这个文件的数据结构（红黑树）中，只用添加一次，避免了数据的来回复制；</li>
+<li>epoll 文件中维护了一个可读文件队列，每次只遍历该队列，避免所有文件的遍历；</li>
+<li>监听的文件不受限制。</li>
+</ol>
+<p>下面我们来看下 epoll的实现原理，首先看下调用方法：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成一个 ep 文件，把所有需要监听的文件都放到 ep 文件中</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_create</span><span class="params">(<span class="keyword">int</span> size)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_ctl 添加一个监听的文件</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_ctl</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd,</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> op, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> fd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event *event</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>; </span><br><span class="line"></span><br><span class="line"><span class="comment">// epoll_wait 负责检测可读队列，没有可读的文件则阻塞进程</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">epoll_wait</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> epfd, </span></span></span><br><span class="line"><span class="function"><span class="params">	struct epoll_event * events, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> maxevents, </span></span></span><br><span class="line"><span class="function"><span class="params">	<span class="keyword">int</span> timeout</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>epoll_create 生成一个 ep 文件，通过 epoll_ctl 方法添加/删除文件，epoll_wait 方法只遍历满足条件的可读队列，提高了效率。这三个方法大概的逻辑如下描述。<br><strong>epoll_ctl 主要逻辑：</strong></p>
+<ol>
+<li>定义一个 epitem 结构，代表一个监听的文件，并加入到红黑树中；</li>
+<li>生成一个等待结点，加入到这文件 （socket 文件）的等待队列中；</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">define epitem</span><br><span class="line">add_epitem_to_rbtree(epitem) </span><br><span class="line"></span><br><span class="line">define wait_entry</span><br><span class="line">wait_entry.socket = this_socket;</span><br><span class="line">wait_entry.callback = epoll_wakecallback;</span><br><span class="line">add_entry_to_list(wait_entry, this_socket.sleep_list);</span><br></pre></td></tr></table></figure>
+<p><strong>epoll_wait 主要逻辑：</strong></p>
+<ol>
+<li>定义一个等待结点，将结点的 task （实际为 private 字段，为了简要描述，定义为 task） 设置为当前 task （调用 epoll_wait的进程），并设置回调函数；</li>
+<li>判断当前可读队列是否为空，如果为空则将等待结点加入到 ep 文件的等待队列上，并阻塞该进程；</li>
+<li>如果当前可读队列不为空，则遍历准备好的可读队列，返回数据给用户进程；</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">define single_wait_list</span><br><span class="line">define single_wait_entry</span><br><span class="line">single_wait_entry.callback = wakeup_common;</span><br><span class="line">single_wait_entry.task = current_task;</span><br><span class="line"><span class="keyword">if</span> (ready_list_is_empty); then</span><br><span class="line">    <span class="comment"># 等待结点加入到 ep 文件的等待队列中</span></span><br><span class="line">    add_entry_to_list(single_wait_entry, single_wait_list);</span><br><span class="line">go_on:  </span><br><span class="line">    <span class="comment"># 阻塞进程</span></span><br><span class="line">    schedule();</span><br><span class="line">    <span class="keyword">if</span> (sready_list_is_empty); then</span><br><span class="line">        goto go_on;</span><br><span class="line">    endif</span><br><span class="line">    del_entry_from_list(single_wait_entry, single_wait_list);</span><br><span class="line">endif</span><br><span class="line"><span class="comment"># 遍历准备好的可读队列</span></span><br><span class="line">for_each_ready_list <span class="keyword">as</span> sk; do</span><br><span class="line">    event.evt = sk.poll(...);</span><br><span class="line">    event.sk = sk;</span><br><span class="line">    put_event_to_user;</span><br><span class="line">done;</span><br></pre></td></tr></table></figure>
+<p>在这里需要注意的是，当前进程不像 select 方法，进程是阻塞在监听文件（socket 文件）的等待队列上，而是阻塞在 ep 文件自己的阻塞队列上，如上面的流程所述。这里有问题，如何唤醒阻塞的进程？答案在注册到监听文件的回调函数上，在 epoll_ctl 中，我们同样在监听文件的等待队列上加入了一个等待结点，当文件可读时，调用该回调函数，借助该函数，再唤醒阻塞在 ep 文件等待队列上的进程，其流程如下所述：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">epoll_wakecallback(...)</span><br><span class="line">&#123;</span><br><span class="line">    add_this_socket_to_ready_list;</span><br><span class="line">    wakeup_single_epoll_waitlist;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在唤醒进程之前，会将该文件加入到可读队列中。</p>
+<p>epoll_wait 流程如下图所示：<br><img src="/images/tcp/epoll.jpg" alt="epoll" title="epoll"></p>
+<h3 id="3-2-数据结构"><a href="#3-2-数据结构" class="headerlink" title="3.2 数据结构"></a>3.2 数据结构</h3><p>数据结构如下所示：<br><img src="/images/tcp/epoll_data_struct.jpg" alt="epoll_data_struct" title="epoll_data_struct"><br>关键点说明：</p>
+<ol>
+<li>进程阻塞在 epoll 文件的等待队列上，不是监听文件的等待队列上；</li>
+<li>epoll 会将满足条件的文件提前放在可读文件队列 rdllist 中，减少文件遍历的数量；</li>
+<li>epoll 将监听的文件使用红黑树管理，可有效地进行文件的添加及删除；</li>
+<li>唤醒操作由监听文件等待队列中的回调函数触发，然后再唤醒阻塞在 epoll 文件上的进程。</li>
+</ol>
+<p>对应的数据结构定义为：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">/* 每创建一个epoll 文件, 内核就会分配一个eventpoll与之对应 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">eventpoll</span> &#123;</span></span><br><span class="line">    <span class="comment">/* Protect the this structure access */</span></span><br><span class="line">    <span class="keyword">spinlock_t</span> lock;</span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * This mutex is used to ensure that files are not removed</span></span><br><span class="line"><span class="comment">     * while epoll is using them. This is held during the event</span></span><br><span class="line"><span class="comment">     * collection loop, the file cleanup path, the epoll file exit</span></span><br><span class="line"><span class="comment">     * code and the ctl operations.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">mutex</span> <span class="title">mtx</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Wait queue used by sys_epoll_wait() */</span></span><br><span class="line">    <span class="comment">/* epoll 文件等待队列，进程就是阻塞在该队列上 */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> wq;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Wait queue used by file-&gt;poll() */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> poll_wait;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List of ready file descriptors */</span></span><br><span class="line">    <span class="comment">/* 所有已经准备好的可读文件队列 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">rdllist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* RB tree root used to store monitored fd structs */</span></span><br><span class="line">    <span class="comment">/* 红黑树，存储所有监听的文件 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rb_root</span> <span class="title">rbr</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * This is a single linked list that chains all the "struct epitem" that</span></span><br><span class="line"><span class="comment">     * happened while transfering ready events to userspace w/out</span></span><br><span class="line"><span class="comment">     * holding -&gt;lock.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">ovflist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The user that created the eventpoll descriptor */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">user_struct</span> *<span class="title">user</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Each file descriptor added to the eventpoll interface will</span></span><br><span class="line"><span class="comment"> * have an entry of this type linked to the "rbr" RB tree.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="comment">/* epitem 表示一个被监听的文件 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> &#123;</span></span><br><span class="line">    <span class="comment">/* RB tree node used to link this structure to the eventpoll RB tree */</span></span><br><span class="line">    <span class="comment">/* 代表在红黑树中的结点 */</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">		<span class="comment">/* RB tree node links this structure to the eventpoll RB tree */</span></span><br><span class="line">		<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> <span class="title">rbn</span>;</span></span><br><span class="line">		<span class="comment">/* Used to free the struct epitem */</span></span><br><span class="line">		<span class="class"><span class="keyword">struct</span> <span class="title">rcu_head</span> <span class="title">rcu</span>;</span></span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List header used to link this structure to the eventpoll ready list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">rdllink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Works together "struct eventpoll"-&gt;ovflist in keeping the</span></span><br><span class="line"><span class="comment">     * single linked chain of items.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">next</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The file descriptor information this item refers to */</span></span><br><span class="line">    <span class="comment">/* epitem对应的文件和 struct file */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_filefd</span> <span class="title">ffd</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Number of active wait queue attached to poll operations */</span></span><br><span class="line">    <span class="keyword">int</span> nwait;</span><br><span class="line">    <span class="comment">/* List containing poll wait queues */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">pwqlist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The "container" of this item */</span></span><br><span class="line">    <span class="comment">/* 关联的eventpoll结构 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">eventpoll</span> *<span class="title">ep</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* List header used to link this item to the "struct file" items list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">fllink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The structure that describe the interested events and the source fd */</span></span><br><span class="line">    <span class="comment">/* 当前文件关心的事件 */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">event</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 红黑树结点 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">long</span>  __rb_parent_color;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_right</span>;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_left</span>;</span></span><br><span class="line">&#125; __attribute__((aligned(<span class="keyword">sizeof</span>(<span class="keyword">long</span>))));</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 红黑树根结点 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rb_root</span> &#123;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rb_node</span> *<span class="title">rb_node</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epoll_filefd</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">file</span> *<span class="title">file</span>;</span></span><br><span class="line">    <span class="keyword">int</span> fd;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Wait structure used by the poll hooks */</span></span><br><span class="line"><span class="comment">/* 用于构造回调函数的数据结构，在 ep_ptable_queue_proc 中使用 */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">eppoll_entry</span> &#123;</span></span><br><span class="line">    <span class="comment">/* List header used to link this structure to the "struct epitem" */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">llink</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The "base" pointer is set to the container "struct epitem" */</span></span><br><span class="line">    <span class="comment">/* 关联的 epitem */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">base</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Wait queue item that will be linked to the target file wait</span></span><br><span class="line"><span class="comment">     * queue head.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">/* 添加到监听文件等待队列中的等待结点 */</span></span><br><span class="line">    <span class="keyword">wait_queue_t</span> wait;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The wait queue head that linked the "wait" wait queue item */</span></span><br><span class="line">    <span class="comment">/* 监听文件等待队列队首结点 */</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span> *whead;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Wrapper struct used by poll queueing */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ep_pqueue</span> &#123;</span></span><br><span class="line">    poll_table pt;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epitem</span> *<span class="title">epi</span>;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Used by the ep_send_events() function as callback private data */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ep_send_events_data</span> &#123;</span></span><br><span class="line">    <span class="keyword">int</span> maxevents;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> __<span class="title">user</span> *<span class="title">events</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>通过对 select 及 epoll 方法的分析，可以知道，epoll 从各个方面进行了优化，相对 select, 在大部分场景下，性能有了质的飞跃，这也是网络中间件中大部分选用 epoll 的原因。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://coderbee.net/index.php/linux/20190919/1942" target="_blank" rel="noopener">1. Linux select/poll/epoll 原理（一）实现基础</a><br><a href="https://blog.csdn.net/eZiMu/article/details/54896708" target="_blank" rel="noopener">2. inux驱动—file_operations之poll</a><br><a href="https://mp.weixin.qq.com/s/bjM3uEDg61vhNN8Y661L7w" target="_blank" rel="noopener">3. Linux select/poll机制原理分析</a><br><a href="https://blog.csdn.net/dog250/article/details/50528373" target="_blank" rel="noopener">4. Linux内核中网络数据包的接收-第二部分 select/poll/epoll</a><br><a href="https://my.oschina.net/alchemystar/blog/3008840" target="_blank" rel="noopener">5. 从linux源码看epoll</a><br><a href="https://blog.csdn.net/russell_tao/article/details/17119729" target="_blank" rel="noopener">6. 高性能网络编程5–IO复用与并发编程</a><br><a href="https://blog.nowcoder.net/n/dade4d8c53d144dfa78157887e2cb33e" target="_blank" rel="noopener">7. epoll源码分析</a><br><a href="https://zhuanlan.zhihu.com/p/60713292" target="_blank" rel="noopener">8. 带您进入内核开发的大门 | 内核中的等待队列</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/select/" rel="tag"># select</a>
+          
+            <a href="/tags/epoll/" rel="tag"># epoll</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/09/20/illustrated-TCP-protocol/" rel="next" title="图解TCP协议">
+                <i class="fa fa-chevron-left"></i> 图解TCP协议
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/11/08/paxos-and-raft/" rel="prev" title="Paxos 和 Raft 算法">
+                Paxos 和 Raft 算法 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">38</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">137</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-知识储备"><span class="nav-number">1.</span> <span class="nav-text">1. 知识储备</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-poll-函数"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 poll 函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-wakeup-callback机制"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 wakeup callback机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-I-O-多路复用"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 I/O 多路复用</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-select"><span class="nav-number">2.</span> <span class="nav-text">2. select</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-整体流程"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 整体流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-数据结构"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 数据结构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-epoll"><span class="nav-number">3.</span> <span class="nav-text">3. epoll</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-整体流程"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 整体流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-数据结构"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 数据结构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-总结"><span class="nav-number">4.</span> <span class="nav-text">4. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">316k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:48</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

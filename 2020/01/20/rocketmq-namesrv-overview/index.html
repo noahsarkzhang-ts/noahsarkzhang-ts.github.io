@@ -113,7 +113,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="RocketMQ系列：NameServer概览">
 <meta property="og:url" content="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/index.html">
-<meta property="og:site_name" content="船长的博客">
+<meta property="og:site_name" content="以太格">
 <meta property="og:description" content="NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/rocketmq-namesrv-overview.jpg">
@@ -139,7 +139,7 @@
   };
 </script>
 
-  <title>RocketMQ系列：NameServer概览 | 船长的博客</title>
+  <title>RocketMQ系列：NameServer概览 | 以太格</title>
   
 
 
@@ -199,7 +199,7 @@
     <div class="custom-logo-site-title">
       <a href="/" class="brand" rel="start">
         <span class="logo-line-before"><i></i></span>
-        <span class="site-title">船长的博客</span>
+        <span class="site-title">以太格</span>
         <span class="logo-line-after"><i></i></span>
       </a>
     </div>
@@ -375,13 +375,13 @@
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/01/20/rocketmq-namesrv-overview/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="noahsark">
+      <meta itemprop="name" content="Noahsark">
       <meta itemprop="description" content="不畏将来，不念过往">
       <meta itemprop="image" content="/images/avatar.gif">
     </span>
 
     <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="船长的博客">
+      <meta itemprop="name" content="以太格">
     </span>
 
     
@@ -458,23 +458,41 @@
 
           
             
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
                 <span class="post-meta-item-icon">
-                  <i class="fa fa-comment-o"></i>
+                  <i class="fa fa-file-word-o"></i>
                 </span>
-                <a href="/2020/01/20/rocketmq-namesrv-overview/#comments" itemprop="discussionUrl">
-                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/2020/01/20/rocketmq-namesrv-overview/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">2.6k</span>
+              
 
-          
-          
+              
+                <span class="post-meta-divider">|</span>
+              
 
-          
-
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">2 分钟</span>
+              
+            </div>
           
 
           
@@ -550,6 +568,10 @@
 
           <div class="post-nav-prev post-nav-item">
             
+              <a href="/2020/04/25/non-functional-features-1/" rel="prev" title="系统设计-非功能性特性">
+                系统设计-非功能性特性 <i class="fa fa-chevron-right"></i>
+              </a>
+            
           </div>
         </div>
       
@@ -570,9 +592,6 @@
           </div>
           
 
-  
-    <div class="comments" id="comments">
-    </div>
   
 
 
@@ -601,7 +620,7 @@
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
-              <p class="site-author-name" itemprop="name">noahsark</p>
+              <p class="site-author-name" itemprop="name">Noahsark</p>
               <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
           </div>
 
@@ -612,7 +631,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">15</span>
+                    <span class="site-state-item-count">38</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -643,7 +662,27 @@
                     
                       
                     
-                    <span class="site-state-item-count">9</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -744,7 +783,193 @@
                     
                       
                     
-                    <span class="site-state-item-count">44</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">137</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -783,15 +1008,34 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
-  <span class="author" itemprop="copyrightHolder">noahsark</span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
 
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">316k</span>
   
 
   
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:48</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
 </div>
 
 
@@ -921,31 +1165,6 @@
 
 
 
-
-  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
-  
-  
-  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
-  
-  <script type="text/javascript">
-    var GUEST = ['nick','mail','link'];
-    var guest = 'nick,mail,link';
-    guest = guest.split(',').filter(function (item) {
-      return GUEST.indexOf(item)>-1;
-    });
-    new Valine({
-        el: '#comments' ,
-        verify: false,
-        notify: false,
-        appId: 'fgYwvtOuPnolT3gijJdLNm0x-gzGzoHsz',
-        appKey: 'wS7jQ6VIB62rCFztcYIXWOQi',
-        placeholder: 'Just go go',
-        avatar:'mm',
-        meta:guest,
-        pageSize:'10' || 10,
-        visitor: false
-    });
-  </script>
 
 
 

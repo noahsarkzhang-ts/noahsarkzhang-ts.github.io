@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述在一致性算法中，Raft 及 Paxos 是强一致性的算法，属于 CP（一致性及分区容错性） 的使用场景，为了保证算法的准确性，必须保证大部分节点（服务器）是正常的（三个节点容忍一个节点失败）。但在 AP （可用性及分区容错性）场景中，即使只有少数机器的存在，仍然可以对外提供服务，这些场景包括：失败检测、路由同步、Pub/Sub 及动态负载均衡。而 Gossip 协议就是这样一种支持最终">
+<meta name="keywords" content="Gossip,一致性算法,故障检测,Redis Cluster">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Gossip 协议">
+<meta property="og:url" content="http://yoursite.com/2020/11/29/gossip-protocol/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述在一致性算法中，Raft 及 Paxos 是强一致性的算法，属于 CP（一致性及分区容错性） 的使用场景，为了保证算法的准确性，必须保证大部分节点（服务器）是正常的（三个节点容忍一个节点失败）。但在 AP （可用性及分区容错性）场景中，即使只有少数机器的存在，仍然可以对外提供服务，这些场景包括：失败检测、路由同步、Pub/Sub 及动态负载均衡。而 Gossip 协议就是这样一种支持最终">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/gosssip.gif">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/gossip-convergence.jpg">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/redis-cluster.jpg">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/redis-clusterMsg.jpg">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/redis-clusterCron.jpg">
+<meta property="og:image" content="http://yoursite.com/images/consensus-algorithm/redis-clusterSendPing.jpg">
+<meta property="og:updated_time" content="2021-07-20T11:23:18.403Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Gossip 协议">
+<meta name="twitter:description" content="1. 概述在一致性算法中，Raft 及 Paxos 是强一致性的算法，属于 CP（一致性及分区容错性） 的使用场景，为了保证算法的准确性，必须保证大部分节点（服务器）是正常的（三个节点容忍一个节点失败）。但在 AP （可用性及分区容错性）场景中，即使只有少数机器的存在，仍然可以对外提供服务，这些场景包括：失败检测、路由同步、Pub/Sub 及动态负载均衡。而 Gossip 协议就是这样一种支持最终">
+<meta name="twitter:image" content="http://yoursite.com/images/consensus-algorithm/gosssip.gif">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/11/29/gossip-protocol/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Gossip 协议 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/29/gossip-protocol/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Gossip 协议
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-11-29 17:15:14" itemprop="dateCreated datePublished" datetime="2020-11-29T17:15:14+08:00">2020-11-29</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-07-20 19:23:18" itemprop="dateModified" datetime="2021-07-20T19:23:18+08:00">2021-07-20</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/一致性算法/" itemprop="url" rel="index"><span itemprop="name">一致性算法</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">16k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">14 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在一致性算法中，Raft 及 Paxos 是强一致性的算法，属于 CP（一致性及分区容错性） 的使用场景，为了保证算法的准确性，必须保证大部分节点（服务器）是正常的（三个节点容忍一个节点失败）。但在 AP （可用性及分区容错性）场景中，即使只有少数机器的存在，仍然可以对外提供服务，这些场景包括：失败检测、路由同步、Pub/Sub 及动态负载均衡。而 Gossip 协议就是这样一种支持最终一致性算法的协议。</p>
+<h2 id="2-Gossip-协议"><a href="#2-Gossip-协议" class="headerlink" title="2. Gossip 协议"></a>2. Gossip 协议</h2><p>Gossip 协议，顾名思义，就像流言蜚语一样，利用一种随机、带有传染性的方式，将信息传播到整个网络中，并在一定时间内，使得系统内的所有节点数据一致。相对于 Raft 来说，数据的一致性收敛是随机且滞后的，但提高了系统的可用性。</p>
+<p>在一些分类中，将 Gossip 协议分为三类，分别是：</p>
+<ol>
+<li>直接邮寄（Direct Mail）：数据的变更直接由数据源结点复制给目标结点，不通过中间结点；</li>
+<li>反熵（Anti-entropy）：反熵指的是集群中的节点，每隔段时间就随机选择某个其他节点，然后通过互相交换自己的所有数据来消除两者之间的差异，实现数据的最终一致性：</li>
+<li>谣言传播（Rumor mongering）：它指是当一个节点有了新数据后，这个节点变成活跃状态，并周期性地联系其他节点向其发送新数据，直到所有的节点都存储了该新数据：</li>
+</ol>
+<p>相比较而言，反熵需要拷贝全量数据进行比对，会消耗较大的网络带宽及性能，优势是数据可以在相对确定的时间内达成一致；而谣言传播周期性地进行部分增量数据的传播，占用网络带宽较少，具备较好的性能，缺点也是显然的，数据的收敛时间不确定。后面我们将 Gossip 协议特指谣言传播，重点说明谣言传播算法。</p>
+<h3 id="2-1-基本原理"><a href="#2-1-基本原理" class="headerlink" title="2.1 基本原理"></a>2.1 基本原理</h3><p>Gossip协议 基本思想就是：一个节点想要分享一些信息给网络中的其他的一些节点。于是，它周期性的随机选择一些节点，并把信息传递给这些节点。这些收到信息的节点接下来会做同样的事情，即把这些信息传递给其他一些随机选择的节点。一般而言，信息会周期性的传递给 n 个目标节点，而不只是一个，如下图所示：<br><img src="/images/consensus-algorithm/gosssip.gif" alt="gossip" title="gossip"></p>
+<p><strong>容错性</strong><br>Gossip 协议具备失败容错的能力，即使节点之间没有直接相连，也可以通过其它结点传播信息；</p>
+<p><strong>收敛时间</strong><br>Gossip 协议周期性随机选择 n 个结点进行消息的广播，集群中所有结点收到广播的时间是不确定的，虽然可以保证数据最终都可以收到，但收到的时候没有办法预估。可以通过另外一种办法来评估收敛的时间，即通过广播的轮数。它的计算方式如下：<br><img src="/images/consensus-algorithm/gossip-convergence.jpg" alt="gossip-convergence.jpg" title="gossip-convergence.jpg"></p>
+<p>排除传播过程中有可能重复的结点，20 个结点的集群进行三轮的广播之后就可要以将数据传播到集群中的所有结点。</p>
+<h2 id="3-使用场景"><a href="#3-使用场景" class="headerlink" title="3. 使用场景"></a>3. 使用场景</h2><h2 id="4-Gossip-在-Redis-中的使用"><a href="#4-Gossip-在-Redis-中的使用" class="headerlink" title="4. Gossip 在 Redis 中的使用"></a>4. Gossip 在 Redis 中的使用</h2><p>Redis Cluster 在 3.0 版本引入集群功能。为了让让集群中的每个实例都知道其它所有实例的状态信息，Redis 集群规定各个实例之间按照 Gossip 协议来通信传递信息。<br><img src="/images/consensus-algorithm/redis-cluster.jpg" alt="redis-cluster" title="redis-cluster"></p>
+<p>Redis Cluster 中的每个节点都维护一份集群相关的信息，主要包括：</p>
+<ol>
+<li>当前集群状态；</li>
+<li>集群中各节点所负责的 slots 信息及其 migrate 状态；</li>
+<li>集群中各节点的 master-slave 状态; </li>
+<li>集群中各节点的存活状态及怀疑 Fail 状态。</li>
+</ol>
+<p>Gossip 协议的主要职责就是信息交换，这些信息包括上面所说的内容。信息交换的载体就是节点彼此发送的 Gossip 消息，常用的 Gossip 消息可分为：ping 消息、pong 消息、meet 消息、fail 消息。</p>
+<ol>
+<li>meet 消息：用于通知新节点加入。消息发送者通知接收者加入到当前集群，meet 消息通信正常完成后，接收节点会加入到集群中并进行周期性的ping、pong 消息交换；</li>
+<li>ping 消息：集群内交换最频繁的消息，集群内每个节点每秒向多个其它节点发送 ping 消息，用于检测节点是否在线和交换彼此状态信息。ping 消息发送封装了自身节点和部分其它节点的状态数据；</li>
+<li>pong 消息：当接收到 ping、meet 消息时，作为响应消息回复给发送方确认消息正常通信。pong消息内部封装了自身状态数据。节点也可以向集群内广播自身的 pon g消息来通知整个集群对自身状态进行更新；</li>
+<li>fail 消息：当节点判定集群内另一个节点下线时，会向集群内广播一个 fail 消息，其他节点接收到 fail 消息之后把对应节点更新为下线状态。</li>
+</ol>
+<h3 id="4-1-消息体"><a href="#4-1-消息体" class="headerlink" title="4.1 消息体"></a>4.1 消息体</h3><p>一个 Gossip 协议消息常常包括一个 clusterMsg + n 个 clusterMsgData，clusterMsg 当前结点的信息，包括主从信息及本结点的 slots 信息。clusterMsgData 根据消息类型的不同表示为不同的数据结构，后面进到。消息的结构下图所示：<br><img src="/images/consensus-algorithm/redis-clusterMsg.jpg" alt="redis-clusterMsg" title="redis-clusterMsg"></p>
+<p>clusterMsg 结构如下所示：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> sig[<span class="number">4</span>];        <span class="comment">/* Signature "RCmb" (Redis Cluster message bus). */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> totlen;    <span class="comment">/* Total length of this message */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ver;       <span class="comment">/* Protocol version, currently set to 1. */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> port;      <span class="comment">/* TCP base port number. */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> type;      <span class="comment">/* Message type */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> count;     <span class="comment">/* Only used for some kind of messages. */</span></span><br><span class="line">    <span class="keyword">uint64_t</span> currentEpoch;  <span class="comment">/* The epoch accordingly to the sending node. */</span></span><br><span class="line">    <span class="keyword">uint64_t</span> configEpoch;   <span class="comment">/* The config epoch if it's a master, or the last</span></span><br><span class="line"><span class="comment">                               epoch advertised by its master if it is a</span></span><br><span class="line"><span class="comment">                               slave. */</span></span><br><span class="line">    <span class="keyword">uint64_t</span> offset;    <span class="comment">/* Master replication offset if node is a master or</span></span><br><span class="line"><span class="comment">                           processed replication offset if node is a slave. */</span></span><br><span class="line">    <span class="keyword">char</span> sender[CLUSTER_NAMELEN]; <span class="comment">/* Name of the sender node */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">char</span> myslots[CLUSTER_SLOTS/<span class="number">8</span>];  <span class="comment">/* 本结点的 slot 信息 */</span></span><br><span class="line">    <span class="keyword">char</span> slaveof[CLUSTER_NAMELEN];</span><br><span class="line">    <span class="keyword">char</span> myip[NET_IP_STR_LEN];    <span class="comment">/* Sender IP, if not all zeroed. */</span></span><br><span class="line">    <span class="keyword">char</span> notused1[<span class="number">34</span>];  <span class="comment">/* 34 bytes reserved for future usage. */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> cport;      <span class="comment">/* Sender TCP cluster bus port */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> flags;      <span class="comment">/* Sender node flags */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">char</span> state; <span class="comment">/* Cluster state from the POV of the sender */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">char</span> mflags[<span class="number">3</span>]; <span class="comment">/* Message flags: CLUSTERMSG_FLAG[012]_... */</span></span><br><span class="line">    <span class="keyword">union</span> clusterMsgData data;</span><br><span class="line">&#125; clusterMsg;</span><br></pre></td></tr></table></figure>
+<p>如果是 PING, MEET and PONG 消息的话，clusterMsgData 发送的是一个 clusterMsgDataGossip 数组，clusterMsgDataGossip 描述了一个结点的简要信息，包括了结点的状态，其中就包括疑似下线结点的状态。如果是 FAIL 消息，则发送的是 clusterMsgDataFail 数据，clusterMsgDataFail 只包含一个字段，即下线结点的名字。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">union</span> clusterMsgData &#123;</span><br><span class="line">    <span class="comment">/* PING, MEET and PONG */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">        <span class="comment">/* Array of N clusterMsgDataGossip structures */</span></span><br><span class="line">        clusterMsgDataGossip gossip[<span class="number">1</span>];</span><br><span class="line">    &#125; ping;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* FAIL */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">        clusterMsgDataFail about;</span><br><span class="line">    &#125; fail;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* PUBLISH */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">        clusterMsgDataPublish msg;</span><br><span class="line">    &#125; publish;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* UPDATE */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">        clusterMsgDataUpdate nodecfg;</span><br><span class="line">    &#125; update;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* MODULE */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">        clusterMsgModule msg;</span><br><span class="line">    &#125; <span class="keyword">module</span>;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>clusterMsgDataGossip 结构体包括了一个结点的基本信息，其中 pong_received 字段记录了该结点最近一次发送 pong 消息的时间，flags 状态记录了结点的状态，疑似下线状态就是由这个标志来记录的。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Initially we don't know our "name", but we'll find it once we connect</span></span><br><span class="line"><span class="comment"> * to the first node, using the getsockname() function. Then we'll use this</span></span><br><span class="line"><span class="comment"> * address for all the next messages. */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> nodename[CLUSTER_NAMELEN];</span><br><span class="line">    <span class="keyword">uint32_t</span> ping_sent;</span><br><span class="line">    <span class="keyword">uint32_t</span> pong_received;</span><br><span class="line">    <span class="keyword">char</span> ip[NET_IP_STR_LEN];  <span class="comment">/* IP address last time it was seen */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> port;              <span class="comment">/* base port last time it was seen */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> cport;             <span class="comment">/* cluster port last time it was seen */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> flags;             <span class="comment">/* node-&gt;flags copy */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> notused1;</span><br><span class="line">&#125; clusterMsgDataGossip;</span><br></pre></td></tr></table></figure>
+<p>clusterMsgDataFail 结构体只包括了结点的名称，相对比较简单。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> nodename[CLUSTER_NAMELEN];</span><br><span class="line">&#125; clusterMsgDataFail;</span><br></pre></td></tr></table></figure>
+<h3 id="4-2-消息传播"><a href="#4-2-消息传播" class="headerlink" title="4.2 消息传播"></a>4.2 消息传播</h3><p>Redis cluser 通过以下的方式进行消息的传播：</p>
+<ol>
+<li>每 1 S 从 5 个随机结点中选择一个最久未发送 Pong 消息的结点发送　Ping 消息。发送的消息中包括当前结点的信息及多个随机结点的简要信息和状态消息；收到消息的结点，回复一个 Pong 消息；</li>
+<li>每 100 MS 扫描一遍所有结点，比较结点上次发送 Pong 消息的时间到当前时间的时长，如果这个时长大于集群超时时间的 1/2，则立即发送 Ping 信息，避免在第一步中有结点长期未被选中的情况发生。</li>
+</ol>
+<p>这个流程如下图代码所示：<br><img src="/images/consensus-algorithm/redis-clusterCron.jpg" alt="redis-clusterCron" title="redis-clusterCron"></p>
+<p>一个消息体包括发送结点本身的信息，同时会随机选择多个结点的状态信息，结点的数量小于总结点数的 1/10，这其中包括正常的结点和疑似下线的结点，流程如下所示：<br><img src="/images/consensus-algorithm/redis-clusterSendPing.jpg" alt="redis-clusterSendPing" title="redis-clusterSendPing"></p>
+<h3 id="4-2-故障检测"><a href="#4-2-故障检测" class="headerlink" title="4.2 故障检测"></a>4.2 故障检测</h3><ol>
+<li>下线检测：集群中的每个节点都会定期向集群中的其它节点发送 Ping 消息，用于检测对方是否在线，如果接收 Ping 消息的节点没有在规定的时间收到响应的 Ping 消息，那么，发送 Ping 消息的节点就会将接收 Ping 消息的节点标注为疑似下线状态（Probable Fail，Pfail）；</li>
+<li>状态传递：集群中的各个节点会通过相互发送 Ping 消息的方式来交换自己掌握的集群中各个节点的状态信息，如在线、疑似下线（Pfail）、下线（fail）。如果一个结点检测到另外一结点疑似下线，该结点会将疑似下线结点的状态通过 Ping 消息传播给集群中其它结点，其它结点收到消息会更新其结点的状态；</li>
+<li>下线判定：如果在一个集群里，超过半数的持有 slot(槽) 的主节点都将某个主节点 A 报告为疑似下线，那么，主节点 A 将被标记为下线（fail），检测到 A 结点下线的主结点广播一条 A 下线的 Fail 消息，所有收到这条 Fail 消息的节点都会立即将主节点 A 标记为 fail。至此，故障检测完成。</li>
+</ol>
+<h2 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h2><p>Gossip 协议在 AP 场景及结点数量频繁变化的场景下，具有较大的优势，但是随着结点数量的增加，消息通信的成本也就更高，因此对于Redis集群来说并不是越大越好。</p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://time.geekbang.org/" target="_blank" rel="noopener">1. Gossip协议：流言蜚语，原来也可以实现一致性</a><br><a href="https://segmentfault.com/a/1190000022957348" target="_blank" rel="noopener">2. 漫谈 Gossip 协议</a><br><a href="https://www.cnblogs.com/charlieroro/articles/12655967.html" target="_blank" rel="noopener">3. Gossip是什么</a><br><a href="https://blog.csdn.net/Jin_Kwok/article/details/90111631" target="_blank" rel="noopener">4. 第三章：深入浅出理解分布式一致性协议Gossip和Redis集群原理</a><br><a href="https://segmentfault.com/a/1190000038373546" target="_blank" rel="noopener">5. 一万字详解 Redis Cluster Gossip 协议</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Gossip/" rel="tag"># Gossip</a>
+          
+            <a href="/tags/一致性算法/" rel="tag"># 一致性算法</a>
+          
+            <a href="/tags/故障检测/" rel="tag"># 故障检测</a>
+          
+            <a href="/tags/Redis-Cluster/" rel="tag"># Redis Cluster</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/11/08/paxos-and-raft/" rel="next" title="Paxos 和 Raft 算法">
+                <i class="fa fa-chevron-left"></i> Paxos 和 Raft 算法
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/01/31/mysql-log/" rel="prev" title="Mysql 事务日志">
+                Mysql 事务日志 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">38</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">137</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Gossip-协议"><span class="nav-number">2.</span> <span class="nav-text">2. Gossip 协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-基本原理"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 基本原理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-使用场景"><span class="nav-number">3.</span> <span class="nav-text">3. 使用场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Gossip-在-Redis-中的使用"><span class="nav-number">4.</span> <span class="nav-text">4. Gossip 在 Redis 中的使用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-消息体"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 消息体</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-消息传播"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 消息传播</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-故障检测"><span class="nav-number">4.3.</span> <span class="nav-text">4.2 故障检测</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-总结"><span class="nav-number">5.</span> <span class="nav-text">5. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">316k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:48</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
