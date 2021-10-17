@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述1.1 概念模型RocketMQ 是阿里推出的一款消息系统，用来取代 Kafka 及 RabbitMQ. 在 Alligator 中支持使用 RocketMQ, 其概念模型如下所示：  在上图中有几个关键的概念，Producer 是消息的发布者，Consumer 是消息的接收者，负责消费消息，ConsumerGroup 是同一类 Consumer 的集合，Topic 是消息的集合体，而">
+<meta name="keywords" content="RocketMQ,CommitLog,ConsumeQueue,Topic">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Alligator 系列：RocketMQ 基础知识及部署">
+<meta property="og:url" content="http://yoursite.com/2021/10/02/alligator-rocketmq-deploy/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述1.1 概念模型RocketMQ 是阿里推出的一款消息系统，用来取代 Kafka 及 RabbitMQ. 在 Alligator 中支持使用 RocketMQ, 其概念模型如下所示：  在上图中有几个关键的概念，Producer 是消息的发布者，Consumer 是消息的接收者，负责消费消息，ConsumerGroup 是同一类 Consumer 的集合，Topic 是消息的集合体，而">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rocketmq-conceptual-model.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rocketmq_architecture.png">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rocketmq_message_storage.png">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rocketmq_message_index.png">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rocketmq_message_allocate.png">
+<meta property="og:updated_time" content="2021-10-02T13:10:32.386Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Alligator 系列：RocketMQ 基础知识及部署">
+<meta name="twitter:description" content="1. 概述1.1 概念模型RocketMQ 是阿里推出的一款消息系统，用来取代 Kafka 及 RabbitMQ. 在 Alligator 中支持使用 RocketMQ, 其概念模型如下所示：  在上图中有几个关键的概念，Producer 是消息的发布者，Consumer 是消息的接收者，负责消费消息，ConsumerGroup 是同一类 Consumer 的集合，Topic 是消息的集合体，而">
+<meta name="twitter:image" content="http://yoursite.com/images/alligator/rocketmq-conceptual-model.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/10/02/alligator-rocketmq-deploy/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Alligator 系列：RocketMQ 基础知识及部署 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/10/02/alligator-rocketmq-deploy/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Alligator 系列：RocketMQ 基础知识及部署
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-10-02 11:40:18 / 修改时间：21:10:32" itemprop="dateCreated datePublished" datetime="2021-10-02T11:40:18+08:00">2021-10-02</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Alligator网关/" itemprop="url" rel="index"><span itemprop="name">Alligator网关</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">13k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">12 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><h3 id="1-1-概念模型"><a href="#1-1-概念模型" class="headerlink" title="1.1 概念模型"></a>1.1 概念模型</h3><p>RocketMQ 是阿里推出的一款消息系统，用来取代 Kafka 及 RabbitMQ. 在 Alligator 中支持使用 RocketMQ, 其概念模型如下所示：</p>
+<p><img src="/images/alligator/rocketmq-conceptual-model.jpg" alt="rocketmq-conceptual-model" title="rocketmq-conceptual-model"></p>
+<p>在上图中有几个关键的概念，Producer 是消息的发布者，Consumer 是消息的接收者，负责消费消息，ConsumerGroup 是同一类 Consumer 的集合，Topic 是消息的集合体，而 messageQueue 则是对 Topic 进行分区，来提高消息处理的并行度，从而提高系统的吞吐量。topic 中的 MessageQueue 由 ConsumerGroup 下的 Consumer 负责消费，根据不同的消费模式，保证消息都能被 consumer 进行消费。</p>
+<h3 id="1-2-实现架构"><a href="#1-2-实现架构" class="headerlink" title="1.2 实现架构"></a>1.2 实现架构</h3><p>RocketMQ 实现架构如下图所示：<br><img src="/images/alligator/rocketmq_architecture.png" alt="rocketmq_architecture" title="rocketmq_architecture"><br>RocketMQ架构上主要分为四部分：</p>
+<ul>
+<li>Producer：消息发布者；</li>
+<li>Consumer：消息消费者，支持 push 和 pull 两种消费方式。；</li>
+<li>NameServer：注册中心，主要包括两个功能：1)Broker管理，实现 Broker 的注册及动态发现；2）路由信息管理，保存集群的整个路由信息。</li>
+<li>BrokerServer：负责消息的存储、投递和查询以及服务高可用保证。</li>
+</ul>
+<font color="red"><strong> 说明: </strong></font><br><font color="red">NameServer 是无状态的，彼此之间互不通信，BrokerServer 要向所有的 NameServer 上报状态，而不是其中一台（NameServer 之间没有数据同步）。</font>
+
+<p>RocketMQ 相关概念，来自官方网站：</p>
+<blockquote>
+<ol>
+<li><strong>消息模型（Message Model）</strong><br>RocketMQ主要由 Producer、Broker、Consumer 三部分组成，其中Producer 负责生产消息，Consumer 负责消费消息，Broker 负责存储消息。Broker 在实际部署过程中对应一台服务器，每个 Broker 可以存储多个Topic的消息，每个Topic的消息也可以分片存储于不同的 Broker。Message Queue 用于存储消息的物理地址，每个Topic中的消息地址存储于多个 Message Queue 中。ConsumerGroup 由多个Consumer 实例构成。</li>
+<li><strong>消息生产者（Producer）</strong><br>负责生产消息，一般由业务系统负责生产消息。一个消息生产者会把业务应用系统里产生的消息发送到broker服务器。RocketMQ提供多种发送方式，同步发送、异步发送、顺序发送、单向发送。同步和异步方式均需要Broker返回确认信息，单向发送不需要。</li>
+<li><strong>消息消费者（Consumer）</strong><br>负责消费消息，一般是后台系统负责异步消费。一个消息消费者会从Broker服务器拉取消息、并将其提供给应用程序。从用户应用的角度而言提供了两种消费形式：拉取式消费、推动式消费。</li>
+<li><strong>主题（Topic）</strong><br>表示一类消息的集合，每个主题包含若干条消息，每条消息只能属于一个主题，是RocketMQ进行消息订阅的基本单位。</li>
+<li><strong>代理服务器（Broker Server）</strong><br>消息中转角色，负责存储消息、转发消息。代理服务器在RocketMQ系统中负责接收从生产者发送来的消息并存储、同时为消费者的拉取请求作准备。代理服务器也存储消息相关的元数据，包括消费者组、消费进度偏移和主题和队列消息等。</li>
+<li><strong>名字服务（Name Server）</strong><br>名称服务充当路由消息的提供者。生产者或消费者能够通过名字服务查找各主题相应的Broker IP列表。多个Namesrv实例组成集群，但相互独立，没有信息交换。</li>
+<li><strong>拉取式消费（Pull Consumer）</strong><br>Consumer消费的一种类型，应用通常主动调用Consumer的拉消息方法从Broker服务器拉消息、主动权由应用控制。一旦获取了批量消息，应用就会启动消费过程。</li>
+<li><strong>推动式消费（Push Consumer）</strong><br>Consumer消费的一种类型，该模式下Broker收到数据后会主动推送给消费端，该消费模式一般实时性较高。</li>
+<li><strong>生产者组（Producer Group）</strong><br>同一类Producer的集合，这类Producer发送同一类消息且发送逻辑一致。如果发送的是事务消息且原始生产者在发送之后崩溃，则Broker服务器会联系同一生产者组的其他生产者实例以提交或回溯消费。</li>
+<li><strong>消费者组（Consumer Group）</strong><br>同一类Consumer的集合，这类Consumer通常消费同一类消息且消费逻辑一致。消费者组使得在消息消费方面，实现负载均衡和容错的目标变得非常容易。要注意的是，消费者组的消费者实例必须订阅完全相同的Topic。RocketMQ 支持两种消息模式：集群消费（Clustering）和广播消费（Broadcasting）。</li>
+<li><strong>集群消费（Clustering）</strong><br>集群消费模式下,相同Consumer Group的每个Consumer实例平均分摊消息。</li>
+<li><strong>广播消费（Broadcasting）</strong><br>广播消费模式下，相同Consumer Group的每个Consumer实例都接收全量的消息。</li>
+<li><strong>普通顺序消息（Normal Ordered Message）</strong><br>普通顺序消费模式下，消费者通过同一个消息队列（ Topic 分区，称作 Message Queue） 收到的消息是有顺序的，不同消息队列收到的消息则可能是无顺序的。</li>
+<li><strong>严格顺序消息（Strictly Ordered Message）</strong><br>严格顺序消息模式下，消费者收到的所有消息均是有顺序的。</li>
+<li><strong>消息（Message）</strong><br>消息系统所传输信息的物理载体，生产和消费数据的最小单位，每条消息必须属于一个主题。RocketMQ中每个消息拥有唯一的Message ID，且可以携带具有业务标识的Key。系统提供了通过Message ID和Key查询消息的功能。</li>
+<li><strong>标签（Tag）</strong><br>为消息设置的标志，用于同一主题下区分不同类型的消息。来自同一业务单元的消息，可以根据不同业务目的在同一主题下设置不同标签。标签能够有效地保持代码的清晰度和连贯性，并优化RocketMQ提供的查询系统。消费者可以根据Tag实现对不同子主题的不同消费逻辑，实现更好的扩展性。</li>
+</ol>
+</blockquote>
+<h2 id="2-基础"><a href="#2-基础" class="headerlink" title="2. 基础"></a>2. 基础</h2><h3 id="2-1-消息存储"><a href="#2-1-消息存储" class="headerlink" title="2.1 消息存储"></a>2.1 消息存储</h3><p>消息存储是 RocketMQ 中最为复杂和最为重要的一部分，我们主要是从概念上对其理解，其实现不作过多分析，其存储整体结构如下所示：<br><img src="/images/alligator/rocketmq_message_storage.png" alt="rocketmq_message_storage" title="rocketmq_message_storage"></p>
+<p>消息存储架构图中主要有下面三个跟消息存储相关的文件构成。</p>
+<ol>
+<li><p>CommitLog：存储消息及元数据信息，由 Producer 写入, 消息内容不是定长的。单个文件大小默认 1G, 文件名长度为 20 位，左边补零，剩余为起始偏移量，比如 00000000000000000000 代表了第一个文件，起始偏移量为 0，文件大小为 1G=1073741824；当第一个文件写满了，第二个文件为 00000000001073741824 ，起始偏移量为 1073741824 ，以此类推。消息主要是顺序写入日志文件，当文件满了，写入下一个文件；</p>
+</li>
+<li><p>ConsumeQueue：消息消费队列，等同于概念模型中的 MessageQueue，Consumer 根据 ConsumeQueue 来查找待消费的消息。其中，ConsumeQueue（逻辑消费队列）作为消费消息的索引，保存了指定 Topic 下的队列消息在 CommitLog 中的起始物理偏移量 offset，消息大小 size 和消息Tag 的 HashCode 值。consumequeue 文件可以看成是基于 topic 的 commitlog 索引文件，故 consumequeue 文件夹的组织方式如下：topic/queue/file 三层组织结构，具体存储路径为：$HOME/store/consumequeue/{topic}/{queueId}/{fileName}。同样 consumequeue 文件采取定长设计，每一个条目共 20 个字节，分别为 8 字节的 commitlog 物理偏移量、4 字节的消息长度、8 字节 tag hashcode，单个文件由 30W 个条目组成，可以像数组一样随机访问每一个条目，每个 ConsumeQueue 文件大小约 5.72M；</p>
+</li>
+<li><p>IndexFile：IndexFile（索引文件）提供了一种可以通过 key 或时间区间来查询消息的方法。Index 文件的存储位置是：$HOME \store\index${fileName}，文件名 fileName 是以创建时的时间戳命名的，固定的单个IndexFile 文件大小约为 400M，一个 IndexFile 可以保存 2000W 个索引，IndexFile 的底层存储设计为在文件系统中实现 HashMap 结构，故 RocketMQ 的索引文件其底层实现为 hash 索引。</p>
+</li>
+</ol>
+<p>从 RocketMQ 的消息存储整体架构图中可以看出，RocketMQ 采用的是混合型的存储结构，即为 Broker 单个实例下所有的队列共用一个日志数据文件（即为CommitLog）来存储。多个Topic的消息实体内容都存储于一个CommitLog中，Producer 发送消息到 Broker 端，然后 Broker 端使用同步或者异步的方式对消息刷盘持久化，保存至 CommitLog 中。只要消息被刷盘持久化至磁盘文件 CommitLog 中，那 么Producer 发送的消息就不会丢失。</p>
+<h3 id="2-2-消息过滤"><a href="#2-2-消息过滤" class="headerlink" title="2.2 消息过滤"></a>2.2 消息过滤</h3><p>消息过滤是订阅/消费消息的时候处理的，Consumer 先从 ConsumeQueue 中拿到消息的索引，再去 CommitLog 中取到数据，过滤的操作就是根据索引来进行的，我们先看下 ConsumeQueue 中消息索引的格式：</p>
+<p><img src="/images/alligator/rocketmq_message_index.png" alt="rocketmq_message_index" title="rocketmq_message_index"></p>
+<p>可以看到其中有 8 个字节存储的 Message Tag 的哈希值，基于 Tag 的消息过滤正是基于这个字段值的。RocketMQ 支持两种过滤方式，1）Tag 过滤，Consumer 在订阅消息时除了指定 Topic 还可以指定 Tag，如果一个消息有多个 Tage ，可以用||分隔。从 ConsumeQueue 读取到记录后，会根据 tag hash 值去做过滤，由于使用 hashcode 进行判断，只能进行整体过滤，无法精确对 tag 原始字符串进行过滤，所以 Cousumer 接收到消息之后，还需要对消息的原始 tag 字符串进行比对，如果不同，则丢弃该消息，不进行消息消费。2） SQL92 过滤，使用 SQL 表达式进行过滤。</p>
+<h3 id="2-3-消息负载均衡"><a href="#2-3-消息负载均衡" class="headerlink" title="2.3 消息负载均衡"></a>2.3 消息负载均衡</h3><p>RocketMQ 中的负载均衡都在 Client 端完成，具体来说的话，主要可以分为 Producer 端发送消息时候的负载均衡和 Consumer 端订阅消息的负载均衡。</p>
+<p><strong>Producer 端负载均衡</strong><br>Producer 端在发送消息的时候，会找到 Topic 相关的所有 MessageQueue 信息，根据一定的负载策略选择一个 MessageQueue 进行发送。</p>
+<p><strong>Consumer 端负载均衡</strong><br>Consumer 端负载均衡的主要目的是将 Topic 下的 MessageQueue 分配给 CousumerGroup 中的 Consumer，并保证一个 MessageQueue 只能被一个 Consumer 消费（集群模式下）。</p>
+<p><img src="/images/alligator/rocketmq_message_allocate.png" alt="rocketmq_message_allocate" title="rocketmq_message_allocate"></p>
+<h2 id="3-部署"><a href="#3-部署" class="headerlink" title="3. 部署"></a>3. 部署</h2><h3 id="3-1-单机部署"><a href="#3-1-单机部署" class="headerlink" title="3.1 单机部署"></a>3.1 单机部署</h3><p>由于只是用于实验目的，只需要部署单 Master 模式。</p>
+<p><strong>官方推荐配置</strong></p>
+<ol>
+<li>64bit OS, Linux/Unix/Mac is recommended;(Windows user see guide below)</li>
+<li>64bit JDK 1.8+;</li>
+<li>Maven 3.2.x;</li>
+<li>Git;</li>
+<li>4g+ free disk for Broker server</li>
+</ol>
+<p>下载 RocketMQ V4.8.0，并解压到安装目录<br><a href="https://www.apache.org/dyn/closer.cgi?path=rocketmq/4.8.0/rocketmq-all-4.8.0-source-release.zip" target="_blank" rel="noopener">https://www.apache.org/dyn/closer.cgi?path=rocketmq/4.8.0/rocketmq-all-4.8.0-source-release.zip</a></p>
+<p><strong>修改配置</strong><br><strong>1. 修改 rocketmq-4.8.0/conf/broker.conf</strong><br>如果部署在公有云上，需要将 brokerIP 和 namesrvAddr 设置为公网 ip 地址和端口<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">brokerClusterName = DefaultCluster</span><br><span class="line">brokerName = broker<span class="_">-a</span></span><br><span class="line">brokerId = 0</span><br><span class="line">deleteWhen = 04</span><br><span class="line">fileReservedTime = 48</span><br><span class="line">brokerRole = ASYNC_MASTER</span><br><span class="line">flushDiskType = ASYNC_FLUSH</span><br><span class="line"><span class="comment">## broker ip</span></span><br><span class="line">brokerIP1=公网ip </span><br><span class="line"></span><br><span class="line"><span class="comment">## na</span></span><br><span class="line">namesrvAddr=公网ip:9876</span><br></pre></td></tr></table></figure></p>
+<p><strong>2. 修改内存大小</strong><br>RocketMQ 默认内存配置是 4G, 单机版本配置启动 1台 nameServer 及 1台 broker, 如果配置不够的话，需要修改 runbroker.sh 和 runserver.sh 脚本。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">JAVA_OPT=<span class="string">"<span class="variable">$&#123;JAVA_OPT&#125;</span> -server -Xms2g -Xmx2g -Xmn1g"</span></span><br></pre></td></tr></table></figure></p>
+<p>根据情况修改，这里修改为 2G.</p>
+<h3 id="3-2-命令"><a href="#3-2-命令" class="headerlink" title="3.2 命令"></a>3.2 命令</h3><p><strong>1. 启动 nameServer</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> rocketmq-4.8.0/bin</span><br><span class="line"></span><br><span class="line">nohup sh mqnamesrv -n 外网ip:9876 &amp;</span><br><span class="line"></span><br><span class="line"><span class="comment"># -n: 指定nameserv ip 地址</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>2. 启动 broker</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> rocketmq-4.8.0</span><br><span class="line"></span><br><span class="line">nohup sh bin/mqbroker -n 外网ip:9876 -c conf/broker.conf &amp;</span><br><span class="line"></span><br><span class="line"><span class="comment"># -n: 指定nameserv ip 地址</span></span><br><span class="line"><span class="comment"># -c: 指定配置文件</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>3. 关闭服务器</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 关闭 broker</span></span><br><span class="line">./mqshutdown broker</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭 namesrv</span></span><br><span class="line">./mqshutdown namesrv</span><br></pre></td></tr></table></figure></p>
+<p><strong>4. Topic 命令</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 topic</span></span><br><span class="line">sh mqadmin updateTopic -n 外网ip:9876 -c DefaultCluster -t &lt;topic name&gt;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查询 topic</span></span><br><span class="line">sh mqadmin topicList –n 外网ip:9876</span><br></pre></td></tr></table></figure></p>
+<font color="red"><strong> 说明: </strong></font><br><font color="red">在 RocketMQ 中，Topic 须提前创建。</font>
+
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://github.com/apache/rocketmq/blob/master/docs/cn/concept.md" target="_blank" rel="noopener">1. RocketMQ 基本概念</a></p>
+<p><a href="https://github.com/apache/rocketmq/blob/master/docs/cn/architecture.md" target="_blank" rel="noopener">2. RocketMQ 架构设计</a></p>
+<p><a href="https://github.com/apache/rocketmq/blob/master/docs/cn/design.md" target="_blank" rel="noopener">3. RocketMQ 设计(design)</a></p>
+<p><a href="https://mp.weixin.qq.com/s/Efw5pXrptWPfCDQI8rc_xg" target="_blank" rel="noopener">4. 一文讲透Apache RocketMQ技术精华</a></p>
+<p><a href="http://rocketmq.apache.org/docs/quick-start/" target="_blank" rel="noopener">5. RocketMQ Quick Start</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/RocketMQ/" rel="tag"># RocketMQ</a>
+          
+            <a href="/tags/CommitLog/" rel="tag"># CommitLog</a>
+          
+            <a href="/tags/ConsumeQueue/" rel="tag"># ConsumeQueue</a>
+          
+            <a href="/tags/Topic/" rel="tag"># Topic</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/30/alligator-rabbitmq-deploy/" rel="next" title="Alligator 系列：RabbitMQ 基础知识及部署">
+                <i class="fa fa-chevron-left"></i> Alligator 系列：RabbitMQ 基础知识及部署
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/16/alligator-mq-rpc/" rel="prev" title="Alligator 系列：MQ RPC">
+                Alligator 系列：MQ RPC <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">44</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">153</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-概念模型"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 概念模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-实现架构"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 实现架构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-基础"><span class="nav-number">2.</span> <span class="nav-text">2. 基础</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-消息存储"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 消息存储</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-消息过滤"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 消息过滤</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-消息负载均衡"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 消息负载均衡</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-部署"><span class="nav-number">3.</span> <span class="nav-text">3. 部署</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-单机部署"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 单机部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-命令"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 命令</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">184k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">2:47</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

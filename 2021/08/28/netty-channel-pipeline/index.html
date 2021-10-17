@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，">
+<meta name="keywords" content="ChannelPipeline,DefaultChannelPipeline,ChannelHandler,ChannelHandlerContext,Intercepting Filter,责任链">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Netty 系列：ChannelPipeline">
+<meta property="og:url" content="http://yoursite.com/2021/08/28/netty-channel-pipeline/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/netty/netty-channel-pipeline.jpg">
+<meta property="og:updated_time" content="2021-09-04T03:01:20.371Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Netty 系列：ChannelPipeline">
+<meta name="twitter:description" content="1. 概述ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，">
+<meta name="twitter:image" content="http://yoursite.com/images/netty/netty-channel-pipeline.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/08/28/netty-channel-pipeline/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Netty 系列：ChannelPipeline | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/08/28/netty-channel-pipeline/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Netty 系列：ChannelPipeline
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-08-28 22:48:35" itemprop="dateCreated datePublished" datetime="2021-08-28T22:48:35+08:00">2021-08-28</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-09-04 11:01:20" itemprop="dateModified" datetime="2021-09-04T11:01:20+08:00">2021-09-04</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Netty/" itemprop="url" rel="index"><span itemprop="name">Netty</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">28k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">25 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，用户可以根据业务场景定义 ChannelHandler，以类似插件的方式添加到 ChannelPipeline 中。</p>
+<h3 id="1-1-整体流程"><a href="#1-1-整体流程" class="headerlink" title="1.1 整体流程"></a>1.1 整体流程</h3><p>每一个 channel 都包含一个属于自己的 ChannelPipeline，在创建 channel 的时候自动创建，下图描述了 ChannelPipeline 是如何处理 I/O 事件的，一个 I/O 事件要么被 ChannelInboundHandler 处理，要么被 ChannelOutboundHandler，同时通过 ChannelHandlerContext 将事件传递给下一个 ChannelHandler，如通过如下方法：ChannelHandlerContext#fireChannelRead(Object) 和 ChannelHandlerContext#write(Object)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">                                                I/O Request</span><br><span class="line">                                          via Channel or ChannelHandlerContext</span><br><span class="line">                                                    |</span><br><span class="line">                                                    |</span><br><span class="line">+---------------------------------------------------+---------------+</span><br><span class="line">|                           ChannelPipeline         |               |</span><br><span class="line">|                                                  \|/              |</span><br><span class="line">|    +---------------------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  N  |            | Outbound Handler  1  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">|               |                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler N-1 |            | Outbound Handler  2  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  .               |</span><br><span class="line">|               .                                   .               |</span><br><span class="line">| ChannelHandlerContext.fireIN_EVT() ChannelHandlerContext.OUT_EVT()|</span><br><span class="line">|        [ method call]                       [method call]         |</span><br><span class="line">|               .                                   .               |</span><br><span class="line">|               .                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  2  |            | Outbound Handler M-1 |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">|               |                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  1  |            | Outbound Handler  M  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">+---------------+-----------------------------------+---------------+</span><br><span class="line">                |                                  \|/</span><br><span class="line">+---------------+-----------------------------------+---------------+</span><br><span class="line">|               |                                   |               |</span><br><span class="line">|       [ Socket.read() ]                    [ Socket.write() ]     |</span><br><span class="line">|                                                                   |</span><br><span class="line">|  Netty Internal I/O Threads (Transport Implementation)            |</span><br><span class="line">+-------------------------------------------------------------------+</span><br></pre></td></tr></table></figure>
+<p>如左边的图所示，入站（inbound）事件从自底向上的方向被 inbound handler 处理，处理的数据来自于 I/O 线程，这些数据通常来自于远程的机器，通过 SocketChannel#read(ByteBuffer) 方法读到。如果一个入站事件传递到了最后一个 inbound handler，它通常会被丢弃，或者日志输出。</p>
+<p>出站（outbound）事件从自顶向下的方向被 outbound handler 处理，outbound handler 通常对写数据进行转换或处理，并传递给 I/O 线程，I/O 线程最后通过 SocketChannel#write(ByteBuffer) 方法写入到网络上，传输给远程的机器。</p>
+<p>举一个例子，假设以下面的方式创建 pipeline：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ChannelPipeline p = <span class="keyword">new</span> DefaultChannelPipeline();</span><br><span class="line">p.addLast(<span class="string">"1"</span>, <span class="keyword">new</span> InboundHandlerA());</span><br><span class="line">p.addLast(<span class="string">"2"</span>, <span class="keyword">new</span> InboundHandlerB());</span><br><span class="line">p.addLast(<span class="string">"3"</span>, <span class="keyword">new</span> OutboundHandlerA());</span><br><span class="line">p.addLast(<span class="string">"4"</span>, <span class="keyword">new</span> OutboundHandlerB());</span><br><span class="line">p.addLast(<span class="string">"5"</span>, <span class="keyword">new</span> InboundOutboundHandlerX());</span><br></pre></td></tr></table></figure>
+<p>在上面的代码中，以 Inbound 开头的 Handler 代表 InboundHandler，以 Outbound 开头的 Handler 代表 OutboundHandler。对于入站（inbound）事件而言，Handler 执行顺序为 1，2，3，4，5，由于 3 和 4 是 Outbound Handler，执行的时候会直接跳过，真正执行的 Handler 顺序为 1，2，5；对于 Outbound 而言，执行相反的顺序：5，4，3，2，1，跳过 2 和 1，最后的执行顺序为 5，4，3。因为 5 同时实现了 ChannelInboundHandler 和 ChannelOutboundHandler，入站和出站事件都需要执行它。</p>
+<p>如果添加的 Handler 比较耗时，建议将该 Handler 提交到指定的线程中处理，以免阻塞 I/O 线程，如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">ChannelPipeline p = <span class="keyword">new</span> DefaultChannelPipeline();</span><br><span class="line"></span><br><span class="line">pipeline.addLast(<span class="string">"decoder"</span>, <span class="keyword">new</span> MyProtocolDecoder());</span><br><span class="line">pipeline.addLast(<span class="string">"encoder"</span>, <span class="keyword">new</span> MyProtocolEncoder());</span><br><span class="line"></span><br><span class="line">EventExecutorGroup group = <span class="keyword">new</span>  DefaultEventExecutorGroup(<span class="number">16</span>);</span><br><span class="line">pipeline.addLast(group, <span class="string">"handler"</span>, <span class="keyword">new</span> MyBusinessLogicHandler());</span><br></pre></td></tr></table></figure>
+<h3 id="1-2-事件传播"><a href="#1-2-事件传播" class="headerlink" title="1.2 事件传播"></a>1.2 事件传播</h3><p>在 ChannelPipeline 中，事件主要主要是通过调用 ChannelHandlerContext 中的方法进行传播，这些方法包括：</p>
+<p><strong>Inbound event propagation method</strong></p>
+<ul>
+<li>ChannelHandlerContext#fireChannelRegistered()        </li>
+<li>ChannelHandlerContext#fireChannelActive()            </li>
+<li>ChannelHandlerContext#fireChannelRead(Object)        </li>
+<li>ChannelHandlerContext#fireChannelReadComplete()      </li>
+<li>ChannelHandlerContext#fireExceptionCaught(Throwable) </li>
+<li>ChannelHandlerContext#fireUserEventTriggered(Object) </li>
+<li>ChannelHandlerContext#fireChannelWritabilityChanged()</li>
+<li>ChannelHandlerContext#fireChannelInactive()          </li>
+<li>ChannelHandlerContext#fireChannelUnregistered() </li>
+</ul>
+<p><strong>Outbound event propagation method</strong></p>
+<ul>
+<li>ChannelHandlerContext#bind(SocketAddress, ChannelPromise)</li>
+<li>ChannelHandlerContext#connect(SocketAddress, SocketAddress, ChannelPromise)</li>
+<li>ChannelHandlerContext#write(Object, ChannelPromise)</li>
+<li>ChannelHandlerContext#flush()</li>
+<li>ChannelHandlerContext#read()</li>
+<li>ChannelHandlerContext#disconnect(ChannelPromise)</li>
+<li>ChannelHandlerContext#close(ChannelPromise)</li>
+<li>ChannelHandlerContext#deregister(ChannelPromise)</li>
+</ul>
+<p>在处理完当前的 Handler 之后，需要调用 ChannelHandlerContext 中的传播方法，如 ctx.fireChannelActive() 和 ctx.close(promise)，如下面的代码所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyInboundHandler</span> <span class="keyword">extends</span> <span class="title">ChannelInboundHandlerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelActive</span><span class="params">(ChannelHandlerContext ctx)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"Connected!"</span>);</span><br><span class="line">        <span class="comment">// 将入站事件传播给下一个 Handler</span></span><br><span class="line">        ctx.fireChannelActive();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyOutboundHandler</span> <span class="keyword">extends</span> <span class="title">ChannelOutboundHandlerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">close</span><span class="params">( ChannelHandlerContext ctx, ChannelPromise promise)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"Closing .."</span>);</span><br><span class="line">        <span class="comment">// 将 close 事件传播给下一个 Handler</span></span><br><span class="line">        ctx.close(promise);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="2-数据结构"><a href="#2-数据结构" class="headerlink" title="2. 数据结构"></a>2. 数据结构</h2><p>上面讲述了 ChannelPipeline 的整体流程，现在我们分析下 ChannelPipeline 的数据结构及 ChannelPipeline,ChannelHandlerContext,ChannelHandler 三者之间的关系。</p>
+<h3 id="2-1-整体结构"><a href="#2-1-整体结构" class="headerlink" title="2.1 整体结构"></a>2.1 整体结构</h3><p><img src="/images/netty/netty-channel-pipeline.jpg" alt="netty-channel-pipeline" title="netty-channel-pipeline"></p>
+<p>如图所示：</p>
+<ol>
+<li>ChannelHandler 与 ChannelHandlerContext 是一一对应关系，ChannelHandlerContext 持有 ChannelHandler 的引用；</li>
+<li>多个 ChannelHandlerContext 之间使用双向循环链表进行关联；</li>
+<li>ChannelPipeline 持有 ChannelHandlerContext 链表 head,tail 结点的引用；</li>
+<li>HeadContext,TailContext 是特殊的 ChannelHandlerContext，它们不仅继承了 ChannelHandlerContext，也继承了 ChannelHandler，所以不需要引用 ChannelHandler；</li>
+<li>入站事件 Handler 执行顺序为：head –&gt; tail，出站事件则相反：tail –&gt; head。</li>
+</ol>
+<p><strong>HeadContext</strong><br>HeadContext 是一个特殊的 ChannelHandlerContext，它不仅继承了 AbstractChannelHandlerContext，同时也继承了出站和入站的 ChannelHandler，这有以下的特点：</p>
+<ol>
+<li>对于入站事件，它是第一个执行的 ChannelHandler，内部做了一些处理之后，调用 ChannelHandlerContext 相对应的方法，将事件传播给下一个 ChannelHandler；</li>
+<li>对于出站事件，它是最后一个执行的 ChannelHandler，它直接调用 AbstractChannel.AbstractUnsafe 的方法，由 AbstractUnsafe 做处理。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">HeadContext</span> <span class="keyword">extends</span> <span class="title">AbstractChannelHandlerContext</span></span></span><br><span class="line"><span class="class">        <span class="keyword">implements</span> <span class="title">ChannelOutboundHandler</span>, <span class="title">ChannelInboundHandler</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 指向 AbstractChannel.AbstractUnsafe</span></span><br><span class="line">    <span class="comment">// 调用 channel 底层的网络接口</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Unsafe unsafe;</span><br><span class="line"></span><br><span class="line">    HeadContext(DefaultChannelPipeline pipeline) &#123;</span><br><span class="line">        <span class="keyword">super</span>(pipeline, <span class="keyword">null</span>, HEAD_NAME, HeadContext<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">        unsafe = pipeline.channel().unsafe();</span><br><span class="line">        setAddComplete();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 出站回调，调用底层的 bind 接口</span></span><br><span class="line">    <span class="comment">// HeadContext 是最后一个出站的 handler, 不用再调用 handler</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">bind</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            ChannelHandlerContext ctx, SocketAddress localAddress, ChannelPromise promise)</span> </span>&#123;</span><br><span class="line">        unsafe.bind(localAddress, promise);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 入站回调，传播下一个 handler</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRegistered</span><span class="params">(ChannelHandlerContext ctx)</span> </span>&#123;</span><br><span class="line">        invokeHandlerAddedIfNeeded();</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 将事件传播给下一个 handler</span></span><br><span class="line">        ctx.fireChannelRegistered();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRead</span><span class="params">(ChannelHandlerContext ctx, Object msg)</span> </span>&#123;</span><br><span class="line">        ctx.fireChannelRead(msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ... </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>TailContext</strong></p>
+<p>TailContext 同样是一个特殊的 ChannelHandlerContext，它除了继承 AbstractChannelHandlerContext，也同时继承了入站的 ChannelInboundHandler，它是最后一个执行的 ChannelInboundHandler，回调的方法大部分是空方法，不做业务处理。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">TailContext</span> <span class="keyword">extends</span> <span class="title">AbstractChannelHandlerContext</span> <span class="keyword">implements</span> <span class="title">ChannelInboundHandler</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    TailContext(DefaultChannelPipeline pipeline) &#123;</span><br><span class="line">        <span class="keyword">super</span>(pipeline, <span class="keyword">null</span>, TAIL_NAME, TailContext<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">        setAddComplete();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ChannelHandler <span class="title">handler</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 入站方向，最后一个ChannelInboundHandler，不处处理</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRegistered</span><span class="params">(ChannelHandlerContext ctx)</span> </span>&#123; &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 入站方向，最后一个ChannelInboundHandler，不处处理</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRead</span><span class="params">(ChannelHandlerContext ctx, Object msg)</span> </span>&#123;</span><br><span class="line">        onUnhandledInboundMessage(ctx, msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelReadComplete</span><span class="params">(ChannelHandlerContext ctx)</span> </span>&#123;</span><br><span class="line">        onUnhandledInboundChannelReadComplete();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="2-2-初始化"><a href="#2-2-初始化" class="headerlink" title="2.2 初始化"></a>2.2 初始化</h3><p>ChannelInitializer 是一个特殊的 ChannelInboundHandlerAdapter 子类，通过 initChannel 方法，当 Channel 注册到 EventLoop 之后，就会调用该方法，完成 ChannelHandler 的添加。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 自定义 ChannelInitializer，初始化 Handler</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyChannelInitializer</span> <span class="keyword">extends</span> <span class="title">ChannelInitializer</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(Channel channel)</span> </span>&#123;</span><br><span class="line">        channel.pipeline().addLast(<span class="string">"myHandler1"</span>, <span class="keyword">new</span> MyHandler1());</span><br><span class="line">        channel.pipeline().addLast(<span class="string">"myHandler2"</span>, <span class="keyword">new</span> MyHandler2());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ServerBootstrap bootstrap = <span class="keyword">new</span> ServerBootstrap();</span><br><span class="line"><span class="comment">// 设置 ChannelInitializer</span></span><br><span class="line">bootstrap.childHandler(<span class="keyword">new</span> MyChannelInitializer());</span><br><span class="line"></span><br><span class="line"><span class="comment">// ChannelInitializer</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">ChannelInitializer</span>&lt;<span class="title">C</span> <span class="keyword">extends</span> <span class="title">Channel</span>&gt; <span class="keyword">extends</span> <span class="title">ChannelInboundHandlerAdapter</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 初始化方法</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(C ch)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">handlerAdded</span><span class="params">(ChannelHandlerContext ctx)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (ctx.channel().isRegistered()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (initChannel(ctx)) &#123;</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 执行完 initChannel 之后 ，将 ChannelInitializer 自己移除</span></span><br><span class="line">                removeState(ctx);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ChannelInitializer 类特殊的地方在于，执行 initChannel 方法之后，ChannelInitializer 实例将会从 ChannelPipeline 中移除。</p>
+<h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h2><p>ChannelPipeline 是 Netty 中的一个重要组件，它是 ChannelHandler 的容器类，管理着入站和出站 ChannelHandler 列表，并通过 ChannelHandlerContext 在 ChannelHandler 间传播 I/O 事件。同时ChannelPipeline 实现了责任链的设计模式， 业务逻辑可以按照功能拆分为多个独立的 ChannelHandler ，如果需要更新某个 ChannelHandler ，不用改动其它 ChannelHandler，使得应用具有较好的扩展性。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ChannelPipeline/" rel="tag"># ChannelPipeline</a>
+          
+            <a href="/tags/DefaultChannelPipeline/" rel="tag"># DefaultChannelPipeline</a>
+          
+            <a href="/tags/ChannelHandler/" rel="tag"># ChannelHandler</a>
+          
+            <a href="/tags/ChannelHandlerContext/" rel="tag"># ChannelHandlerContext</a>
+          
+            <a href="/tags/Intercepting-Filter/" rel="tag"># Intercepting Filter</a>
+          
+            <a href="/tags/责任链/" rel="tag"># 责任链</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/08/26/netty-server-bootstrap/" rel="next" title="Netty 系列：ServerBootstrap">
+                <i class="fa fa-chevron-left"></i> Netty 系列：ServerBootstrap
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/08/29/netty-eventloop/" rel="prev" title="Netty 系列：EventLoop">
+                Netty 系列：EventLoop <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">44</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">153</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-整体流程"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 整体流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-事件传播"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 事件传播</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-数据结构"><span class="nav-number">2.</span> <span class="nav-text">2. 数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-整体结构"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 整体结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-初始化"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 初始化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-总结"><span class="nav-number">3.</span> <span class="nav-text">3. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">184k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">2:47</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

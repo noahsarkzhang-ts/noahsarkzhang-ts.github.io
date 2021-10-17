@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概述EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：  负责监听 SocketChanne">
+<meta name="keywords" content="EventLoop,事件循环">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Netty 系列：EventLoop">
+<meta property="og:url" content="http://yoursite.com/2021/08/29/netty-eventloop/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概述EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：  负责监听 SocketChanne">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2021-09-19T03:15:49.154Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Netty 系列：EventLoop">
+<meta name="twitter:description" content="1. 概述EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：  负责监听 SocketChanne">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/08/29/netty-eventloop/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Netty 系列：EventLoop | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/08/29/netty-eventloop/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Netty 系列：EventLoop
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-08-29 21:17:38" itemprop="dateCreated datePublished" datetime="2021-08-29T21:17:38+08:00">2021-08-29</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-09-19 11:15:49" itemprop="dateModified" datetime="2021-09-19T11:15:49+08:00">2021-09-19</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Netty/" itemprop="url" rel="index"><span itemprop="name">Netty</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">107k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1:37</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：</p>
+<ol>
+<li>负责监听 SocketChannel 对象的 I/O 事件；</li>
+<li>处理分发 I/O 事件；</li>
+<li>执行任务，包括定时任务。</li>
+</ol>
+<p>整体的处理流程如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> selectCnt = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 1、监听 Channel 网络事件</span></span><br><span class="line">            <span class="keyword">if</span> (!hasTasks()) &#123;</span><br><span class="line">                strategy = select(curDeadlineNanos);</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">int</span> ioRatio = <span class="keyword">this</span>.ioRatio;</span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">long</span> ioStartTime = System.nanoTime();</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 2、处理网络事件 </span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                processSelectedKeys();</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">final</span> <span class="keyword">long</span> ioTime = System.nanoTime() - ioStartTime;</span><br><span class="line">                </span><br><span class="line">                <span class="comment">// 3、执行任务</span></span><br><span class="line">                ranTasks = runAllTasks(ioTime * (<span class="number">100</span> - ioRatio) / ioRatio);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            handleLoopException(t);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// ... </span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>说明：</strong> 代码以 NioEventLoop 为例。</p>
+<h2 id="2-流程"><a href="#2-流程" class="headerlink" title="2. 流程"></a>2. 流程</h2><p>上文分析了 EventLoop 的主要功能，在这部分内容中主要讲述这三大功能及线程的创建，我们先从线程的创建开始。</p>
+<h3 id="2-1-线程创建"><a href="#2-1-线程创建" class="headerlink" title="2.1 线程创建"></a>2.1 线程创建</h3><p>线程相关的变量：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// EventLoop 线程对象</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">volatile</span> Thread thread;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 线程状态</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">int</span> state = ST_NOT_STARTED;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ST_NOT_STARTED = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ST_STARTED = <span class="number">2</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ST_SHUTTING_DOWN = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ST_SHUTDOWN = <span class="number">4</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ST_TERMINATED = <span class="number">5</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 事件执行器，线程池</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> Executor executor;</span><br></pre></td></tr></table></figure>
+<p>EventLoop 中持有一个线程的引用，在第一次执行任务的时候启动，提供任务的线程如果已经是 EventLoop 线程，将任务提交给任务即可，如果是非 EventLoop 线程，则需要启动 EventLoop 线程。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable task, <span class="keyword">boolean</span> immediate)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">boolean</span> inEventLoop = inEventLoop();</span><br><span class="line">    addTask(task);</span><br><span class="line">    <span class="keyword">if</span> (!inEventLoop) &#123;</span><br><span class="line">        startThread();</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>EventLoop 中通过 state 字段来标识是否启动，通过判断该字段来决定是否启动线程，其中 state 字段是 volatile 类型，并通过 AtomicIntegerFieldUpdater 进行原子更新，保证线程的安全。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">startThread</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (state == ST_NOT_STARTED) &#123;</span><br><span class="line">        <span class="keyword">if</span> (STATE_UPDATER.compareAndSet(<span class="keyword">this</span>, ST_NOT_STARTED, ST_STARTED)) &#123;</span><br><span class="line">            <span class="keyword">boolean</span> success = <span class="keyword">false</span>;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                doStartThread();</span><br><span class="line">                success = <span class="keyword">true</span>;</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (!success) &#123;</span><br><span class="line">                    STATE_UPDATER.compareAndSet(<span class="keyword">this</span>, ST_STARTED, ST_NOT_STARTED);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>线程的启动是通过 executor 添加一个任务，在 executor 中启动一个线程，再把该线程赋值给 EventLoop，等同于使用了只有一个线程的线程池来生成线程。可以看到，任务的主体是 SingleThreadEventExecutor.this.run() 方法，该方法就是前文说到的 EventLoop 主体业务逻辑。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doStartThread</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">assert</span> thread == <span class="keyword">null</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 使用 executor 来启动线程</span></span><br><span class="line">    executor.execute(<span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="comment">// 设置线程变量</span></span><br><span class="line">            thread = Thread.currentThread();</span><br><span class="line">            <span class="keyword">if</span> (interrupted) &#123;</span><br><span class="line">                thread.interrupt();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">boolean</span> success = <span class="keyword">false</span>;</span><br><span class="line">            updateLastExecutionTime();</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="comment">// 执行 EventLoop 的业务逻辑</span></span><br><span class="line">                SingleThreadEventExecutor.<span class="keyword">this</span>.run();</span><br><span class="line">                success = <span class="keyword">true</span>;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">                logger.warn(<span class="string">"Unexpected exception from an event executor: "</span>, t);</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="comment">// ...</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>executor 使用的是 ThreadPerTaskExecutor 对象，在 NioEventLoopGroup 初始化的时候生成。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Executor 为 null</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">NioEventLoopGroup</span><span class="params">(<span class="keyword">int</span> nThreads)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>(nThreads, (Executor) <span class="keyword">null</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="title">MultithreadEventExecutorGroup</span><span class="params">(<span class="keyword">int</span> nThreads, Executor executor,</span></span></span><br><span class="line"><span class="function"><span class="params">                                        EventExecutorChooserFactory chooserFactory, Object... args)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 如果 Executor 为 null,则使用 ThreadPerTaskExecutor</span></span><br><span class="line">    <span class="keyword">if</span> (executor == <span class="keyword">null</span>) &#123;</span><br><span class="line">        executor = <span class="keyword">new</span> ThreadPerTaskExecutor(newDefaultThreadFactory());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    children = <span class="keyword">new</span> EventExecutor[nThreads];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; nThreads; i ++) &#123;</span><br><span class="line">        <span class="keyword">boolean</span> success = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 生成 EventLoop</span></span><br><span class="line">            children[i] = newChild(executor, args);</span><br><span class="line">            success = <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            </span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"failed to create a child event loop"</span>, e);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// ...</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> EventLoop <span class="title">newChild</span><span class="params">(Executor executor, Object... args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    EventLoopTaskQueueFactory queueFactory = args.length == <span class="number">4</span> ? (EventLoopTaskQueueFactory) args[<span class="number">3</span>] : <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> NioEventLoop(<span class="keyword">this</span>, executor, (SelectorProvider) args[<span class="number">0</span>],</span><br><span class="line">        ((SelectStrategyFactory) args[<span class="number">1</span>]).newSelectStrategy(), (RejectedExecutionHandler) args[<span class="number">2</span>], queueFactory);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ThreadPerTaskExecutor 执行器会生成一个新的线程来执行新的任务，该线程就是 FastThreadLocalThread 对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadPerTaskExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 线程工厂对象</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ThreadFactory threadFactory;</span><br><span class="line">   </span><br><span class="line">    <span class="comment">// 生成一个新的线程执行任务</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable command)</span> </span>&#123;</span><br><span class="line">        threadFactory.newThread(command).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DefaultThreadFactory</span> <span class="keyword">implements</span> <span class="title">ThreadFactory</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 生成一个新的线程对象</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Thread <span class="title">newThread</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        Thread t = newThread(FastThreadLocalRunnable.wrap(r), prefix + nextId.incrementAndGet());</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> t;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 生成 FastThreadLocalThread 线程</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> Thread <span class="title">newThread</span><span class="params">(Runnable r, String name)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> FastThreadLocalThread(threadGroup, r, name);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过上面的代码分析，EventLoop 中的线程由 ThreadPerTaskExecutor 执行器生成，线程对象为 DefaultThreadFactory。</p>
+<h3 id="2-3-监听网络-I-O-事件"><a href="#2-3-监听网络-I-O-事件" class="headerlink" title="2.3 监听网络 I/O 事件"></a>2.3 监听网络 I/O 事件</h3><p>Selector 相关的变量：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// NioEventLoop</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> Selector selector;</span><br><span class="line"><span class="keyword">private</span> Selector unwrappedSelector;</span><br><span class="line"><span class="keyword">private</span> SelectedSelectionKeySet selectedKeys;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> SelectorProvider provider;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> AWAKE = -<span class="number">1L</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> NONE = Long.MAX_VALUE;</span><br><span class="line"></span><br><span class="line"><span class="comment">// nextWakeupNanos is:</span></span><br><span class="line"><span class="comment">//    AWAKE            when EL is awake</span></span><br><span class="line"><span class="comment">//    NONE             when EL is waiting with no wakeup scheduled</span></span><br><span class="line"><span class="comment">//    other value T    when EL is waiting with wakeup scheduled at time T</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> AtomicLong nextWakeupNanos = <span class="keyword">new</span> AtomicLong(AWAKE);</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> SelectStrategy selectStrategy;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">int</span> cancelledKeys;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">boolean</span> needsToSelectAgain;</span><br></pre></td></tr></table></figure>
+<p>在这个阶段有三个重点：</p>
+<ol>
+<li>设置 selector 的超时时间，主要是以下一个定时任务执行的时间间隔作为参考来设置超时时间，避免阻塞定时任务的准时执行；</li>
+<li>selector 唤醒的机制，如果超时时间过长，中途有任务插入，需要执行，此时需要中断 selector；</li>
+<li>重建 selector，解决 bug 8566。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> selectCnt = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">int</span> strategy;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());</span><br><span class="line">                <span class="keyword">switch</span> (strategy) &#123;</span><br><span class="line">                <span class="keyword">case</span> SelectStrategy.CONTINUE:</span><br><span class="line">                    <span class="keyword">continue</span>;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">case</span> SelectStrategy.BUSY_WAIT:</span><br><span class="line">                    <span class="comment">// fall-through to SELECT since the busy-wait is not supported with NIO</span></span><br><span class="line"></span><br><span class="line">                <span class="keyword">case</span> SelectStrategy.SELECT:</span><br><span class="line">                    <span class="comment">// 1、计算出下一个定时任务的时间间隔；</span></span><br><span class="line">                    <span class="keyword">long</span> curDeadlineNanos = nextScheduledTaskDeadlineNanos();</span><br><span class="line">                    <span class="keyword">if</span> (curDeadlineNanos == -<span class="number">1L</span>) &#123;</span><br><span class="line">                        curDeadlineNanos = NONE; <span class="comment">// nothing on the calendar</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    </span><br><span class="line">                    nextWakeupNanos.set(curDeadlineNanos);</span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        <span class="keyword">if</span> (!hasTasks()) &#123;</span><br><span class="line">                            <span class="comment">// 2、以下一个定时任务的时间间隔作为超时的时间，进行网络时间的监听</span></span><br><span class="line">                            strategy = select(curDeadlineNanos);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                        nextWakeupNanos.lazySet(AWAKE);</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// fall through</span></span><br><span class="line">                <span class="keyword">default</span>:</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">                <span class="comment">// If we receive an IOException here its because the Selector is messed up. Let's rebuild</span></span><br><span class="line">                <span class="comment">// the selector and retry. https://github.com/netty/netty/issues/8566</span></span><br><span class="line">                <span class="comment">// 3、创建 Selector，解决 bug 8566。</span></span><br><span class="line">                rebuildSelector0();</span><br><span class="line">                selectCnt = <span class="number">0</span>;</span><br><span class="line">                handleLoopException(e);</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// ...</span></span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            handleLoopException(t);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// ...</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>计算下一个定时任务执行的时间间隔逻辑比较简单，将 ScheduledFutureTask 任务添加到 scheduledTaskQueue 队列中，而 scheduledTaskQueue 是一个优先级队列，它已经将 ScheduledFutureTask 根据执行时间进行了排序，取出的第一个元素便是最近将要执行的任务，计算它还需要多久需要执行便可。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 计算下一个定时任务执行的时间间隔</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">long</span> <span class="title">nextScheduledTaskDeadlineNanos</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    ScheduledFutureTask&lt;?&gt; scheduledTask = peekScheduledTask();</span><br><span class="line">    <span class="keyword">return</span> scheduledTask != <span class="keyword">null</span> ? scheduledTask.deadlineNanos() : -<span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 取下一个执行的定时任务</span></span><br><span class="line"><span class="keyword">final</span> ScheduledFutureTask&lt;?&gt; peekScheduledTask() &#123;</span><br><span class="line">    Queue&lt;ScheduledFutureTask&lt;?&gt;&gt; scheduledTaskQueue = <span class="keyword">this</span>.scheduledTaskQueue;</span><br><span class="line">    <span class="keyword">return</span> scheduledTaskQueue != <span class="keyword">null</span> ? scheduledTaskQueue.peek() : <span class="keyword">null</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 优先级队列</span></span><br><span class="line">PriorityQueue&lt;ScheduledFutureTask&lt;?&gt;&gt; scheduledTaskQueue = <span class="keyword">new</span> DefaultPriorityQueue&lt;ScheduledFutureTask&lt;?&gt;&gt;(</span><br><span class="line">                    SCHEDULED_FUTURE_TASK_COMPARATOR,</span><br><span class="line">                    <span class="comment">// Use same initial capacity as java.util.PriorityQueue</span></span><br><span class="line">                    <span class="number">11</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// ScheduledFutureTask</span></span><br><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ScheduledFutureTask</span>&lt;<span class="title">V</span>&gt; <span class="keyword">extends</span> <span class="title">PromiseTask</span>&lt;<span class="title">V</span>&gt; <span class="keyword">implements</span> <span class="title">ScheduledFuture</span>&lt;<span class="title">V</span>&gt;, <span class="title">PriorityQueueNode</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> START_TIME = System.nanoTime();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// set once when added to priority queue</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">long</span> id;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">long</span> deadlineNanos;</span><br><span class="line">    <span class="comment">/* 0 - no repeat, &gt;0 - repeat at fixed rate, &lt;0 - repeat with fixed delay */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> periodNanos;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> queueIndex = INDEX_NOT_IN_QUEUE;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 根据 deadlineNanos 及 id 进行排序</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">compareTo</span><span class="params">(Delayed o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span> == o) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ScheduledFutureTask&lt;?&gt; that = (ScheduledFutureTask&lt;?&gt;) o;</span><br><span class="line">        <span class="keyword">long</span> d = deadlineNanos() - that.deadlineNanos();</span><br><span class="line">        <span class="keyword">if</span> (d &lt; <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (d &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (id &lt; that.id) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">assert</span> id != that.id;</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">   <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>外部线程执行新任务的时候，任务需要立即执行的话，需要唤醒 selector，避免因 selector 长时间等待错过执行时机。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 执行新任务</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable task, <span class="keyword">boolean</span> immediate)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果任务需要立即执行，则需要中断 Selector。</span></span><br><span class="line">    <span class="keyword">if</span> (!addTaskWakesUp &amp;&amp; immediate) &#123;</span><br><span class="line">        wakeup(inEventLoop);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 唤醒 selector</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">wakeup</span><span class="params">(<span class="keyword">boolean</span> inEventLoop)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!inEventLoop &amp;&amp; nextWakeupNanos.getAndSet(AWAKE) != AWAKE) &#123;</span><br><span class="line">        selector.wakeup();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>重建 selector，解决 bug 8566 的逻辑，后续有时间再另外分析。</p>
+<h3 id="2-4-处理及分发网络-I-O-事件"><a href="#2-4-处理及分发网络-I-O-事件" class="headerlink" title="2.4 处理及分发网络 I/O 事件"></a>2.4 处理及分发网络 I/O 事件</h3><p>在 NioEventLoop 中，处理 I/O 事件的时间与执行任务的时间比率为 1:1，即两者的执行时间是相等的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 默认情况下处理 I/O 事件的时间比率为 50%，即 I/O 处理的时间占执行时间的 50 %。</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">int</span> ioRatio = <span class="number">50</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">long</span> ioStartTime = System.nanoTime();</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">// 处理 I/O 事件</span></span><br><span class="line">    processSelectedKeys();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    <span class="comment">// Ensure we always run tasks.</span></span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> ioTime = System.nanoTime() - ioStartTime;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 执行任务</span></span><br><span class="line">    ranTasks = runAllTasks(ioTime * (<span class="number">100</span> - ioRatio) / ioRatio);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在分析 I/O 事件的处理，这里提供了两种方式，一种是经过 Netty 优化过数据结构的方式，一种是 Java 原生的方式，它们之间的区别主要是存放 SelectionKey 对象的底层数据结构的差异，而处理流程没有变。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">processSelectedKeys</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (selectedKeys != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 优化的处理方式</span></span><br><span class="line">        processSelectedKeysOptimized();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        processSelectedKeysPlain(selector.selectedKeys());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>优化的方法主要是通过反射的方式，将 Selector 中 selectedKeys 和 publicSelectedKeys 字段替换为 Netty 版的 SelectedSelectionKeySet。数据结构做了那些优化可以再深入分析源码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> Selector unwrappedSelector;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    unwrappedSelector = provider.openSelector();</span><br><span class="line">&#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> ChannelException(<span class="string">"failed to open a new selector"</span>, e);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> Class&lt;?&gt; selectorImplClass = (Class&lt;?&gt;) maybeSelectorImplClass;</span><br><span class="line"><span class="keyword">final</span> SelectedSelectionKeySet selectedKeySet = <span class="keyword">new</span> SelectedSelectionKeySet()</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">        Field selectedKeysField = selectorImplClass.getDeclaredField(<span class="string">"selectedKeys"</span>);</span><br><span class="line">        Field publicSelectedKeysField = selectorImplClass.getDeclaredField(<span class="string">"publicSelectedKeys"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// java 9 以上版本，设置 selectedKeysField 及 publicSelectedKeysField 的方式</span></span><br><span class="line">        <span class="keyword">if</span> (PlatformDependent.javaVersion() &gt;= <span class="number">9</span> &amp;&amp; PlatformDependent.hasUnsafe()) &#123;</span><br><span class="line">            <span class="keyword">long</span> selectedKeysFieldOffset = PlatformDependent.objectFieldOffset(selectedKeysField);</span><br><span class="line">            <span class="keyword">long</span> publicSelectedKeysFieldOffset =</span><br><span class="line">                    PlatformDependent.objectFieldOffset(publicSelectedKeysField);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (selectedKeysFieldOffset != -<span class="number">1</span> &amp;&amp; publicSelectedKeysFieldOffset != -<span class="number">1</span>) &#123;</span><br><span class="line">                PlatformDependent.putObject(</span><br><span class="line">                        unwrappedSelector, selectedKeysFieldOffset, selectedKeySet);</span><br><span class="line">                PlatformDependent.putObject(</span><br><span class="line">                        unwrappedSelector, publicSelectedKeysFieldOffset, selectedKeySet);</span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// java 9 以下版本，设置字段的方式</span></span><br><span class="line">        Throwable cause = ReflectionUtil.trySetAccessible(selectedKeysField, <span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">if</span> (cause != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> cause;</span><br><span class="line">        &#125;</span><br><span class="line">        cause = ReflectionUtil.trySetAccessible(publicSelectedKeysField, <span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">if</span> (cause != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> cause;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        selectedKeysField.set(unwrappedSelector, selectedKeySet);</span><br><span class="line">        publicSelectedKeysField.set(unwrappedSelector, selectedKeySet);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (NoSuchFieldException e) &#123;</span><br><span class="line">        <span class="keyword">return</span> e;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">        <span class="keyword">return</span> e;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>处理 I/O 事件的大致流程如下：</p>
+<ol>
+<li>遍历 selectedKeys 集合，处理所有 Channel 的 I/O 事件，一个 SelectionKey 对象代表一个 Channel 的 I/O 事件；</li>
+<li>取出 SelectionKey 对象中的附件，该附件由 AbstractNioChannel.doRegister 方法注册到 Selector 对象上，附件就是 AbstractNioChannel 自身，触发 I/O 事件时，再由 SelectionKey 对象返回；</li>
+<li>根据附件对象的不同，调用不同的处理逻辑，这里主要是处理 Channel 的 I/O 事件</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">processSelectedKeysOptimized</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 遍历 selectedKeys 集合，处理所有 Channel 的 I/O 事件</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; selectedKeys.size; ++i) &#123;</span><br><span class="line">        <span class="keyword">final</span> SelectionKey k = selectedKeys.keys[i];</span><br><span class="line">        <span class="comment">// null out entry in the array to allow to have it GC'ed once the Channel close</span></span><br><span class="line">        <span class="comment">// See https://github.com/netty/netty/issues/2363</span></span><br><span class="line">        selectedKeys.keys[i] = <span class="keyword">null</span>;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 取出 SelectionKey 对象中的附件，由注册方法添加到 Selector 对象中。</span></span><br><span class="line">        <span class="keyword">final</span> Object a = k.attachment();</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 根据附件对象的不同，调用不同的处理逻辑，这里主要是处理 Channel 的 I/O 事件 </span></span><br><span class="line">        <span class="keyword">if</span> (a <span class="keyword">instanceof</span> AbstractNioChannel) &#123;</span><br><span class="line">            processSelectedKey(k, (AbstractNioChannel) a);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="meta">@SuppressWarnings</span>(<span class="string">"unchecked"</span>)</span><br><span class="line">            NioTask&lt;SelectableChannel&gt; task = (NioTask&lt;SelectableChannel&gt;) a;</span><br><span class="line">            processSelectedKey(k, task);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (needsToSelectAgain) &#123;</span><br><span class="line">            <span class="comment">// null out entries in the array to allow to have it GC'ed once the Channel close</span></span><br><span class="line">            <span class="comment">// See https://github.com/netty/netty/issues/2363</span></span><br><span class="line">            selectedKeys.reset(i + <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">            selectAgain();</span><br><span class="line">            i = -<span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// AbstractNioChannel 注册方法</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">doRegister</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">boolean</span> selected = <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 将 AbstractNioChannel 以附件的方式注册到 Selector 中。</span></span><br><span class="line">            selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), <span class="number">0</span>, <span class="keyword">this</span>);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (CancelledKeyException e) &#123;</span><br><span class="line">           <span class="comment">// ...</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 注册方法的申明</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">abstract</span> SelectionKey <span class="title">register</span><span class="params">(Selector sel, <span class="keyword">int</span> ops, Object att)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> ClosedChannelException</span>;</span><br></pre></td></tr></table></figure>
+<p>真正的处理逻辑在 processSelectedKey 方法中处理，这里有两个重点：</p>
+<ol>
+<li>写缓存空间充足，注册 OP_WRITE 事件会频繁触发，导致 cpu 空转，所以正常情况下，不需要注册 OP_WRITE 事件，只有在写缓存满的时候才会注册该事件，触发之后进行刷新操作；</li>
+<li>在 Netty 中，将 OP_ACCEPT 当作读操作，只不过它读取的数据比较特殊，是 SocketChannel 对象。</li>
+</ol>
+<p>事件的处理逻辑包含在 AbstractNioChannel.NioUnsafe 中，由该方法调用 ChannelPipeline 中的回调方法，至此，将事件处理由网络层传递给 Netty 框架层。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">processSelectedKey</span><span class="params">(SelectionKey k, AbstractNioChannel ch)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// unsafe</span></span><br><span class="line">    <span class="keyword">final</span> AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">int</span> readyOps = k.readyOps();</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 1、处理 OP_CONNECT 事件</span></span><br><span class="line">        <span class="keyword">if</span> ((readyOps &amp; SelectionKey.OP_CONNECT) != <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> ops = k.interestOps();</span><br><span class="line">            ops &amp;= ~SelectionKey.OP_CONNECT;</span><br><span class="line">            k.interestOps(ops);</span><br><span class="line"></span><br><span class="line">            unsafe.finishConnect();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2、处理 OP_WRITE 事件，正常情况下，不需要注册 OP_WRITE 事件，</span></span><br><span class="line">        <span class="comment">// 只有在写缓存满的时候才会注册该事件。</span></span><br><span class="line">        <span class="keyword">if</span> ((readyOps &amp; SelectionKey.OP_WRITE) != <span class="number">0</span>) &#123;</span><br><span class="line">           </span><br><span class="line">            ch.unsafe().forceFlush();</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 3、处理 OP_READ 及 OP_ACCEPT 事件。在 Netty 中，将 OP_ACCEPT 当作读操作，只不过</span></span><br><span class="line">        <span class="comment">// 它读取的数据比较特殊，是 SocketChannel 对象。</span></span><br><span class="line">        <span class="keyword">if</span> ((readyOps &amp; (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != <span class="number">0</span> || readyOps == <span class="number">0</span>) &#123;</span><br><span class="line">            unsafe.read();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (CancelledKeyException ignored) &#123;</span><br><span class="line">        unsafe.close(unsafe.voidPromise());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以 unsafe.read() 为例，在 NioMessageUnsafe 类的实现中，读取操作会调用 AbstractNioChannel 子类的 doReadMessages 方法读取网络数据，并写入到 readBuf 中，再调用 ChannelPipeline 中的 fireChannelRead 方法将数据传递给 Netty 框架层。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">NioMessageUnsafe</span> <span class="keyword">extends</span> <span class="title">AbstractNioUnsafe</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读 Buffer</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> List&lt;Object&gt; readBuf = <span class="keyword">new</span> ArrayList&lt;Object&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">read</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">final</span> ChannelConfig config = config();</span><br><span class="line">        <span class="keyword">final</span> ChannelPipeline pipeline = pipeline();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">boolean</span> closed = <span class="keyword">false</span>;</span><br><span class="line">        Throwable exception = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">do</span> &#123;</span><br><span class="line">                    <span class="comment">// 1、调用读取操作</span></span><br><span class="line">                    <span class="keyword">int</span> localRead = doReadMessages(readBuf);</span><br><span class="line">                    </span><br><span class="line">                &#125; <span class="keyword">while</span> (allocHandle.continueReading());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">                exception = t;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">int</span> size = readBuf.size();</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; size; i ++) &#123;</span><br><span class="line">                readPending = <span class="keyword">false</span>;</span><br><span class="line">                <span class="comment">// 2、触发 fireChannelRead 方法</span></span><br><span class="line">                pipeline.fireChannelRead(readBuf.get(i));</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// .. </span></span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">           <span class="comment">// ...</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 NioServerSocketChannel 类 doReadMessages 实现中，读取到的数据是 SocketChannel，该对象会分配给 WorkerGroup 中，由 WorkerGroup 中的 EventLoop 去读取网络数据。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// NioServerSocketChannel</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">int</span> <span class="title">doReadMessages</span><span class="params">(List&lt;Object&gt; buf)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    SocketChannel ch = SocketUtils.accept(javaChannel());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (ch != <span class="keyword">null</span>) &#123;</span><br><span class="line">            buf.add(<span class="keyword">new</span> NioSocketChannel(<span class="keyword">this</span>, ch));</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而在 NioSocketChannel 类的 doReadBytes 实现中，读取到的是 ByteBuf，传递给上层的是 ByteBuf 对象，上层对象再对其进行反序列化、业务处理等操作。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// NioSocketChannel</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">int</span> <span class="title">doReadBytes</span><span class="params">(ByteBuf byteBuf)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();</span><br><span class="line">    allocHandle.attemptedBytesRead(byteBuf.writableBytes());</span><br><span class="line">    <span class="keyword">return</span> byteBuf.writeBytes(javaChannel(), allocHandle.attemptedBytesRead());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，根据 I/O 事件的类型，将数据分发到了上层中，上层业务可以继续处理。</p>
+<h3 id="2-5-执行任务"><a href="#2-5-执行任务" class="headerlink" title="2.5 执行任务"></a>2.5 执行任务</h3><h4 id="2-5-1-执行流程"><a href="#2-5-1-执行流程" class="headerlink" title="2.5.1 执行流程"></a>2.5.1 执行流程</h4><p>执行任务相关的变量：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 任务队列</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> Queue&lt;Runnable&gt; taskQueue;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定时任务队列</span></span><br><span class="line">PriorityQueue&lt;ScheduledFutureTask&lt;?&gt;&gt; scheduledTaskQueue;</span><br></pre></td></tr></table></figure>
+<p>在 EventLoop 中，有两类任务，一是常规的任务，没有时间属性，二是周期性或延时的定时任务，它们分别存放到两个不同的队列。任务执行时，先将到期的定时任务从 scheduledTaskQueue 队列移动到 taskQueue 中，再统一执行 taskQueue 队列中的任务。</p>
+<p>任务执行的大致如下：</p>
+<ol>
+<li>将到期的定时任务移动到 taskQueue 中；</li>
+<li>计算此次执行的时长，如果执行的时间超过设定的执行时长，则退出进行下一轮的事件处理；</li>
+<li>遍历执行 taskQueue 中的任务，在两种情况下退出任务的执行：1）任务的执行时长超过了设定的执行时长；2）taskQueue 队列为空；</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">runAllTasks</span><span class="params">(<span class="keyword">long</span> timeoutNanos)</span> </span>&#123;</span><br><span class="line">	<span class="comment">// 1、将定时任务移动到 taskQueue 中</span></span><br><span class="line">    fetchFromScheduledTaskQueue();</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 2、从 taskQueue 中取出任务</span></span><br><span class="line">    Runnable task = pollTask();</span><br><span class="line">    <span class="keyword">if</span> (task == <span class="keyword">null</span>) &#123;</span><br><span class="line">        afterRunningAllTasks();</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 3、计算任务执行的时长，如果超过传入的执行时长，需要退出进行下一轮的事件处理。</span></span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> deadline = timeoutNanos &gt; <span class="number">0</span> ? ScheduledFutureTask.nanoTime() + timeoutNanos : <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">long</span> runTasks = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">long</span> lastExecutionTime;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">		</span><br><span class="line">		<span class="comment">// 4、执行任务</span></span><br><span class="line">        safeExecute(task);</span><br><span class="line"></span><br><span class="line">        runTasks ++;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 5、每执行完 64 个任务之后，判断是否超过传入的执行时长，若超过，则退出</span></span><br><span class="line">        <span class="keyword">if</span> ((runTasks &amp; <span class="number">0x3F</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">            lastExecutionTime = ScheduledFutureTask.nanoTime();</span><br><span class="line">            <span class="keyword">if</span> (lastExecutionTime &gt;= deadline) &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 6、执行下一个任务，如果任务为空，则退出</span></span><br><span class="line">        task = pollTask();</span><br><span class="line">        <span class="keyword">if</span> (task == <span class="keyword">null</span>) &#123;</span><br><span class="line">            lastExecutionTime = ScheduledFutureTask.nanoTime();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    afterRunningAllTasks();</span><br><span class="line">    <span class="keyword">this</span>.lastExecutionTime = lastExecutionTime;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>移动到期的定时任务逻辑相对简单：遍历 scheduledTaskQueue 队列，将到期的任务从 scheduledTaskQueue 队列中移除，再添加到 taskQueue 队列中，如果添加失败，则再添加回 scheduledTaskQueue 队列，等待下次再操作。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">fetchFromScheduledTaskQueue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 1、nanoTime 表示从程序启动到此时的时长；</span></span><br><span class="line">	<span class="comment">// 时间的判断都是根据相对时间来判断，起始时间为程序启动的时间</span></span><br><span class="line">    <span class="keyword">long</span> nanoTime = AbstractScheduledEventExecutor.nanoTime();</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">		</span><br><span class="line">		<span class="comment">// 2、取出到期的任务</span></span><br><span class="line">        Runnable scheduledTask = pollScheduledTask(nanoTime);</span><br><span class="line">        <span class="keyword">if</span> (scheduledTask == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">		</span><br><span class="line">		<span class="comment">// 3、将任务添加到 taskQueue 中</span></span><br><span class="line">        <span class="keyword">if</span> (!taskQueue.offer(scheduledTask)) &#123;</span><br><span class="line">           </span><br><span class="line">		   <span class="comment">// 4、如果添加失败，再添加回 scheduledTaskQueue 队列，等待下次添加</span></span><br><span class="line">            scheduledTaskQueue.add((ScheduledFutureTask&lt;?&gt;) scheduledTask);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在定时任务任务中超时的判断是基于相对时间的，起始时间为程序启动的时间。在 scheduledTask 中关联有一个任务执行的截止时间，将这个截止时间与当前计算的时间进行比较，小于当前的时间则说明已经过期，满足执行的条件，则需要将该任务移动到 taskQueue。</p>
+<p>另外，scheduledTaskQueue 是一个优先级队列，已经根据截止时间排序，队首的元素是最先到期的任务，如果取到了未到期的任务，则停止遍历，因为后面的任务截止时间更大，没有必要进行比较了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">final</span> Runnable <span class="title">pollScheduledTask</span><span class="params">(<span class="keyword">long</span> nanoTime)</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">assert</span> <span class="title">inEventLoop</span><span class="params">()</span></span>;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 1、取出队首的任务</span></span><br><span class="line">    ScheduledFutureTask&lt;?&gt; scheduledTask = peekScheduledTask();</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 2、判断任务是否过期，判断的逻辑是：比较任务的截止时间与当前时间进行比较，如果</span></span><br><span class="line">	<span class="comment">// 截止时间小于当前时间，则说明过期。</span></span><br><span class="line">    <span class="keyword">if</span> (scheduledTask == <span class="keyword">null</span> || scheduledTask.deadlineNanos() - nanoTime &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 3、移出对首的任务</span></span><br><span class="line">    scheduledTaskQueue.remove();</span><br><span class="line">    scheduledTask.setConsumed();</span><br><span class="line">    <span class="keyword">return</span> scheduledTask;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> START_TIME = System.nanoTime();</span><br><span class="line"><span class="comment">// 计算相对时间</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">long</span> <span class="title">nanoTime</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> System.nanoTime() - START_TIME;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 初始化 scheduledTaskQueue 队列</span></span><br><span class="line">PriorityQueue&lt;ScheduledFutureTask&lt;?&gt;&gt; scheduledTaskQueue() &#123;</span><br><span class="line">    <span class="keyword">if</span> (scheduledTaskQueue == <span class="keyword">null</span>) &#123;</span><br><span class="line">        scheduledTaskQueue = <span class="keyword">new</span> DefaultPriorityQueue&lt;ScheduledFutureTask&lt;?&gt;&gt;(</span><br><span class="line">                SCHEDULED_FUTURE_TASK_COMPARATOR,</span><br><span class="line">                <span class="comment">// Use same initial capacity as java.util.PriorityQueue</span></span><br><span class="line">                <span class="number">11</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> scheduledTaskQueue;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="2-5-2-任务的添加"><a href="#2-5-2-任务的添加" class="headerlink" title="2.5.2 任务的添加"></a>2.5.2 任务的添加</h4><p>上面分析了任务执行的流程，下面看下这两类任务怎么添加到任务队列中。</p>
+<p><strong>1、常规任务</strong></p>
+<p>常规任务是通过 execute 方法添加的，该方法含义上有执行的意思，但实际上执行该方法，只是将任务添加到 taskQueue 中，任务的执行最终是在 EventLoop 线程中完成的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 添加一个常规任务</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable task)</span> </span>&#123;</span><br><span class="line">    ObjectUtil.checkNotNull(task, <span class="string">"task"</span>);</span><br><span class="line">    execute(task, !(task <span class="keyword">instanceof</span> LazyRunnable) &amp;&amp; wakesUpForTask(task));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 添加或执行任务</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable task, <span class="keyword">boolean</span> immediate)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">boolean</span> inEventLoop = inEventLoop();</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 将任务添加到 taskQueue 队列</span></span><br><span class="line">    addTask(task);</span><br><span class="line">    <span class="keyword">if</span> (!inEventLoop) &#123;</span><br><span class="line">		<span class="comment">// 如果当前线程不是 EventLoop 线程，则尝试启动 EventLoop 线程。</span></span><br><span class="line">        startThread();</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 如果任务不是 LazyRunnable 或 NonWakeupRunnable 子类，则</span></span><br><span class="line">	<span class="comment">// 唤醒 EventLoop 线程，立即执行任务</span></span><br><span class="line">    <span class="keyword">if</span> (!addTaskWakesUp &amp;&amp; immediate) &#123;</span><br><span class="line">        wakeup(inEventLoop);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 添加任务</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">addTask</span><span class="params">(Runnable task)</span> </span>&#123;</span><br><span class="line">    ObjectUtil.checkNotNull(task, <span class="string">"task"</span>);</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 如果任务添加不成功，则拒绝任务</span></span><br><span class="line">    <span class="keyword">if</span> (!offerTask(task)) &#123;</span><br><span class="line">        reject(task);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 添加任务到 taskQueue 中</span></span><br><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">offerTask</span><span class="params">(Runnable task)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (isShutdown()) &#123;</span><br><span class="line">        reject();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> taskQueue.offer(task);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2、定时任务</strong><br>定时任务有两种：1）延时任务；2）周期性任务。它们是通过 schedule 方法添加，方法定义如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">// 延时任务</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">ScheduledFuture&lt;?&gt; schedule(Runnable command, <span class="keyword">long</span> delay, TimeUnit unit);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 带返回结果的延时任务</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">&lt;V&gt; <span class="function">ScheduledFuture&lt;V&gt; <span class="title">schedule</span><span class="params">(Callable&lt;V&gt; callable, <span class="keyword">long</span> delay, TimeUnit unit)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 固定比率的周期性任务</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">ScheduledFuture&lt;?&gt; scheduleAtFixedRate(Runnable command, <span class="keyword">long</span> initialDelay, <span class="keyword">long</span> period, TimeUnit unit);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 固定延时的周期性任务</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">ScheduledFuture&lt;?&gt; scheduleWithFixedDelay(Runnable command, <span class="keyword">long</span> initialDelay, <span class="keyword">long</span> delay, TimeUnit unit);</span><br></pre></td></tr></table></figure>
+<p>两种类型的定时任务统一封装为 ScheduledFutureTask 任务，添加一个定时任务实际就是添加一个 ScheduledFutureTask 对象到 scheduledTaskQueue 中。添加 ScheduledFuture 的过程中，如果当前线程就是 EventLoop 线程，则直接操作即可，如果当前线程不是 EventLoop 线程，则添加一个常规任务，用来执行该操作。这样设计，应该是出于线程安全的考虑，保证只有 EventLoop 线程执行添加操作。在这里，还需要考虑定时任务已经过期，需要唤醒 EventLoop 线程执行任务。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> &lt;V&gt; <span class="function">ScheduledFuture&lt;V&gt; <span class="title">schedule</span><span class="params">(<span class="keyword">final</span> ScheduledFutureTask&lt;V&gt; task)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 如果当前线程是 EventLoop 线程则直接将任务添加到 scheduledTaskQueue 中；</span></span><br><span class="line">	<span class="comment">// 如果不是，添加一个常规任务，用来执行添加操作。</span></span><br><span class="line">    <span class="keyword">if</span> (inEventLoop()) &#123;</span><br><span class="line">        scheduleFromEventLoop(task);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="comment">// 计算任务执行的截止时间</span></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">long</span> deadlineNanos = task.deadlineNanos();</span><br><span class="line">        </span><br><span class="line">		<span class="comment">// 比较任务的执行时间与 EventLoop 线程被唤醒的时间的大小，</span></span><br><span class="line">		<span class="comment">// 如果小于线程的唤醒时间，除了向 taskQueue 添加任务之外，需要唤醒线程执行任务；</span></span><br><span class="line">		<span class="comment">// 如果大于线程的唤醒时间，只是向 taskQueue 添加任务，不需要唤醒线程。</span></span><br><span class="line">        <span class="keyword">if</span> (beforeScheduledTaskSubmitted(deadlineNanos)) &#123;</span><br><span class="line">            execute(task);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            lazyExecute(task);</span><br><span class="line">            <span class="keyword">if</span> (afterScheduledTaskSubmitted(deadlineNanos)) &#123;</span><br><span class="line">                execute(WAKEUP_TASK);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> task;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 向 scheduledTaskQueue 队列添加定时任务</span></span><br><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">scheduleFromEventLoop</span><span class="params">(<span class="keyword">final</span> ScheduledFutureTask&lt;?&gt; task)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// nextTaskId a long and so there is no chance it will overflow back to 0</span></span><br><span class="line">    scheduledTaskQueue().add(task.setId(++nextTaskId));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 判断任务的执行截止时间与 EventLoop 线程被唤醒的时间的大小</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">beforeScheduledTaskSubmitted</span><span class="params">(<span class="keyword">long</span> deadlineNanos)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Note this is also correct for the nextWakeupNanos == -1 (AWAKE) case</span></span><br><span class="line">    <span class="keyword">return</span> deadlineNanos &lt; nextWakeupNanos.get();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ScheduledFutureTask 对象封装了三个功能：</p>
+<ol>
+<li>执行添加任务，将 ScheduledFutureTask 对象本身添加到 scheduledTaskQueue 队列；</li>
+<li>执行延时任务，由于延时任务只会执行一次，执行完便结束；</li>
+<li>执行周期性任务，执行完本轮的任务之外，还需要将 ScheduledFutureTask 添加回 scheduledTaskQueue 队列，等待下一轮执行。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ScheduledFutureTask</span>&lt;<span class="title">V</span>&gt; <span class="keyword">extends</span> <span class="title">PromiseTask</span>&lt;<span class="title">V</span>&gt; <span class="keyword">implements</span> <span class="title">ScheduledFuture</span>&lt;<span class="title">V</span>&gt;, <span class="title">PriorityQueueNode</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> START_TIME = System.nanoTime();</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// set once when added to priority queue</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">long</span> id;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">long</span> deadlineNanos;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// periodNanos 表示任务的任务：</span></span><br><span class="line">	<span class="comment">// 0 - no repeat, &gt;0 - repeat at fixed rate, &lt;0 - repeat with fixed delay </span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> periodNanos;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">int</span> queueIndex = INDEX_NOT_IN_QUEUE;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">long</span> <span class="title">nanoTime</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> System.nanoTime() - START_TIME;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">long</span> <span class="title">initialNanoTime</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> START_TIME;</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="function"><span class="keyword">assert</span> <span class="title">executor</span><span class="params">()</span>.<span class="title">inEventLoop</span><span class="params">()</span></span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">			</span><br><span class="line">			<span class="comment">// 如果未到期，则执行添加任务</span></span><br><span class="line">            <span class="keyword">if</span> (delayNanos() &gt; <span class="number">0L</span>) &#123;</span><br><span class="line">                <span class="comment">// Not yet expired, need to add or remove from queue</span></span><br><span class="line">                <span class="keyword">if</span> (isCancelled()) &#123;</span><br><span class="line">                    scheduledExecutor().scheduledTaskQueue().removeTyped(<span class="keyword">this</span>);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">					<span class="comment">// 向 scheduledTaskQueue 添加自己</span></span><br><span class="line">                    scheduledExecutor().scheduleFromEventLoop(<span class="keyword">this</span>);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line">			</span><br><span class="line">			<span class="comment">// 如果是延时任务，只需要执行一次</span></span><br><span class="line">            <span class="keyword">if</span> (periodNanos == <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (setUncancellableInternal()) &#123;</span><br><span class="line">					<span class="comment">// 执行任务</span></span><br><span class="line">                    V result = runTask();</span><br><span class="line">					</span><br><span class="line">					<span class="comment">// 通知执行成功</span></span><br><span class="line">                    setSuccessInternal(result);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123; <span class="comment">// 如果是周期性任务，执行完任务之后，还需要重新再调度</span></span><br><span class="line">                <span class="comment">// check if is done as it may was cancelled</span></span><br><span class="line">                <span class="keyword">if</span> (!isCancelled()) &#123;</span><br><span class="line">					<span class="comment">// 执行任务</span></span><br><span class="line">                    runTask();</span><br><span class="line">                    <span class="keyword">if</span> (!executor().isShutdown()) &#123;</span><br><span class="line">                        <span class="keyword">if</span> (periodNanos &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                            deadlineNanos += periodNanos;</span><br><span class="line">                        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                            deadlineNanos = nanoTime() - periodNanos;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> (!isCancelled()) &#123;</span><br><span class="line">							</span><br><span class="line">							<span class="comment">// 添加回 scheduledTaskQueue 队列，等待下一次执行</span></span><br><span class="line">                            scheduledExecutor().scheduledTaskQueue().add(<span class="keyword">this</span>);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable cause) &#123;</span><br><span class="line">            setFailureInternal(cause);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ... </span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，任务的执行分析完毕。</p>
+<h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h2><p>EventLoop 担当了网络层与 Netty 框架间的桥梁作用，本质是一个事件循环，不断监听 Channel 的网络 I/O 事件，并进行分发处理。另外，也承担了执行任务的作用，包括常规的任务及定时任务。理解 EventLoop 的事件循环会极大加深对 Netty 的理解。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/EventLoop/" rel="tag"># EventLoop</a>
+          
+            <a href="/tags/事件循环/" rel="tag"># 事件循环</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/08/28/netty-channel-pipeline/" rel="next" title="Netty 系列：ChannelPipeline">
+                <i class="fa fa-chevron-left"></i> Netty 系列：ChannelPipeline
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/19/netty-memory-management/" rel="prev" title="Netty 系列：内存管理（摘录）">
+                Netty 系列：内存管理（摘录） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">44</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">153</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概述"><span class="nav-number">1.</span> <span class="nav-text">1. 概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-流程"><span class="nav-number">2.</span> <span class="nav-text">2. 流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-线程创建"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 线程创建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-监听网络-I-O-事件"><span class="nav-number">2.2.</span> <span class="nav-text">2.3 监听网络 I/O 事件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-处理及分发网络-I-O-事件"><span class="nav-number">2.3.</span> <span class="nav-text">2.4 处理及分发网络 I/O 事件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-5-执行任务"><span class="nav-number">2.4.</span> <span class="nav-text">2.5 执行任务</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-5-1-执行流程"><span class="nav-number">2.4.1.</span> <span class="nav-text">2.5.1 执行流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-5-2-任务的添加"><span class="nav-number">2.4.2.</span> <span class="nav-text">2.5.2 任务的添加</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-总结"><span class="nav-number">3.</span> <span class="nav-text">3. 总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">184k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">2:47</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="1. 概览RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，它多了一个 exchange 交换器的概念，在 Alligator 中支持使用 RabbitMQ, 其整体结构如下图所示： 现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 Rabbit">
+<meta name="keywords" content="RabbitMQ,consumer ack,exchange,queue,producer confirm">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Alligator 系列：RabbitMQ 基础知识及部署">
+<meta property="og:url" content="http://yoursite.com/2021/09/30/alligator-rabbitmq-deploy/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="1. 概览RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，它多了一个 exchange 交换器的概念，在 Alligator 中支持使用 RabbitMQ, 其整体结构如下图所示： 现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 Rabbit">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rabbitmq-overview.png">
+<meta property="og:image" content="http://yoursite.com/images/alligator/exchanges-bidings-routing-keys.png">
+<meta property="og:image" content="http://yoursite.com/images/alligator/exchanges-topic-fanout-direct.png">
+<meta property="og:updated_time" content="2021-10-16T02:49:31.727Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Alligator 系列：RabbitMQ 基础知识及部署">
+<meta name="twitter:description" content="1. 概览RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，它多了一个 exchange 交换器的概念，在 Alligator 中支持使用 RabbitMQ, 其整体结构如下图所示： 现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 Rabbit">
+<meta name="twitter:image" content="http://yoursite.com/images/alligator/rabbitmq-overview.png">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/09/30/alligator-rabbitmq-deploy/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Alligator 系列：RabbitMQ 基础知识及部署 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/09/30/alligator-rabbitmq-deploy/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Alligator 系列：RabbitMQ 基础知识及部署
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-09-30 09:12:20" itemprop="dateCreated datePublished" datetime="2021-09-30T09:12:20+08:00">2021-09-30</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2021-10-16 10:49:31" itemprop="dateModified" datetime="2021-10-16T10:49:31+08:00">2021-10-16</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Alligator网关/" itemprop="url" rel="index"><span itemprop="name">Alligator网关</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">25k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">22 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-概览"><a href="#1-概览" class="headerlink" title="1. 概览"></a>1. 概览</h2><p>RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，它多了一个 exchange 交换器的概念，在 Alligator 中支持使用 RabbitMQ, 其整体结构如下图所示：<br><img src="/images/alligator/rabbitmq-overview.png" alt="rabbitmq-overview" title="rabbitmq-overview"></p>
+<p>现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 RabbitMQ 缓存请求，其流程为：</p>
+<ol>
+<li>用户发送一个生成 PDF 的请求给 web app;</li>
+<li>Web app (Producer) 发送一个消息给 RabbitMQ;</li>
+<li>Exchange 收到消息并路由消息到合适的 Queue; </li>
+<li>PDF 任务(Consumer) 接收来自 Queue 的消息，生成 PDF.</li>
+</ol>
+<p>消息不是直接发送到 Queue 中，而是发送到 Exchange 中，最后通过 routing Key 在 Exchange 和 Queue 中建立一个 binding 关系，从而将消息路由到不同的 Queue 中。</p>
+<p><img src="/images/alligator/exchanges-bidings-routing-keys.png" alt="exchanges-bidings-routing-keys" title="exchanges-bidings-routing-keys"></p>
+<p>RabbitMQ 中消息处理流程：</p>
+<ol>
+<li>Producer 发布一个消息到 Exchange 中，在创建 Exchange 时必须指定其类型；</li>
+<li>Exchange 收到消息并负责消息的路由，Exchange 会根据消息的属性进行路由，其中，routing key 是一个关键的属性，根据 Exchange 类型，可以有不同的路由策略；</li>
+<li>Bindings(绑定关系) 必须创建，它决定了消息从 Exchange 路由到哪个 Queue，在这个 case 中，有两个绑定关系，路由到那个 Queue，取决于消息的属性；</li>
+<li>消息路由到 Queue 中，并等待 Consumer 处理；</li>
+<li>Consumer 接收消息并处理。</li>
+</ol>
+<p>Exchange 有四种类型：direct, topic, headers 和 fanout.<br><img src="/images/alligator/exchanges-topic-fanout-direct.png" alt="exchanges-topic-fanout-direct" title="exchanges-topic-fanout-direct"></p>
+<ol>
+<li>Direct: Binding Key 与 Routing Key 精确匹配。binding key 是 exchange 与 queue 建立绑定关系指定的属性，而 routing key 则是由 Producer 发送消息是指定的属性，如果两个 key 相同，消息则路由到与 binding key 相关联的 queue 中；</li>
+<li>Fanout: 广播所有的消息；</li>
+<li>Topic: 是比较灵活的类型，可以在 binding key 中指定通配符(*,#)，如 eu.fe.*, us.#, 其中，* 表示匹配一个单词，# 表示匹配多个单词。通过通配符，可以实现层次结构的匹配；</li>
+<li>Headers: Headers exchanges 使用消息的属性进行路由。</li>
+</ol>
+<p><strong>Binding Key 与 Routing Key：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// exchange 申明, 可以指定 type</span></span><br><span class="line">AMQP.Exchange.DeclareOk exchangeDeclare​(String exchange, String type, <span class="keyword">boolean</span> durable) <span class="keyword">throws</span> IOException</span><br><span class="line"></span><br><span class="line"><span class="comment">// 建立绑定关系，指定 bindingKey</span></span><br><span class="line">AMQP.Queue.BindOk queueBind​(String queue, String exchange, String bindingKey, Map&lt;String,​Object&gt; arguments) <span class="keyword">throws</span> IOException</span><br><span class="line"></span><br><span class="line"><span class="comment">// 发布消息，指定 routingKey</span></span><br><span class="line"><span class="keyword">void</span> basicPublish​(String exchange, String routingKey, <span class="keyword">boolean</span> mandatory, AMQP.BasicProperties props, <span class="keyword">byte</span>[] body) <span class="keyword">throws</span> IOException</span><br></pre></td></tr></table></figure></p>
+<p>通过 routingKey 与 bindingKey 进行匹配，从而实现消息的路由。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">root@my-rabbit:/<span class="comment"># rabbitmqctl list_exchanges</span></span><br><span class="line">Listing exchanges <span class="keyword">for</span> vhost / ...</span><br><span class="line">name    <span class="built_in">type</span></span><br><span class="line">amq.topic       topic</span><br><span class="line">amq.fanout      fanout</span><br><span class="line">amq.direct      direct</span><br><span class="line">amq.headers     headers</span><br><span class="line">amq.match       headers</span><br><span class="line">                direct(default)</span><br><span class="line">amq.rabbitmq.trace      topic</span><br></pre></td></tr></table></figure>
+<p>通过 rabbitmqctl 命令可以查看 exchange 信息，在这个列表中，一些是 amq.* 打头的 exchange, 还一个没有命名，空名字的 exchange, 这个空的 exchange 是默认的 exchange. 它们都是默认创建好的。</p>
+<p>在发布消息的时候，可以不指定 exchange 的名称, 如下代码所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">channel.basic_publish(exchange=<span class="string">''</span>,</span><br><span class="line">                      routing_key=<span class="string">'task_queue'</span>,</span><br><span class="line">                      body=message)</span><br></pre></td></tr></table></figure></p>
+<p>空的 exchange 代表了默认或无名的 exchange: 消息会路由到与 routing_key 同名的 queue 中，在这个 case 中，消息最终路由到 task_queue queue 中。</p>
+<h2 id="2-基础知识"><a href="#2-基础知识" class="headerlink" title="2. 基础知识"></a>2. 基础知识</h2><h3 id="2-1-Consumer-ACK-机制"><a href="#2-1-Consumer-ACK-机制" class="headerlink" title="2.1 Consumer ACK 机制"></a>2.1 Consumer ACK 机制</h3><p>Consumer ACK 有两种模式：1）自动；2）手动。在自动模式下，Broker 分发消息之后即认为分发成功，便可删除消息，该模式被认为是不安全的。而自动模式需要程序手动发送 Ack 确认信息，这样可以保证消息被处理。</p>
+<p>官方文档对自动模式描述如下：</p>
+<blockquote>
+<p>In automatic acknowledgement mode, a message is considered to be successfully delivered immediately after it is sent. This mode trades off higher throughput (as long as the consumers can keep up) for reduced safety of delivery and consumer processing. This mode is often referred to as “fire-and-forget”. Unlike with manual acknowledgement model, if consumers’s TCP connection or channel is closed before successful delivery, the message sent by the server will be lost. Therefore, automatic message acknowledgement should be considered unsafe and not suitable for all workloads.</p>
+</blockquote>
+<p>通过下面方法来设置自动或手动：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">boolean</span> autoAck = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">channel.basicConsume(queueName, autoAck, <span class="string">"a-consumer-tag"</span>,</span><br><span class="line">     <span class="keyword">new</span> DefaultConsumer(channel) &#123;</span><br><span class="line">         <span class="meta">@Override</span></span><br><span class="line">         <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">handleDelivery</span><span class="params">(String consumerTag,</span></span></span><br><span class="line"><span class="function"><span class="params">                                    Envelope envelope,</span></span></span><br><span class="line"><span class="function"><span class="params">                                    AMQP.BasicProperties properties,</span></span></span><br><span class="line"><span class="function"><span class="params">                                    <span class="keyword">byte</span>[] body)</span></span></span><br><span class="line"><span class="function">             <span class="keyword">throws</span> IOException</span></span><br><span class="line"><span class="function">         </span>&#123;</span><br><span class="line">             <span class="keyword">long</span> deliveryTag = envelope.getDeliveryTag();</span><br><span class="line">             <span class="comment">// negatively acknowledge, the message will</span></span><br><span class="line">             <span class="comment">// be discarded</span></span><br><span class="line">             channel.basicReject(deliveryTag, <span class="keyword">false</span>);</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;);</span><br></pre></td></tr></table></figure></p>
+<p>默认是自动模式，可以在 channel.basicConsume 方法中设置为 false。</p>
+<p><strong>手动 Ack 有三个方法：</strong></p>
+<ul>
+<li>basic.ack : 用于肯定应答；</li>
+<li>basic.nack ：用于否定应答，可以重新 requeue 排队发送；</li>
+<li>basic.reject ：用于否定应答，与 nack 的区别在于是否支持批量确认。</li>
+</ul>
+<p><strong>basic.ack 方法定义：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">long</span> deliveryTag = envelope.getDeliveryTag();</span><br><span class="line"></span><br><span class="line">channel.basicAck(<span class="keyword">long</span> deliveryTag, <span class="keyword">boolean</span> multiple);</span><br></pre></td></tr></table></figure></p>
+<p>其中，</p>
+<ul>
+<li>deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；</li>
+<li>multiple ：是否批量确认，true 表示 deliveryTag 之前的消息都被确认，false 只确认当前消息。</li>
+</ul>
+<p><strong>basic.nack 方法定义：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">long</span> deliveryTag = envelope.getDeliveryTag();</span><br><span class="line"></span><br><span class="line">channel.basicNack(<span class="keyword">long</span> deliveryTag, <span class="keyword">boolean</span> requeue, <span class="keyword">boolean</span> multiple);</span><br></pre></td></tr></table></figure></p>
+<p>其中，</p>
+<ul>
+<li>deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；</li>
+<li>requeue : 是否重新排队发送，true 表示重新排队，false 表示删除该消息；</li>
+<li>multiple ：是否批量确认，true 表示 deliveryTag 之前的消息都被确认，false 只确认当前消息。</li>
+</ul>
+<p><strong>basic.reject方法定义：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">long</span> deliveryTag = envelope.getDeliveryTag();</span><br><span class="line"></span><br><span class="line">basic.reject(<span class="keyword">long</span> deliveryTag, <span class="keyword">boolean</span> requeue);</span><br></pre></td></tr></table></figure></p>
+<p>其中，</p>
+<ul>
+<li>deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；</li>
+<li>requeue : 是否重新排队发送，true 表示重新排队，false 表示删除该消息；</li>
+</ul>
+<h3 id="2-2-QoS"><a href="#2-2-QoS" class="headerlink" title="2.2 QoS"></a>2.2 QoS</h3><p>QoS 主要是为了控制向 Consumer 发送消息的频率，通过配置当前未确认的消息数量来控制是否发送，如 Qos = 5，则表示如果有 5 条消息未被确认，则不向 Consumer 发送消息。通过配置 QoS，可以避免消息在 Consumer 中堆积。正常情况下，QoS 是配合手动 Ack 一起使用的。<br>在生产环境中，需要根据压测结果选择合适的值进行配置，QoS = 0 表示不限制，QoS = 1 是保守的配置，为了提高系统的吞吐量，一般可以设置较大的值。QoS 可以配置在 Channel 或 Consumer 上，Channel 的配置如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">channel.basicQos(<span class="number">1</span>);</span><br></pre></td></tr></table></figure></p>
+<h3 id="2-3-Producer-Comfirm"><a href="#2-3-Producer-Comfirm" class="headerlink" title="2.3 Producer Comfirm"></a>2.3 Producer Comfirm</h3><p>Consumer 通过 Ack 机制保证消息被消费，同样，Producer 通过 Confirm 机制保证投递到 broker 中，可以通过下面的代码开启 Comfirm。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 开启 confirm</span></span><br><span class="line">ch.confirmSelect();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 同步等待</span></span><br><span class="line">ch.waitForConfirmsOrDie(<span class="number">5_000</span>);</span><br></pre></td></tr></table></figure></p>
+<p>可以结合业务，实现单个消息、批量消息的确认及消息的异步确认。</p>
+<h3 id="2-4-持久化"><a href="#2-4-持久化" class="headerlink" title="2.4 持久化"></a>2.4 持久化</h3><p>消息的持久化，包括 exchange 及 queue 的持久化，其参数配置如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// exchange 申明</span></span><br><span class="line">channel.exchangeDeclare​(String exchange, String type, <span class="keyword">boolean</span> durable);</span><br><span class="line"></span><br><span class="line"><span class="comment">// queue 申明</span></span><br><span class="line">channel.queueDeclare​(String queue, <span class="keyword">boolean</span> durable, <span class="keyword">boolean</span> exclusive, <span class="keyword">boolean</span> autoDelete, Map&lt;String,​Object&gt; arguments);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将 queue 绑定到 exchange 上</span></span><br><span class="line">channel.queueBind​(String queue, String exchange, String routingKey);</span><br></pre></td></tr></table></figure></p>
+<p><strong>Exchange 申明：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">AMQP.Exchange.DeclareOk exchangeDeclare​(String exchange, String type, <span class="keyword">boolean</span> durable) <span class="keyword">throws</span> IOException</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>exchange: exchange 名称</li>
+<li>type: exchange type</li>
+<li>durable: 是否持久化，若为 true，服务器重启之后，exchange 还会存在。</li>
+</ul>
+<p><strong>Queue​ 申明：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">AMQP.Queue.DeclareOk queueDeclare​(String queue, <span class="keyword">boolean</span> durable, <span class="keyword">boolean</span> exclusive, <span class="keyword">boolean</span> autoDelete, Map&lt;String,​Object&gt; arguments) <span class="keyword">throws</span> IOException</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>queue: queue 名称</li>
+<li>durable: 是否持久化，若为 true，服务器重启后，queue 仍然存在</li>
+<li>exclusive: 是否具有排他性，若为 true, 不允许其它客户端连接</li>
+<li>autoDelete: 是否自动删除，若为 true, 队列没有使用时，则为自动删除</li>
+<li>arguments: 其它参数</li>
+</ul>
+<p><strong>QueueBind​ 申明：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">AMQP.Queue.BindOk queueBind​(String queue, String exchange, String routingKey, Map&lt;String,​Object&gt; arguments) <span class="keyword">throws</span> IOException</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>queue: queue 名称</li>
+<li>exchange: exchange 名称</li>
+<li>routingKey: 路由 key</li>
+<li>arguments: 其它参数</li>
+</ul>
+<p><strong>basicPublish 申明：</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> basicPublish​(String exchange, String routingKey, <span class="keyword">boolean</span> mandatory, AMQP.BasicProperties props, <span class="keyword">byte</span>[] body) <span class="keyword">throws</span> IOException</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>exchange: exchange 名称</li>
+<li>routingKey: 路由 key</li>
+<li>mandatory: 若为 tue,表示消息若不能路由，则将消息 return 给发送者，发送者可以定义重发逻辑，若为 false, 则将消息丢弃或发送给另外的 exchange</li>
+<li>props: 参数，可以指定消息的类型或是否持久化</li>
+<li>body: 消息内容</li>
+</ul>
+<p>示例：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">channel.basicPublish(exchangeName, routingKey, <span class="keyword">true</span>, MessageProperties.PERSISTENT_TEXT_PLAIN,</span><br><span class="line">                        body.getBytes(<span class="string">"UTF-8"</span>));</span><br></pre></td></tr></table></figure></p>
+<font color="red"><strong> 说明: </strong></font><br><font color="red">在 RabbitMQ 中，exchange 及 queue 不用提前创建，调用上面的申明方法时，如果没有不存在，则会自动创建。</font>
+
+<h3 id="2-5-Virtual-Hosts"><a href="#2-5-Virtual-Hosts" class="headerlink" title="2.5 Virtual Hosts"></a>2.5 Virtual Hosts</h3><blockquote>
+<p>RabbitMQ is multi-tenant system: connections, exchanges, queues, bindings, user permissions, policies and some other things belong to virtual hosts, logical groups of entities</p>
+</blockquote>
+<p>RabbitMQ 是一个多租户系统，connections, exchanges, queues, bindings, user 权限, 策略及其它东西都属于一个 virtual host。使用 virtual host，需要用户提前创建，系统默认的 vhost 是 ‘/‘。</p>
+<h2 id="3-部署"><a href="#3-部署" class="headerlink" title="3. 部署"></a>3. 部署</h2><font color="red"><strong> 说明: </strong></font><br><font color="red">只是用于实验目的，安装单机版本。</font>
+
+<h3 id="3-1-安装-Rabbitmq"><a href="#3-1-安装-Rabbitmq" class="headerlink" title="3.1 安装 Rabbitmq"></a>3.1 安装 Rabbitmq</h3><p>使用 docker 部署单机版本，版本使用的是 3.9。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 安装 rabbitmq</span><br><span class="line">docker run -d --hostname my-rabbit --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.9-management</span><br><span class="line"></span><br><span class="line">// 进入容器</span><br><span class="line">docker <span class="built_in">exec</span> -it 容器id bash</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-2-创建-virtual-host"><a href="#3-2-创建-virtual-host" class="headerlink" title="3.2 创建 virtual host"></a>3.2 创建 virtual host</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// 创建 alligator vhost</span><br><span class="line">rabbitmqctl add_vhost &lt;vhost_name&gt;</span><br><span class="line"></span><br><span class="line">rabbitmqctl add_vhost alligator</span><br><span class="line"></span><br><span class="line">// 查看 vhost</span><br><span class="line">rabbitmqctl list_vhosts</span><br></pre></td></tr></table></figure>
+<h3 id="3-3-创建用户"><a href="#3-3-创建用户" class="headerlink" title="3.3 创建用户"></a>3.3 创建用户</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 创建 user</span><br><span class="line">rabbitmqctl add_user test_user 123456</span><br><span class="line"></span><br><span class="line">// 查看 user</span><br><span class="line">rabbitmqctl list_users</span><br><span class="line"></span><br><span class="line">// rabbitmqctl 用户相关的命令</span><br><span class="line">add_user &lt;username&gt; &lt;password&gt;</span><br><span class="line">delete_user &lt;username&gt;</span><br><span class="line">change_password &lt;username&gt; &lt;newpassword&gt;</span><br><span class="line">clear_password &lt;username&gt;</span><br><span class="line">authenticate_user &lt;username&gt; &lt;password&gt;</span><br><span class="line">set_user_tags &lt;username&gt; &lt;tag&gt; ...</span><br><span class="line">list_users</span><br></pre></td></tr></table></figure>
+<p>rabbitmq 角色有：none,management,policymaker,monitoring 及 administrator，可以通过下面的命令设置角色。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 设置角色</span><br><span class="line">rabbitmqctl set_user_tags &lt;user&gt; &lt;role&gt;</span><br><span class="line"></span><br><span class="line">// 设置为超级管理员</span><br><span class="line">rabbitmqctl set_user_tags test_user administrator</span><br></pre></td></tr></table></figure>
+<h3 id="3-4-授权用户"><a href="#3-4-授权用户" class="headerlink" title="3.4 授权用户"></a>3.4 授权用户</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 授权用户</span><br><span class="line">rabbitmqctl set_permissions [-p &lt;vhost&gt;] &lt;user&gt; &lt;conf&gt; &lt;write&gt; &lt;<span class="built_in">read</span>&gt;</span><br><span class="line"></span><br><span class="line">// 授权 test_user 具备 alligator vhost 下所有资源的读写权限</span><br><span class="line">rabbitmqctl set_permissions -p alligator  allen <span class="string">'.*'</span> <span class="string">'.*'</span> <span class="string">'.*'</span></span><br></pre></td></tr></table></figure>
+<h3 id="3-5-管理后台"><a href="#3-5-管理后台" class="headerlink" title="3.5 管理后台"></a>3.5 管理后台</h3><p>RabbitMQ 默认创建了 guest(密码为 guest)，处于安全考虑，建议删除该用户，新建一个自定义用户，用于后台的管理。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">// 删除 guest 用户</span><br><span class="line">rabbitmqctl delete_user guest</span><br><span class="line"></span><br><span class="line">// 新建 admin 用户</span><br><span class="line">rabbitmqctl add_user admin ********</span><br><span class="line"></span><br><span class="line">// 设置 admin 为 administrator 角色</span><br><span class="line">rabbitmqctl set_user_tags admin administrator</span><br><span class="line"></span><br><span class="line">// 将 / (vhost) 所有权限授权给 admin</span><br><span class="line">rabbitmqctl set_permissions -p / admin <span class="string">'.*'</span> <span class="string">'.*'</span> <span class="string">'.*'</span></span><br></pre></td></tr></table></figure>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://www.cloudamqp.com/blog/part1-rabbitmq-for-beginners-what-is-rabbitmq.html" target="_blank" rel="noopener">1. part 1: RabbitMQ for beginners - What is RabbitMQ?</a></p>
+<p><a href="https://rabbitmq.github.io/rabbitmq-java-client/api/4.x.x/com/rabbitmq/client/Channel.html" target="_blank" rel="noopener">2. rabbitmq api doc</a></p>
+<p><a href="https://www.rabbitmq.com/confirms.html" target="_blank" rel="noopener">3. Consumer Acknowledgements and Publisher Confirms</a></p>
+<p><a href="https://www.rabbitmq.com/vhosts.html" target="_blank" rel="noopener">4. Virtual Hosts</a></p>
+<p><a href="https://www.rabbitmq.com/queues.html" target="_blank" rel="noopener">5. queues</a></p>
+<p><a href="https://www.rabbitmq.com/getstarted.html" target="_blank" rel="noopener">6. RabbitMQ Tutorials</a></p>
+<p><a href="https://www.rabbitmq.com/access-control.html" target="_blank" rel="noopener">7. Authentication, Authorisation, Access Control</a></p>
+<p><a href="https://www.rabbitmq.com/rabbitmqctl.8.html" target="_blank" rel="noopener">8. rabbitmqctl(8)</a></p>
+<p><a href="https://www.rabbitmq.com/production-checklist.html" target="_blank" rel="noopener">9. Production Checklist</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/RabbitMQ/" rel="tag"># RabbitMQ</a>
+          
+            <a href="/tags/consumer-ack/" rel="tag"># consumer ack</a>
+          
+            <a href="/tags/exchange/" rel="tag"># exchange</a>
+          
+            <a href="/tags/queue/" rel="tag"># queue</a>
+          
+            <a href="/tags/producer-confirm/" rel="tag"># producer confirm</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/19/netty-memory-management/" rel="next" title="Netty 系列：内存管理（摘录）">
+                <i class="fa fa-chevron-left"></i> Netty 系列：内存管理（摘录）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/02/alligator-rocketmq-deploy/" rel="prev" title="Alligator 系列：RocketMQ 基础知识及部署">
+                Alligator 系列：RocketMQ 基础知识及部署 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">44</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">19</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">153</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-概览"><span class="nav-number">1.</span> <span class="nav-text">1. 概览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-基础知识"><span class="nav-number">2.</span> <span class="nav-text">2. 基础知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Consumer-ACK-机制"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 Consumer ACK 机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-QoS"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 QoS</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-Producer-Comfirm"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 Producer Comfirm</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-持久化"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 持久化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-5-Virtual-Hosts"><span class="nav-number">2.5.</span> <span class="nav-text">2.5 Virtual Hosts</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-部署"><span class="nav-number">3.</span> <span class="nav-text">3. 部署</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-安装-Rabbitmq"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 安装 Rabbitmq</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-创建-virtual-host"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 创建 virtual host</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-创建用户"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 创建用户</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-授权用户"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 授权用户</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-管理后台"><span class="nav-number">3.5.</span> <span class="nav-text">3.5 管理后台</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">184k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">2:47</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
