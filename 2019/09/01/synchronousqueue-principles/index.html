@@ -108,13 +108,13 @@
 
 
 
-  <meta name="description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。 1. 概述在生产者和消费者的线程模型下，生产者线程生产数据（事件，任务等），消费者线程消费数据。通常情况下，它们需要一个中间的数据结构来交换数据，如队列。生成者线程将数据存入队列，若队列满了则阻塞生产者线程，等待消费者线程唤醒；消费者线程从队列取数据，若队列为空则阻塞消费者线程，等待生产者线程唤醒。在这种场景下，如果生产">
+  <meta name="description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。">
 <meta name="keywords" content="SynchronousQueue,同步队列,线程池">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SynchronousQueue 原理">
 <meta property="og:url" content="http://yoursite.com/2019/09/01/synchronousqueue-principles/index.html">
 <meta property="og:site_name" content="以太格">
-<meta property="og:description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。 1. 概述在生产者和消费者的线程模型下，生产者线程生产数据（事件，任务等），消费者线程消费数据。通常情况下，它们需要一个中间的数据结构来交换数据，如队列。生成者线程将数据存入队列，若队列满了则阻塞生产者线程，等待消费者线程唤醒；消费者线程从队列取数据，若队列为空则阻塞消费者线程，等待生产者线程唤醒。在这种场景下，如果生产">
+<meta property="og:description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/snode.jpg">
 <meta property="og:image" content="http://yoursite.com/images/transferstack-null.jpg">
@@ -129,10 +129,10 @@
 <meta property="og:image" content="http://yoursite.com/images/transferqueue-2.jpg">
 <meta property="og:image" content="http://yoursite.com/images/transferqueue-3.jpg">
 <meta property="og:image" content="http://yoursite.com/images/transferqueue-4.jpg">
-<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta property="og:updated_time" content="2022-01-02T12:38:04.452Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="SynchronousQueue 原理">
-<meta name="twitter:description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。 1. 概述在生产者和消费者的线程模型下，生产者线程生产数据（事件，任务等），消费者线程消费数据。通常情况下，它们需要一个中间的数据结构来交换数据，如队列。生成者线程将数据存入队列，若队列满了则阻塞生产者线程，等待消费者线程唤醒；消费者线程从队列取数据，若队列为空则阻塞消费者线程，等待生产者线程唤醒。在这种场景下，如果生产">
+<meta name="twitter:description" content="这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。">
 <meta name="twitter:image" content="http://yoursite.com/images/snode.jpg">
 
 
@@ -442,7 +442,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+                <time title="修改时间：2022-01-02 20:38:04" itemprop="dateModified" datetime="2022-01-02T20:38:04+08:00">2022-01-02</time>
               
             
           </span>
@@ -522,6 +522,7 @@
 
       
         <p>这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。</p>
+<a id="more"></a>
 <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在生产者和消费者的线程模型下，生产者线程生产数据（事件，任务等），消费者线程消费数据。通常情况下，它们需要一个中间的数据结构来交换数据，如队列。生成者线程将数据存入队列，若队列满了则阻塞生产者线程，等待消费者线程唤醒；消费者线程从队列取数据，若队列为空则阻塞消费者线程，等待生产者线程唤醒。在这种场景下，如果生产数据过快，队列中会堆积很多数据，如果是无界队列的话，可能会造成问题。现在提供了另外一种选择，即SynchronousQueue，它内部没有容量，生产者线程和消费者线程进行一一匹配，亲手(handoff)交换数据。</p>
 <p>SynchronousQueue是一种特殊的阻塞队列，它没有实际的容量，任意线程（生产者线程或者消费者线程，生产类型的操作如put/offer，消费类型的操作如poll/take）都会等待知道获得数据或者交付完成数据才会返回，一个生产者线程的使命是将线程附着着的数据交付给一个消费者线程，而一个消费者线程则是等待一个生产者线程的数据。它们会在匹配到互补线程的时候就会做数据交易，比如生产者线程遇到消费者线程时，或者消费者线程遇到生产者线程时，一个生产者线程就会将数据交付给消费者线程，然后共同退出。<sup>[1]<sup></sup></sup></p>
 <p>SynchronousQueue的一个使用场景是在线程池里。Executors.newCachedThreadPool()就使用了SynchronousQueue，这个线程池根据需要（新任务到来时）创建新的线程，如果有空闲线程则会重复使用，线程空闲了60秒后会被回收。因为SynchronousQueue没有容量，因此offer和take会一直阻塞(如果操作允许超时且超时时间为0，没有匹配的线程时则直接返回不回阻塞)，直到有另一个线程已经准备好参与到交付过程中。在线程池中，提交的任务尽量是执行时间短、不会被阻塞，这样才能保证线程的重复使用，否则就会在短时间内生成大量的线程，引起内存被耗尽的问题（一个线程会申请一个线程栈）。</p>
@@ -777,7 +778,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -832,7 +833,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1173,7 +1178,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1228,7 +1293,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1240,7 +1305,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1249,7 +1314,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="记录 Elasticsearch 常用的操作，如索引、查询、分词及调试等等相关的操作。">
+<meta name="keywords" content="es,Elasticsearch">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Elasticsearch 常用操作">
+<meta property="og:url" content="http://yoursite.com/2022/02/05/es-common-operations/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="记录 Elasticsearch 常用的操作，如索引、查询、分词及调试等等相关的操作。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2022-02-07T11:25:01.076Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Elasticsearch 常用操作">
+<meta name="twitter:description" content="记录 Elasticsearch 常用的操作，如索引、查询、分词及调试等等相关的操作。">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/02/05/es-common-operations/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Elasticsearch 常用操作 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/02/05/es-common-operations/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Elasticsearch 常用操作
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-02-05 16:05:22" itemprop="dateCreated datePublished" datetime="2022-02-05T16:05:22+08:00">2022-02-05</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-02-07 19:25:01" itemprop="dateModified" datetime="2022-02-07T19:25:01+08:00">2022-02-07</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">29k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">27 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>记录 Elasticsearch 常用的操作，如索引、查询、分词及调试等等相关的操作。</p>
+<a id="more"></a>
+<h2 id="运维相关"><a href="#运维相关" class="headerlink" title="运维相关"></a>运维相关</h2><h3 id="查看集群健康状态"><a href="#查看集群健康状态" class="headerlink" title="查看集群健康状态"></a>查看集群健康状态</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">GET _cat/health?v</span><br><span class="line"></span><br><span class="line">epoch      timestamp cluster          status node.total node.data shards pri relo init unassign pending_tasks max_task_wait_time active_shards_percent</span><br><span class="line">1644228538 10:08:58  my-elasticsearch yellow          1         1     20  20    0    0        6             0                  -                 76.9%</span><br></pre></td></tr></table></figure>
+<p><strong>说明：v 是表示结果中返回表头</strong></p>
+<h3 id="查看集群结点"><a href="#查看集群结点" class="headerlink" title="查看集群结点"></a>查看集群结点</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">GET _cat/nodes?v</span><br><span class="line"></span><br><span class="line">ip         heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name</span><br><span class="line">172.19.0.2           50          98   2    0.04    0.03     0.05 cdfhilmrstw *      node-1</span><br></pre></td></tr></table></figure>
+<h3 id="查看所有索引"><a href="#查看所有索引" class="headerlink" title="查看所有索引"></a>查看所有索引</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GET _cat/indices?v</span><br><span class="line"></span><br><span class="line">health status index                           uuid                   pri rep docs.count docs.deleted store.size pri.store.size</span><br><span class="line">yellow open   sports                          DZ0tM97mQKeibg9-vCLZgA   1   1         22            0     10.3kb         10.3kb</span><br><span class="line">yellow open   catalog                         su6kerZsTP6stMBEPpb8-A   1   1          1            0        6kb            6kb</span><br><span class="line">green  open   .apm-agent-configuration        t0UuBydGRF6YdD9lSb5u5w   1   0          0            0       208b           208b</span><br></pre></td></tr></table></figure>
+<h2 id="文档操作"><a href="#文档操作" class="headerlink" title="文档操作"></a>文档操作</h2><h3 id="创建一个文档"><a href="#创建一个文档" class="headerlink" title="创建一个文档"></a>创建一个文档</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">POST twitter/_doc/1</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"user"</span>: <span class="string">"GB"</span>,</span><br><span class="line">  <span class="attr">"uid"</span>: <span class="number">1</span>,</span><br><span class="line">  <span class="attr">"city"</span>: <span class="string">"Shenzhen"</span>,</span><br><span class="line">  <span class="attr">"province"</span>: <span class="string">"Guangdong"</span>,</span><br><span class="line">  <span class="attr">"country"</span>: <span class="string">"China"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="修改一个文档"><a href="#修改一个文档" class="headerlink" title="修改一个文档"></a>修改一个文档</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">PUT twitter/_create/1</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"user"</span>: <span class="string">"GB"</span>,</span><br><span class="line">  <span class="attr">"uid"</span>: <span class="number">1</span>,</span><br><span class="line">  <span class="attr">"city"</span>: <span class="string">"Shenzhen"</span>,</span><br><span class="line">  <span class="attr">"province"</span>: <span class="string">"Guangdong"</span>,</span><br><span class="line">  <span class="attr">"country"</span>: <span class="string">"China"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="部分更新一个文档（更新部分字段）"><a href="#部分更新一个文档（更新部分字段）" class="headerlink" title="部分更新一个文档（更新部分字段）"></a>部分更新一个文档（更新部分字段）</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">POST twitter/_update/1</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"doc"</span>: &#123;</span><br><span class="line">    <span class="attr">"city"</span>: <span class="string">"成都"</span>,</span><br><span class="line">    <span class="attr">"province"</span>: <span class="string">"四川"</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="插入或更新操作"><a href="#插入或更新操作" class="headerlink" title="插入或更新操作"></a>插入或更新操作</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">POST /catalog/_update/3</span><br><span class="line">&#123;</span><br><span class="line">     <span class="attr">"doc"</span>: &#123;</span><br><span class="line">       <span class="attr">"author"</span>: <span class="string">"Albert Paro"</span>,</span><br><span class="line">       <span class="attr">"title"</span>: <span class="string">"Elasticsearch 5.0 Cookbook"</span>,</span><br><span class="line">       <span class="attr">"description"</span>: <span class="string">"Elasticsearch 5.0 Cookbook Third Edition"</span>,</span><br><span class="line">       <span class="attr">"price"</span>: <span class="string">"54.99"</span></span><br><span class="line">      &#125;,</span><br><span class="line">     <span class="attr">"doc_as_upsert"</span>: <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用 <code>doc_as_upsert</code> 合并到 ID 为 3 的文档中，或者如果不存在则插入一个新文档。</p>
+<h3 id="检查一个文档是否存在"><a href="#检查一个文档是否存在" class="headerlink" title="检查一个文档是否存在"></a>检查一个文档是否存在</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HEAD twitter/_doc/1</span><br></pre></td></tr></table></figure>
+<h3 id="删除一个文档"><a href="#删除一个文档" class="headerlink" title="删除一个文档"></a>删除一个文档</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">DELETE twitter/_doc/1</span><br></pre></td></tr></table></figure>
+<h3 id="查询删除（删除满足查询的-doc）"><a href="#查询删除（删除满足查询的-doc）" class="headerlink" title="查询删除（删除满足查询的 doc）"></a>查询删除（删除满足查询的 doc）</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">POST twitter/_delete_by_query</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"match"</span>: &#123;</span><br><span class="line">      <span class="attr">"city"</span>: <span class="string">"上海"</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h2><h3 id="检查一个索引是否存在"><a href="#检查一个索引是否存在" class="headerlink" title="检查一个索引是否存在"></a>检查一个索引是否存在</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HEAD twitter</span><br></pre></td></tr></table></figure>
+<h3 id="删除一个索引"><a href="#删除一个索引" class="headerlink" title="删除一个索引"></a>删除一个索引</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">DELETE twitter</span><br></pre></td></tr></table></figure>
+<h3 id="查询-settings"><a href="#查询-settings" class="headerlink" title="查询 settings"></a>查询 settings</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_settings</span><br></pre></td></tr></table></figure>
+<h3 id="修改-settings"><a href="#修改-settings" class="headerlink" title="修改 settings"></a>修改 settings</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">PUT twitter</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"settings"</span>: &#123;</span><br><span class="line">    <span class="attr">"number_of_shards"</span>: <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"number_of_replicas"</span>: <span class="number">1</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="查询-mapping"><a href="#查询-mapping" class="headerlink" title="查询 mapping"></a>查询 mapping</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_mapping</span><br></pre></td></tr></table></figure>
+<h3 id="修改-mapping"><a href="#修改-mapping" class="headerlink" title="修改 mapping"></a>修改 mapping</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line">DELETE twitter</span><br><span class="line"></span><br><span class="line">PUT twitter/_mapping</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"properties"</span>: &#123;</span><br><span class="line">    <span class="attr">"address"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"age"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"long"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"city"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"country"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"location"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"geo_point"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"message"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"province"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"uid"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"long"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"user"</span>: &#123;</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="批量添加-doc"><a href="#批量添加-doc" class="headerlink" title="批量添加 doc"></a>批量添加 doc</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">POST _bulk</span><br><span class="line">&#123; <span class="attr">"index"</span> : &#123; <span class="attr">"_index"</span> : <span class="string">"twitter"</span>, <span class="attr">"_id"</span>: <span class="number">1</span>&#125; &#125;</span><br><span class="line">&#123;<span class="attr">"user"</span>:<span class="string">"双榆树-张三"</span>,<span class="attr">"message"</span>:<span class="string">"今儿天气不错啊，出去转转去"</span>,<span class="attr">"uid"</span>:<span class="number">2</span>,<span class="attr">"age"</span>:<span class="number">20</span>,<span class="attr">"city"</span>:<span class="string">"北京"</span>,<span class="attr">"province"</span>:<span class="string">"北京"</span>,<span class="attr">"country"</span>:<span class="string">"中国"</span>,<span class="attr">"address"</span>:<span class="string">"中国北京市海淀区"</span>,<span class="attr">"location"</span>:&#123;<span class="attr">"lat"</span>:<span class="string">"39.970718"</span>,<span class="attr">"lon"</span>:<span class="string">"116.325747"</span>&#125;&#125;</span><br><span class="line">&#123; <span class="attr">"index"</span> : &#123; <span class="attr">"_index"</span> : <span class="string">"twitter"</span>, <span class="attr">"_id"</span>: <span class="number">2</span> &#125;&#125;</span><br><span class="line">&#123;<span class="attr">"user"</span>:<span class="string">"东城区-老刘"</span>,<span class="attr">"message"</span>:<span class="string">"出发，下一站云南！"</span>,<span class="attr">"uid"</span>:<span class="number">3</span>,<span class="attr">"age"</span>:<span class="number">30</span>,<span class="attr">"city"</span>:<span class="string">"北京"</span>,<span class="attr">"province"</span>:<span class="string">"北京"</span>,<span class="attr">"country"</span>:<span class="string">"中国"</span>,<span class="attr">"address"</span>:<span class="string">"中国北京市东城区台基厂三条3号"</span>,<span class="attr">"location"</span>:&#123;<span class="attr">"lat"</span>:<span class="string">"39.904313"</span>,<span class="attr">"lon"</span>:<span class="string">"116.412754"</span>&#125;&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="查询"><a href="#查询" class="headerlink" title="查询"></a>查询</h2><h3 id="查询所有文档"><a href="#查询所有文档" class="headerlink" title="查询所有文档"></a>查询所有文档</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">POST twitter/_search</span><br></pre></td></tr></table></figure>
+<h3 id="查询行数"><a href="#查询行数" class="headerlink" title="查询行数"></a>查询行数</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_count</span><br></pre></td></tr></table></figure>
+<h3 id="指定分页"><a href="#指定分页" class="headerlink" title="指定分页"></a>指定分页</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_search?size=2&amp;from=2</span><br></pre></td></tr></table></figure>
+<h3 id="指定分页-1"><a href="#指定分页-1" class="headerlink" title="指定分页"></a>指定分页</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_search?size=2&amp;from=2</span><br><span class="line"></span><br><span class="line"># 第二种方式</span><br><span class="line">GET twitter/_search</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"size"</span>: <span class="number">2</span>,</span><br><span class="line">  <span class="attr">"from"</span>: <span class="number">2</span>, </span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"match_all"</span>: &#123;&#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="带条件查询数量"><a href="#带条件查询数量" class="headerlink" title="带条件查询数量"></a>带条件查询数量</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_count</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"match"</span>: &#123;</span><br><span class="line">      <span class="attr">"city"</span>: <span class="string">"北京"</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="查询字段是否可以被聚合-搜索所有的文档"><a href="#查询字段是否可以被聚合-搜索所有的文档" class="headerlink" title="查询字段是否可以被聚合/搜索所有的文档"></a>查询字段是否可以被聚合/搜索所有的文档</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_field_caps?fields=country</span><br></pre></td></tr></table></figure>
+<h2 id="分词"><a href="#分词" class="headerlink" title="分词"></a>分词</h2><h3 id="查看分词结果（使用标准分词器进行分词）"><a href="#查看分词结果（使用标准分词器进行分词）" class="headerlink" title="查看分词结果（使用标准分词器进行分词）"></a>查看分词结果（使用标准分词器进行分词）</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_analyze</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"text"</span>: [</span><br><span class="line">    <span class="string">"Happy Birthday"</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">"analyzer"</span>: <span class="string">"standard"</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># 结果</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"tokens"</span> : [</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="attr">"token"</span> : <span class="string">"happy"</span>,</span><br><span class="line">      <span class="attr">"start_offset"</span> : <span class="number">0</span>,</span><br><span class="line">      <span class="attr">"end_offset"</span> : <span class="number">5</span>,</span><br><span class="line">      <span class="attr">"type"</span> : <span class="string">"&lt;ALPHANUM&gt;"</span>,</span><br><span class="line">      <span class="attr">"position"</span> : <span class="number">0</span></span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="attr">"token"</span> : <span class="string">"birthday"</span>,</span><br><span class="line">      <span class="attr">"start_offset"</span> : <span class="number">6</span>,</span><br><span class="line">      <span class="attr">"end_offset"</span> : <span class="number">14</span>,</span><br><span class="line">      <span class="attr">"type"</span> : <span class="string">"&lt;ALPHANUM&gt;"</span>,</span><br><span class="line">      <span class="attr">"position"</span> : <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对 Happy Birthday 使用 standard 分词器进行分词</p>
+<h2 id="调试"><a href="#调试" class="headerlink" title="调试"></a>调试</h2><h3 id="打开Profile-调试工具"><a href="#打开Profile-调试工具" class="headerlink" title="打开Profile 调试工具"></a>打开Profile 调试工具</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">GET twitter/_search</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"profile"</span>: <span class="string">"true"</span>, </span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"match"</span>: &#123;</span><br><span class="line">      <span class="attr">"city"</span>: <span class="string">"北京"</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>添加<code>&quot;profile&quot;: &quot;true&quot;</code>属性。</p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://elasticstack.blog.csdn.net/article/details/99481016" target="_blank" rel="noopener">1.开始使用 Elasticsearch （1）</a></p>
+<p><a href="https://elasticstack.blog.csdn.net/article/details/99546568" target="_blank" rel="noopener">2.开始使用 Elasticsearch （2）</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/es/" rel="tag"># es</a>
+          
+            <a href="/tags/Elasticsearch/" rel="tag"># Elasticsearch</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/01/29/es-deployment-in-docker/" rel="next" title="Docker 下安装 ES, Kibana">
+                <i class="fa fa-chevron-left"></i> Docker 下安装 ES, Kibana
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/02/06/elasticsearch-storage-model/" rel="prev" title="Elasticsearch 存储模型">
+                Elasticsearch 存储模型 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">61</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#运维相关"><span class="nav-number">1.</span> <span class="nav-text">运维相关</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#查看集群健康状态"><span class="nav-number">1.1.</span> <span class="nav-text">查看集群健康状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查看集群结点"><span class="nav-number">1.2.</span> <span class="nav-text">查看集群结点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查看所有索引"><span class="nav-number">1.3.</span> <span class="nav-text">查看所有索引</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#文档操作"><span class="nav-number">2.</span> <span class="nav-text">文档操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#创建一个文档"><span class="nav-number">2.1.</span> <span class="nav-text">创建一个文档</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改一个文档"><span class="nav-number">2.2.</span> <span class="nav-text">修改一个文档</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#部分更新一个文档（更新部分字段）"><span class="nav-number">2.3.</span> <span class="nav-text">部分更新一个文档（更新部分字段）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#插入或更新操作"><span class="nav-number">2.4.</span> <span class="nav-text">插入或更新操作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#检查一个文档是否存在"><span class="nav-number">2.5.</span> <span class="nav-text">检查一个文档是否存在</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#删除一个文档"><span class="nav-number">2.6.</span> <span class="nav-text">删除一个文档</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询删除（删除满足查询的-doc）"><span class="nav-number">2.7.</span> <span class="nav-text">查询删除（删除满足查询的 doc）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#索引"><span class="nav-number">3.</span> <span class="nav-text">索引</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#检查一个索引是否存在"><span class="nav-number">3.1.</span> <span class="nav-text">检查一个索引是否存在</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#删除一个索引"><span class="nav-number">3.2.</span> <span class="nav-text">删除一个索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询-settings"><span class="nav-number">3.3.</span> <span class="nav-text">查询 settings</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改-settings"><span class="nav-number">3.4.</span> <span class="nav-text">修改 settings</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询-mapping"><span class="nav-number">3.5.</span> <span class="nav-text">查询 mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改-mapping"><span class="nav-number">3.6.</span> <span class="nav-text">修改 mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#批量添加-doc"><span class="nav-number">3.7.</span> <span class="nav-text">批量添加 doc</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询"><span class="nav-number">4.</span> <span class="nav-text">查询</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#查询所有文档"><span class="nav-number">4.1.</span> <span class="nav-text">查询所有文档</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询行数"><span class="nav-number">4.2.</span> <span class="nav-text">查询行数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#指定分页"><span class="nav-number">4.3.</span> <span class="nav-text">指定分页</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#指定分页-1"><span class="nav-number">4.4.</span> <span class="nav-text">指定分页</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#带条件查询数量"><span class="nav-number">4.5.</span> <span class="nav-text">带条件查询数量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询字段是否可以被聚合-搜索所有的文档"><span class="nav-number">4.6.</span> <span class="nav-text">查询字段是否可以被聚合/搜索所有的文档</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#分词"><span class="nav-number">5.</span> <span class="nav-text">分词</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#查看分词结果（使用标准分词器进行分词）"><span class="nav-number">5.1.</span> <span class="nav-text">查看分词结果（使用标准分词器进行分词）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#调试"><span class="nav-number">6.</span> <span class="nav-text">调试</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#打开Profile-调试工具"><span class="nav-number">6.1.</span> <span class="nav-text">打开Profile 调试工具</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">217k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">3:18</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

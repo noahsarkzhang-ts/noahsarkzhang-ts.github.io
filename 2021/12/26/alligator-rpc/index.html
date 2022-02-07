@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="概述在一个长连接网关系统中，客户端与网关之间使用 TCP/Websocket 协议通信，网关与业务服务之间为了解耦，一般使用 MQ 进行通信。">
+<meta name="keywords" content="RPC,RpcPromise,PromiseHolder,双向通信">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Alligator 系列：Alligator RPC">
+<meta property="og:url" content="http://yoursite.com/2021/12/26/alligator-rpc/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="概述在一个长连接网关系统中，客户端与网关之间使用 TCP/Websocket 协议通信，网关与业务服务之间为了解耦，一般使用 MQ 进行通信。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/alligator/RPC-end2end.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/RPC-abstract.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/alligator-rpc.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/bidirection-commu.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rpc/unary-rpc.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rpc/send-oneway.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rpc/request-stream-rpc.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/RPC-multicast.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/RpcCommand.jpg">
+<meta property="og:image" content="http://yoursite.com/images/alligator/rpc-promise.jpg">
+<meta property="og:updated_time" content="2022-01-02T12:32:30.775Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Alligator 系列：Alligator RPC">
+<meta name="twitter:description" content="概述在一个长连接网关系统中，客户端与网关之间使用 TCP/Websocket 协议通信，网关与业务服务之间为了解耦，一般使用 MQ 进行通信。">
+<meta name="twitter:image" content="http://yoursite.com/images/alligator/RPC-end2end.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2021/12/26/alligator-rpc/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Alligator 系列：Alligator RPC | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/12/26/alligator-rpc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Alligator 系列：Alligator RPC
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2021-12-26 11:52:48" itemprop="dateCreated datePublished" datetime="2021-12-26T11:52:48+08:00">2021-12-26</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-01-02 20:32:30" itemprop="dateModified" datetime="2022-01-02T20:32:30+08:00">2022-01-02</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Alligator网关/" itemprop="url" rel="index"><span itemprop="name">Alligator网关</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">18k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">16 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>在一个长连接网关系统中，客户端与网关之间使用 TCP/Websocket 协议通信，网关与业务服务之间为了解耦，一般使用 MQ 进行通信。</p>
+<p><img src="/images/alligator/RPC-end2end.jpg" alt="RPC-end2end" title="RPC-end2end"></p>
+<a id="more"></a>
+<p>虽然底层协议不同，但上层的 RPC 协议却是一致的，在 Alligator 系统中，提供了一层抽象的 RPC 协议，可以实现相同的 RPC 语义。如下图所示：<br><img src="/images/alligator/RPC-abstract.jpg" alt="RPC-abstract" title="RPC-abstract"></p>
+<ul>
+<li>RpcPromise: RPC 最关键的类，封装了一次 PRC 调用，它有如下功能：1）异步操作，或异步转同步；2）支持消息的组播；3）支持消息的流处理；4）支持调用超时处理。</li>
+<li>RpcCommand: RPC 消息类，包括请求及响应消息，它定义了统一的消息头，在下文专门讲述；</li>
+<li>PromiseHolder：RpcPromise 对象的生命周期管理类，负责管理维护所有的 RpcPromise，其中包括生成 request id，删除 RpcPromise等等。PromisHolder 主要由 RPC 的调用方（客户端）维护。在 MQ 的实现中，request id 是全局惟一的，而在 TCP/Websocket 中，request id 只需要保证在一个 Connnection(一个客户端连接一个服务器称为一个 Connection) 惟一即可。</li>
+<li>ChannelHolder：一次 RPC 调用在服务器端的会话（Session）信息，它维护了一次 RPC 的相关状态数据，如客户端信息，以便写入响应数据。</li>
+</ul>
+<p>不同的协议接入PRC，实现 PromiseHolder 和 ChannelHolder 两个接口即可，可以根据协议的不同特点，实现其独特的功能，如在 TCP/Websocket 实现中，request id 只要保证在一个 Connection 惟一，而在 MQ 实现中，request id 是全局惟一，即要求在所有 Topic 中保持惟一。<br><img src="/images/alligator/alligator-rpc.jpg" alt="alligator-rpc" title="alligator-rpc"></p>
+<h2 id="通信模型"><a href="#通信模型" class="headerlink" title="通信模型"></a>通信模型</h2><p>在 Alligator 系统中，PRC 提供了1）客户端及服务器双向通信；2）Request-Respose 模式；3）Send-Oneway 模式；4）Request-Stream 模式；5）组播等功能。 </p>
+<h3 id="双向通信"><a href="#双向通信" class="headerlink" title="双向通信"></a>双向通信</h3><p>在双向通信模式中，客户端、网关及业务服务都可以作为客户端向对方发起 RPC 请求，同是，也可以作为服务器接收客户端的请求。</p>
+<p><img src="/images/alligator/bidirection-commu.jpg" alt="bidirection-commu" title="bidirection-commu"></p>
+<h3 id="Request-Response"><a href="#Request-Response" class="headerlink" title="Request-Response"></a>Request-Response</h3><p>该模式是最常用的模式，一个请求对应一个响应，响应结束之后，该 RPC 请求的生命周期也就结束了。该功能主要由 RpcPromise 提供。<br><img src="/images/rpc/unary-rpc.jpg" alt="unary-rpc" title="unary-rpc"></p>
+<h3 id="Send-Oneway"><a href="#Send-Oneway" class="headerlink" title="Send-Oneway"></a>Send-Oneway</h3><p>相对于 Request-Response 模式，Send-Oneway 只发送请求没有响应，也不用生成 RpcPromise 对象。<br><img src="/images/rpc/send-oneway.jpg" alt="send-oneway" title="send-oneway"></p>
+<h3 id="Request-Stream"><a href="#Request-Stream" class="headerlink" title="Request-Stream"></a>Request-Stream</h3><p>该模式是在 Request-Response 扩展而来，在 Request-Response 模式中，只要收到第一个响应之后就认为该 RPC 可以结束了，但是在 Request-Stream 中，响应是一股流，必须由服务器明确发送结束标志告诉客户端响应结束。<br><img src="/images/rpc/request-stream-rpc.jpg" alt="request-stream-rpc" title="request-stream-rpc"></p>
+<h3 id="Multicast"><a href="#Multicast" class="headerlink" title="Multicast"></a>Multicast</h3><p>在网关系统中，存在服务器向多个客户端发送请求的场景，在 Alligator RPC 中，提供了 Multicast 模式来支持这种场景。它的实现跟 Request-Stream 类似，只是在如何判断结束上有差异，在 Multicast 中明确知道接收多少个响应（一个请求对应一个响应），只需要判断响应的数量与请求数据相等即可。</p>
+<p><img src="/images/alligator/RPC-multicast.jpg" alt="RPC-multicast" title="RPC-multicast"></p>
+<h2 id="协议"><a href="#协议" class="headerlink" title="协议"></a>协议</h2><h3 id="RpcCommand"><a href="#RpcCommand" class="headerlink" title="RpcCommand"></a>RpcCommand</h3><p>RpcCommand 类代表 PRC 的消息，其定义如下图所示：<br><img src="/images/alligator/RpcCommand.jpg" alt="RpcCommand" title="RpcCommand"></p>
+<p>协议头相关字段：</p>
+<ul>
+<li>requestId：请求 id, 用于表示一次请求；</li>
+<li>biz：业务分类，代表后端的业务，可用于网关进行服务路由；</li>
+<li>cmd：命令 id, 代表具体的请求；</li>
+<li>type：消息类型，1：请求，2：响应，3：oneway，4：stream;</li>
+<li>end：流结束标志位，是否最后一个响应，0：不是，1：是；</li>
+<li>ver：接口版本；</li>
+<li>serializer：序列化类型；</li>
+<li>topic：发起方 topic, 用于接收结果；</li>
+<li>targetIds：目标用户，结合 topic 实现 Multicast 模式。</li>
+</ul>
+<p>其它主要字段：</p>
+<ul>
+<li>fanout：用于表示响应的个数，如果用于判断 Multicast 模式下请求是否结束；</li>
+<li>payload：消息体。</li>
+</ul>
+<h3 id="RpcPromise"><a href="#RpcPromise" class="headerlink" title="RpcPromise"></a>RpcPromise</h3><p>RpcPromise 是实现 RPC 功能的核心类，Request-Response、Request-Stream 及 Multicast 模式都是由该类实现，其基本结构如下所示：<br><img src="/images/alligator/rpc-promise.jpg" alt="rpc-promise" title="rpc-promise"></p>
+<p>RpcPromise 本质是实现了生产者/消费者模式一个对象，通过它，调用方和被调用方可以同步/异步地交换结果数据。它存储了两类数据：</p>
+<ul>
+<li>result：结果对象；</li>
+<li>listeners：监听器列表，包含了回调处理逻辑。</li>
+</ul>
+<p><strong>生产者（被调用方）：</strong><br>通过 setSuccess(成功) 和 setFailure(失败) 方法，通知调用方有结果；</p>
+<p><strong>消费者（调用方）：</strong><br>调用方可以通过两种方式获取结果：</p>
+<ul>
+<li>get：同步方式，此方法消费者线程被阻塞，直到有结果；</li>
+<li>添加 GenericFutureListener：异步方式，注册回调方法，有结果的时候被调用。</li>
+</ul>
+<h3 id="Request-Response-实现"><a href="#Request-Response-实现" class="headerlink" title="Request-Response 实现"></a>Request-Response 实现</h3><p>RpcPromise 本身就是一个 Request-Response 模式的实现，调用方发起一个 RPC 调用，得到一个 RpcPromise 对象。服务器返回结果，根据 requestId 找到对应的 RpcPromise ，调用 setSuccess(成功) 和 setFailure(失败) 方法通知调用方处理结果。</p>
+<h3 id="Request-Stream-实现"><a href="#Request-Stream-实现" class="headerlink" title="Request-Stream 实现"></a>Request-Stream 实现</h3><p>基本的 RpcPromise 实现了 Request-Response 语义，要支持 stream 流的方式，必须对 RpcPromise 进行扩展。在 Request-Response 中，收到第一个 Response 之后，RpcPromise 生命周期便结束了便要释放其对象。在 Request-Stream 中必须有明确的标志表示流结束。在 Alligator 中，扩展的地方包括以下几个方面：</p>
+<ul>
+<li>消息头中加入流结束标志位(end 字段)，表示流正常结束；</li>
+<li>扩展结果字段，引入一个阻塞队列，缓存多个 Response；</li>
+<li>扩展 setSuccess 语义，可处理多个结果；</li>
+<li>扩展 RpcPromise 生命周期，只有收到结束标志位才清除 RpcPromise。</li>
+</ul>
+<p>相关代码如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 1. RpcCommand 加入消息头中加入流结束标志位(end 字段)</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">byte</span> end;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 2. RpcPromise 中加入塞队列，用于缓存收到的Response数据</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> BlockingQueue&lt;Object&gt; streams = <span class="keyword">new</span> LinkedBlockingQueue&lt;&gt;();</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 3. RpcPromise 加入对中间数据的处理</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> StreamPromise&lt;Object&gt; <span class="title">flow</span><span class="params">(Object result)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!PromiseEnum.STREAM.equals(<span class="keyword">this</span>.type)) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> OperationNotSupported();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1、加入队列</span></span><br><span class="line">    <span class="keyword">if</span> (result != <span class="keyword">null</span>) &#123;</span><br><span class="line">        streams.offer(result);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2、调用回调</span></span><br><span class="line">    safeExecute(EVENT_EXECUTOR, () -&gt; notifyListeners());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 4. RpcPromise 加入对最后一个响应的处理，并设置流结束标志</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> StreamPromise&lt;Object&gt; <span class="title">end</span><span class="params">(Object result)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!PromiseEnum.STREAM.equals(<span class="keyword">this</span>.type)) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> OperationNotSupported();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1、加入队列</span></span><br><span class="line">    <span class="keyword">if</span> (result != <span class="keyword">null</span>) &#123;</span><br><span class="line">        streams.offer(result);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2、设置结束标志</span></span><br><span class="line">    isStop = <span class="keyword">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3、调用回调</span></span><br><span class="line">    safeExecute(EVENT_EXECUTOR, <span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            notifyListeners();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 5. 判断 Promis 是否可以被移除，以下条件返回true:</span></span><br><span class="line"><span class="comment"> * 1）已经调用 setFailure;</span></span><br><span class="line"><span class="comment"> * 2) 是否已经结束（流模式下）;</span></span><br><span class="line"><span class="comment"> * 3）所有结果已经返回（Multicast模式下）</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> 是否移除</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">boolean</span> <span class="title">isRemoving</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (isRemoved) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    isRemoved = isFailure || isStop || <span class="keyword">this</span>.currentFanout.get() &gt;= fanout;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> isRemoved;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Multicast-实现"><a href="#Multicast-实现" class="headerlink" title="Multicast 实现"></a>Multicast 实现</h3><p>Multicast 与 Request-Stream 相同的逻辑，都是处理多个响应结果，差异的地方在于流结束的方式。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Promise&lt;Object&gt; <span class="title">setSuccess</span><span class="params">(Object result)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * GENERAL：正常调用,返回结果之后，Promise 不再允许调用；</span></span><br><span class="line"><span class="comment">     * MULTIPLE：将多次返回结果存放到缓存中，批量调用；</span></span><br><span class="line"><span class="comment">     * STREAM：执行 end 操作。</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">if</span> (PromiseEnum.GENERAL.equals(<span class="keyword">this</span>.type)) &#123;</span><br><span class="line">        <span class="keyword">this</span>.currentFanout.incrementAndGet();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.setSuccess(result);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (PromiseEnum.MULTIPLE.equals(<span class="keyword">this</span>.type)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>.currentFanout.get() &gt; <span class="keyword">this</span>.fanout) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 1、 响应结果数加 1</span></span><br><span class="line">        <span class="keyword">this</span>.currentFanout.incrementAndGet();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2、加入队列</span></span><br><span class="line">        <span class="keyword">if</span> (result != <span class="keyword">null</span>) &#123;</span><br><span class="line">            streams.offer(result);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 3、调用回调</span></span><br><span class="line">        safeExecute(EVENT_EXECUTOR, () -&gt; notifyListeners());</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (PromiseEnum.STREAM.equals(<span class="keyword">this</span>.type)) &#123;</span><br><span class="line">        <span class="keyword">this</span>.end(result);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 RpcPromise 中维护一个当前的结果数量，每收到一个结果，数量自增加 1, 当结果数量等于请求数量，则该请求结束。</p>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>在 Alligator 系统中，实现了一个抽象的 RPC 层，而与底层协议无关，如 TCP/Websocket, MQ. 在项目开发中，开发人员只需关注业务开发，而无需关注底层 RPC 实现，从而可以极大提高开发效率。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/RPC/" rel="tag"># RPC</a>
+          
+            <a href="/tags/RpcPromise/" rel="tag"># RpcPromise</a>
+          
+            <a href="/tags/PromiseHolder/" rel="tag"># PromiseHolder</a>
+          
+            <a href="/tags/双向通信/" rel="tag"># 双向通信</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/11/21/rsocket-overview/" rel="next" title="RPC：RScocket">
+                <i class="fa fa-chevron-left"></i> RPC：RScocket
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/01/02/alligator-project-structure/" rel="prev" title="Alligator 系列：工程结构">
+                Alligator 系列：工程结构 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">61</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#通信模型"><span class="nav-number">2.</span> <span class="nav-text">通信模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#双向通信"><span class="nav-number">2.1.</span> <span class="nav-text">双向通信</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Request-Response"><span class="nav-number">2.2.</span> <span class="nav-text">Request-Response</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Send-Oneway"><span class="nav-number">2.3.</span> <span class="nav-text">Send-Oneway</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Request-Stream"><span class="nav-number">2.4.</span> <span class="nav-text">Request-Stream</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Multicast"><span class="nav-number">2.5.</span> <span class="nav-text">Multicast</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#协议"><span class="nav-number">3.</span> <span class="nav-text">协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RpcCommand"><span class="nav-number">3.1.</span> <span class="nav-text">RpcCommand</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RpcPromise"><span class="nav-number">3.2.</span> <span class="nav-text">RpcPromise</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Request-Response-实现"><span class="nav-number">3.3.</span> <span class="nav-text">Request-Response 实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Request-Stream-实现"><span class="nav-number">3.4.</span> <span class="nav-text">Request-Stream 实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Multicast-实现"><span class="nav-number">3.5.</span> <span class="nav-text">Multicast 实现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#结论"><span class="nav-number">4.</span> <span class="nav-text">结论</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">217k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">3:18</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

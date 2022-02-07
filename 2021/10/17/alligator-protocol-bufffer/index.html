@@ -108,18 +108,18 @@
 
 
 
-  <meta name="description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。  说明: 这篇">
+  <meta name="description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。">
 <meta name="keywords" content="PB,protocol bufffer,ProtostuffUtils">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Alligator 系列：Protocol Buffer">
 <meta property="og:url" content="http://yoursite.com/2021/10/17/alligator-protocol-bufffer/index.html">
 <meta property="og:site_name" content="以太格">
-<meta property="og:description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。  说明: 这篇">
+<meta property="og:description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-10-17T15:13:12.963Z">
+<meta property="og:updated_time" content="2022-01-02T12:31:59.785Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Alligator 系列：Protocol Buffer">
-<meta name="twitter:description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。  说明: 这篇">
+<meta name="twitter:description" content="1. 概述在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。">
 
 
 
@@ -411,12 +411,24 @@
                 
               
 
-              <time title="创建时间：2021-10-17 15:11:22 / 修改时间：23:13:12" itemprop="dateCreated datePublished" datetime="2021-10-17T15:11:22+08:00">2021-10-17</time>
+              <time title="创建时间：2021-10-17 15:11:22" itemprop="dateCreated datePublished" datetime="2021-10-17T15:11:22+08:00">2021-10-17</time>
             
 
             
               
 
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-01-02 20:31:59" itemprop="dateModified" datetime="2022-01-02T20:31:59+08:00">2022-01-02</time>
               
             
           </span>
@@ -496,6 +508,7 @@
 
       
         <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在系统中，Protocol Buffer 的使用有两种方式：1）定义 .proto 文件，生成相应的 Bean 对象及序列化的代码；2）根据现有的 Java Bean 对象，动态生成对应的 schema, 使用工具类完成对象的序列化。这两种方式的优缺点也比较明显，.proto 文件支持向前、向后兼容，后者使用简单，引用工具类，便可支持序列化操作，缺点是存在代码兼容性问题。</p>
+<a id="more"></a>
 <font color="red"><strong> 说明: </strong></font><br><font color="red">这篇文章只是简单讲述两种方式的使用，详细的内容请参考官方文档。</font>
 
 <h2 id="2-定义-proto-文件"><a href="#2-定义-proto-文件" class="headerlink" title="2. 定义 proto 文件"></a>2. 定义 proto 文件</h2><h3 id="2-1-安装部署-Protocol-Buffer-编译器"><a href="#2-1-安装部署-Protocol-Buffer-编译器" class="headerlink" title="2.1 安装部署 Protocol Buffer 编译器"></a>2.1 安装部署 Protocol Buffer 编译器</h3><p>以 windows 环境为例，从官方下载 Protocol Buffer，如 protoc-3.18.1-win64.zip, 解压缩到指定目录，并将 bin 目录加到 Path 环境变量中即可。</p>
@@ -670,7 +683,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -725,7 +738,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1066,7 +1083,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1121,7 +1198,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1133,7 +1210,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1142,7 +1219,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

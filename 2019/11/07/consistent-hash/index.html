@@ -116,7 +116,7 @@
 <meta property="og:site_name" content="以太格">
 <meta property="og:description" content="1. 解决的问题在分布式服务中，往往有这样的场景：将某个用户或某台机器的请求负载路由到固定的某台服务器上。简单的做法直接是使用哈希算法，h = hash(key) % N ，该算法的核心思想是：将服务器编号，使用哈希算法取根据某类请求参数key（用户id或IP）计算出一个哈希值，再对该哈希值用服务器数据N进行取余（%）操作，从而得到服务器编号。使用该算法有一个问题，就是服务器数据数目（N）增加中或">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-07-31T09:17:10.672Z">
+<meta property="og:updated_time" content="2022-01-02T12:32:48.743Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="一致性哈希算法">
 <meta name="twitter:description" content="1. 解决的问题在分布式服务中，往往有这样的场景：将某个用户或某台机器的请求负载路由到固定的某台服务器上。简单的做法直接是使用哈希算法，h = hash(key) % N ，该算法的核心思想是：将服务器编号，使用哈希算法取根据某类请求参数key（用户id或IP）计算出一个哈希值，再对该哈希值用服务器数据N进行取余（%）操作，从而得到服务器编号。使用该算法有一个问题，就是服务器数据数目（N）增加中或">
@@ -428,7 +428,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+                <time title="修改时间：2022-01-02 20:32:48" itemprop="dateModified" datetime="2022-01-02T20:32:48+08:00">2022-01-02</time>
               
             
           </span>
@@ -514,6 +514,7 @@
 </blockquote>
 <p>通过一致性哈希算法，服务器的增加或减少只会影响该服务器周围的请求，不会扩大到整个哈希环，从而保证算法的可扩展性。</p>
 <p>一致性哈希算法也有一个问题，就是服务器较少时，可能出现服务器之间负载的请求可能不均衡，有些服务器负载的请求可能过多，而有些服务负载较少。解决这个问题的关键是增加哈希环上服务节点的数量，在物理服务器不能增加的情况下，可以将一个服务结点映射为多个虚拟结点，均匀分布在哈希环上，从而解决该问题。</p>
+<a id="more"></a>
 <h2 id="2-哈希算法"><a href="#2-哈希算法" class="headerlink" title="2. 哈希算法"></a>2. 哈希算法</h2><p>在一致性哈希算法中，哈希算法是一个重要的组成部分，它将服务器结点和请求字符串转换为一个整数，如何选择一个好的哈希算法？评判一个哈希算法的标准是什么？</p>
 <p>哈希算法大致有两种类型：加密哈希算法和非加密哈希算法，加密哈希算法为了防止攻击者找出碰撞而设计的，它的速度较慢。非加密哈希算法将字符串作为输入，通过计算输出一个整数，理想的哈希算法有一个特性：输出非常均匀分布在可能的输出域，特别是当输入非常相似的时候。可以将哈希算法大致分为三代：</p>
 <ul>
@@ -681,7 +682,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -736,7 +737,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1077,7 +1082,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1132,7 +1197,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1144,7 +1209,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1153,7 +1218,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

@@ -108,18 +108,18 @@
 
 
 
-  <meta name="description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。 1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Mysql 5.7 镜像$ docker pull mysql:5.7# 查看下载镜像$ docker ima">
+  <meta name="description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。">
 <meta name="keywords" content="docker,mysql">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Mysql 5.7 Docker 部署（单机）">
 <meta property="og:url" content="http://yoursite.com/2021/10/23/mysql-docker-deployment/index.html">
 <meta property="og:site_name" content="以太格">
-<meta property="og:description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。 1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Mysql 5.7 镜像$ docker pull mysql:5.7# 查看下载镜像$ docker ima">
+<meta property="og:description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-10-23T10:32:57.707Z">
+<meta property="og:updated_time" content="2022-01-29T06:48:08.412Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Mysql 5.7 Docker 部署（单机）">
-<meta name="twitter:description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。 1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Mysql 5.7 镜像$ docker pull mysql:5.7# 查看下载镜像$ docker ima">
+<meta name="twitter:description" content="在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。">
 
 
 
@@ -411,12 +411,24 @@
                 
               
 
-              <time title="创建时间：2021-10-23 11:19:50 / 修改时间：18:32:57" itemprop="dateCreated datePublished" datetime="2021-10-23T11:19:50+08:00">2021-10-23</time>
+              <time title="创建时间：2021-10-23 11:19:50" itemprop="dateCreated datePublished" datetime="2021-10-23T11:19:50+08:00">2021-10-23</time>
             
 
             
               
 
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-01-29 14:48:08" itemprop="dateModified" datetime="2022-01-29T14:48:08+08:00">2022-01-29</time>
               
             
           </span>
@@ -496,10 +508,11 @@
 
       
         <p>在项目开发中，有时需要用到 Mysql 来验证功能，使用 Docker 部署 Mysql 便是一个比较方便快捷的选择，在本文中主要是安装 Mysql 5.7，其它版本可以自行选择。</p>
+<a id="more"></a>
 <h2 id="1-拉取镜像"><a href="#1-拉取镜像" class="headerlink" title="1. 拉取镜像"></a>1. 拉取镜像</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 搜索 Mysql 镜像</span></span><br><span class="line">$ docker search mysql</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 Mysql 5.7 镜像</span></span><br><span class="line">$ docker pull mysql:5.7</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看下载镜像</span></span><br><span class="line">$ docker images</span><br></pre></td></tr></table></figure>
 <p><font color="red"><strong>Mysql 官方镜像地址:</strong></font><br><a href="https://hub.docker.com/_/mysql/" target="_blank" rel="noopener">https://hub.docker.com/_/mysql/</a></p>
 <p><strong>说明：</strong><br>其它版本可以在官方网站查看</p>
-<h2 id="2-启动镜像"><a href="#2-启动镜像" class="headerlink" title="2. 启动镜像"></a>2. 启动镜像</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 运行 Mysql 容器</span></span><br><span class="line">$ docker run -d 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行 Mysql 容器，映射目录，设置 Mysql 参数</span></span><br><span class="line">$ docker run -d -p 3306:3306 --name mysql \</span><br><span class="line">-v /fsmeeting/mysql/conf:/etc/mysql \</span><br><span class="line">-v /fsmeeting/mysql/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line">-v /fsmeeting/mysql/data:/var/lib/mysql \</span><br><span class="line">-e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line">mysql:5.7 \</span><br><span class="line">--lower_case_table_names=1 \</span><br><span class="line">--character_set_server=utf8 \</span><br><span class="line">--innodb_log_file_size=256m</span><br></pre></td></tr></table></figure>
+<h2 id="2-启动镜像"><a href="#2-启动镜像" class="headerlink" title="2. 启动镜像"></a>2. 启动镜像</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 运行 Mysql 容器</span></span><br><span class="line">$ docker run -d 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行 Mysql 容器，映射目录，设置 Mysql 参数</span></span><br><span class="line">$ docker run -d -p 3306:3306 --name mysql \</span><br><span class="line">-v /data/mysql/conf:/etc/mysql \</span><br><span class="line">-v /data/mysql/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line">-v /data/mysql/data:/var/lib/mysql \</span><br><span class="line">-e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line">mysql:5.7 \</span><br><span class="line">--lower_case_table_names=1 \</span><br><span class="line">--character_set_server=utf8 \</span><br><span class="line">--innodb_log_file_size=256m</span><br></pre></td></tr></table></figure>
 <p><strong>Docker 参数说明：</strong></p>
 <ul>
 <li>-d：后台运行容器，并返回容器 ID;</li>
@@ -675,7 +688,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -730,7 +743,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1071,7 +1088,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1126,7 +1203,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1138,7 +1215,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1147,7 +1224,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

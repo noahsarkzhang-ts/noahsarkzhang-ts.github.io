@@ -116,7 +116,7 @@
 <meta property="og:site_name" content="以太格">
 <meta property="og:description" content="1. 概述EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：  负责监听 SocketChanne">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-09-19T03:15:49.154Z">
+<meta property="og:updated_time" content="2022-01-02T12:35:24.374Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty 系列：EventLoop">
 <meta name="twitter:description" content="1. 概述EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：  负责监听 SocketChanne">
@@ -428,7 +428,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-09-19 11:15:49" itemprop="dateModified" datetime="2021-09-19T11:15:49+08:00">2021-09-19</time>
+                <time title="修改时间：2022-01-02 20:35:24" itemprop="dateModified" datetime="2022-01-02T20:35:24+08:00">2022-01-02</time>
               
             
           </span>
@@ -513,6 +513,7 @@
 <li>处理分发 I/O 事件；</li>
 <li>执行任务，包括定时任务。</li>
 </ol>
+<a id="more"></a>
 <p>整体的处理流程如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> selectCnt = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 1、监听 Channel 网络事件</span></span><br><span class="line">            <span class="keyword">if</span> (!hasTasks()) &#123;</span><br><span class="line">                strategy = select(curDeadlineNanos);</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">int</span> ioRatio = <span class="keyword">this</span>.ioRatio;</span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">long</span> ioStartTime = System.nanoTime();</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 2、处理网络事件 </span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                processSelectedKeys();</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">final</span> <span class="keyword">long</span> ioTime = System.nanoTime() - ioStartTime;</span><br><span class="line">                </span><br><span class="line">                <span class="comment">// 3、执行任务</span></span><br><span class="line">                ranTasks = runAllTasks(ioTime * (<span class="number">100</span> - ioRatio) / ioRatio);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            handleLoopException(t);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// ... </span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p><strong>说明：</strong> 代码以 NioEventLoop 为例。</p>
 <h2 id="2-流程"><a href="#2-流程" class="headerlink" title="2. 流程"></a>2. 流程</h2><p>上文分析了 EventLoop 的主要功能，在这部分内容中主要讲述这三大功能及线程的创建，我们先从线程的创建开始。</p>
@@ -722,7 +723,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -777,7 +778,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1118,7 +1123,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1173,7 +1238,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1185,7 +1250,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1194,7 +1259,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

@@ -108,13 +108,13 @@
 
 
 
-  <meta name="description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+  <meta name="description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。">
 <meta name="keywords" content="select,epoll">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Select 和 Epoll实现">
 <meta property="og:url" content="http://yoursite.com/2020/10/08/select-and-epoll/index.html">
 <meta property="og:site_name" content="以太格">
-<meta property="og:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+<meta property="og:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/tcp/poll.jpg">
 <meta property="og:image" content="http://yoursite.com/images/tcp/io-multiplexing.jpg">
@@ -122,10 +122,10 @@
 <meta property="og:image" content="http://yoursite.com/images/tcp/select_data_struct.jpg">
 <meta property="og:image" content="http://yoursite.com/images/tcp/epoll.jpg">
 <meta property="og:image" content="http://yoursite.com/images/tcp/epoll_data_struct.jpg">
-<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta property="og:updated_time" content="2022-01-02T12:37:24.364Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Select 和 Epoll实现">
-<meta name="twitter:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。 1. 知识储备在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。 1.1 poll 函数在 linux">
+<meta name="twitter:description" content="这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。">
 <meta name="twitter:image" content="http://yoursite.com/images/tcp/poll.jpg">
 
 
@@ -435,7 +435,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+                <time title="修改时间：2022-01-02 20:37:24" itemprop="dateModified" datetime="2022-01-02T20:37:24+08:00">2022-01-02</time>
               
             
           </span>
@@ -515,6 +515,7 @@
 
       
         <p>这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。</p>
+<a id="more"></a>
 <h2 id="1-知识储备"><a href="#1-知识储备" class="headerlink" title="1. 知识储备"></a>1. 知识储备</h2><p>在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。</p>
 <h3 id="1-1-poll-函数"><a href="#1-1-poll-函数" class="headerlink" title="1.1 poll 函数"></a>1.1 poll 函数</h3><p>在 linux 中，设备的操作抽象为文件的操作，对网络设备的操作同样也是文件操作。为了实现非阻塞的数据读取，文件提供了 poll 操作，该操作为上层应用提供了探测设备文件是否有数据可读的接口，同时结合文件的等待队列，上层应用可以对感兴趣的事件添加处理函数，这个处理函数通常是向等待队列中添加一个等待结点，这个等待结点会关联一个 callback 函数，当相关事件满足时触发 callback 函数，最后 poll 函数返回当前设备文件的状态，上层应用根据返回状态决定是否阻塞该线程，poll 函数不阻塞线程。通过这种方式，设备文件提供了基于事件处理的回调机制，select/poll/epoll 就是基于这种方式来实现的。 </p>
 <p><img src="/images/tcp/poll.jpg" alt="poll" title="poll"></p>
@@ -715,7 +716,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -770,7 +771,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1111,7 +1116,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1166,7 +1231,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1178,7 +1243,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1187,7 +1252,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

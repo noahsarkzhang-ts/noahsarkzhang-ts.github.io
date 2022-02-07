@@ -130,7 +130,7 @@
 <meta property="og:image" content="http://yoursite.com/images/singal-worker.jpg">
 <meta property="og:image" content="http://yoursite.com/images/join-flow.jpg">
 <meta property="og:image" content="http://yoursite.com/images/work-stealing-flow.jpg">
-<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta property="og:updated_time" content="2022-01-02T12:34:01.375Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Java Fork&#x2F;Join框架">
 <meta name="twitter:description" content="1. 概述ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：  ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。">
@@ -443,7 +443,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+                <time title="修改时间：2022-01-02 20:34:01" itemprop="dateModified" datetime="2022-01-02T20:34:01+08:00">2022-01-02</time>
               
             
           </span>
@@ -529,6 +529,7 @@
 <li>ForkJoinWorkerThread：工作线程，是任务的执行单元。</li>
 <li>ForkJoinTask：封装业务的执行逻辑，包括任务fork及join流程。</li>
 </ul>
+<a id="more"></a>
 <h2 id="2-核心思想"><a href="#2-核心思想" class="headerlink" title="2. 核心思想"></a>2. 核心思想</h2><p>ForkJoinPool的两大核心就是分而治之(Divide and conquer)和工作窃取(Work Stealing)算法，下面先对两种算法作一个介绍，后面将会具体细节做说明，这部分内容来自 <a href="https://blog.hufeifei.cn/2018/09/15/Java/ForkJoinPool/" target="_blank" rel="noopener">holmofy</a>，作者进行了很好的总结。</p>
 <h3 id="2-1-分而治之"><a href="#2-1-分而治之" class="headerlink" title="2.1 分而治之"></a>2.1 分而治之</h3><p>ForkJoinPool主要思想是：将一个大任务拆分成多个小任务后，使用fork可以将小任务分发给其他线程同时处理，使用join可以将多个线程处理的结果进行汇总。<br><img src="/images/devide-conquer.jpg" alt="devide-conquer" title="devide-conquer"></p>
 <h3 id="2-2-工作窃取"><a href="#2-2-工作窃取" class="headerlink" title="2.2 工作窃取"></a>2.2 工作窃取</h3><p>Fork/Join框架中使用的work stealing灵感来源于Cilk(开发Cilk的公司被Intel收购，原项目后来被升级为Clik Plus)。</p>
@@ -788,7 +789,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -843,7 +844,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1184,7 +1189,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1239,7 +1304,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1251,7 +1316,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1260,7 +1325,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

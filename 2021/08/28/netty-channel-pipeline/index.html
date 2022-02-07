@@ -117,7 +117,7 @@
 <meta property="og:description" content="1. 概述ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/netty/netty-channel-pipeline.jpg">
-<meta property="og:updated_time" content="2021-09-04T03:01:20.371Z">
+<meta property="og:updated_time" content="2022-01-02T12:35:11.590Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty 系列：ChannelPipeline">
 <meta name="twitter:description" content="1. 概述ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，">
@@ -430,7 +430,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-09-04 11:01:20" itemprop="dateModified" datetime="2021-09-04T11:01:20+08:00">2021-09-04</time>
+                <time title="修改时间：2022-01-02 20:35:11" itemprop="dateModified" datetime="2022-01-02T20:35:11+08:00">2022-01-02</time>
               
             
           </span>
@@ -510,6 +510,7 @@
 
       
         <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 “Intercepting Filter” 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，用户可以根据业务场景定义 ChannelHandler，以类似插件的方式添加到 ChannelPipeline 中。</p>
+<a id="more"></a>
 <h3 id="1-1-整体流程"><a href="#1-1-整体流程" class="headerlink" title="1.1 整体流程"></a>1.1 整体流程</h3><p>每一个 channel 都包含一个属于自己的 ChannelPipeline，在创建 channel 的时候自动创建，下图描述了 ChannelPipeline 是如何处理 I/O 事件的，一个 I/O 事件要么被 ChannelInboundHandler 处理，要么被 ChannelOutboundHandler，同时通过 ChannelHandlerContext 将事件传递给下一个 ChannelHandler，如通过如下方法：ChannelHandlerContext#fireChannelRead(Object) 和 ChannelHandlerContext#write(Object)</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">                                                I/O Request</span><br><span class="line">                                          via Channel or ChannelHandlerContext</span><br><span class="line">                                                    |</span><br><span class="line">                                                    |</span><br><span class="line">+---------------------------------------------------+---------------+</span><br><span class="line">|                           ChannelPipeline         |               |</span><br><span class="line">|                                                  \|/              |</span><br><span class="line">|    +---------------------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  N  |            | Outbound Handler  1  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">|               |                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler N-1 |            | Outbound Handler  2  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  .               |</span><br><span class="line">|               .                                   .               |</span><br><span class="line">| ChannelHandlerContext.fireIN_EVT() ChannelHandlerContext.OUT_EVT()|</span><br><span class="line">|        [ method call]                       [method call]         |</span><br><span class="line">|               .                                   .               |</span><br><span class="line">|               .                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  2  |            | Outbound Handler M-1 |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">|               |                                  \|/              |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|    | Inbound Handler  1  |            | Outbound Handler  M  |    |</span><br><span class="line">|    +----------+----------+            +-----------+----------+    |</span><br><span class="line">|              /|\                                  |               |</span><br><span class="line">+---------------+-----------------------------------+---------------+</span><br><span class="line">                |                                  \|/</span><br><span class="line">+---------------+-----------------------------------+---------------+</span><br><span class="line">|               |                                   |               |</span><br><span class="line">|       [ Socket.read() ]                    [ Socket.write() ]     |</span><br><span class="line">|                                                                   |</span><br><span class="line">|  Netty Internal I/O Threads (Transport Implementation)            |</span><br><span class="line">+-------------------------------------------------------------------+</span><br></pre></td></tr></table></figure>
 <p>如左边的图所示，入站（inbound）事件从自底向上的方向被 inbound handler 处理，处理的数据来自于 I/O 线程，这些数据通常来自于远程的机器，通过 SocketChannel#read(ByteBuffer) 方法读到。如果一个入站事件传递到了最后一个 inbound handler，它通常会被丢弃，或者日志输出。</p>
@@ -696,7 +697,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -751,7 +752,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1092,7 +1097,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1147,7 +1212,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1159,7 +1224,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1168,7 +1233,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

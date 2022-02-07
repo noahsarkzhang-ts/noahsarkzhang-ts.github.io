@@ -117,7 +117,7 @@
 <meta property="og:description" content="1. 概述在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/alligator/alligator-architecture.jpg">
-<meta property="og:updated_time" content="2021-11-14T07:16:09.762Z">
+<meta property="og:updated_time" content="2022-01-09T13:45:07.624Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Alligator 系列：长连接网关概述">
 <meta name="twitter:description" content="1. 概述在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行">
@@ -430,7 +430,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-11-14 15:16:09" itemprop="dateModified" datetime="2021-11-14T15:16:09+08:00">2021-11-14</time>
+                <time title="修改时间：2022-01-09 21:45:07" itemprop="dateModified" datetime="2022-01-09T21:45:07+08:00">2022-01-09</time>
               
             
           </span>
@@ -475,7 +475,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">1.5k</span>
+                <span title="本文字数">4.2k</span>
               
 
               
@@ -489,7 +489,7 @@
                 
                   <span class="post-meta-item-text">阅读时长 &asymp;</span>
                 
-                <span title="阅读时长">1 分钟</span>
+                <span title="阅读时长">4 分钟</span>
               
             </div>
           
@@ -510,6 +510,7 @@
 
       
         <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行封装，隐藏不同协议之间的差异，对上层应用提供一套统一的接口，上层业务只关心业务，那么就会减少开发人员的学习成本，快速接入项目。<br>Alligator 项目就是为了解决上述的场景而开发的，它提供了一个框架，可以让开发人员快速进行 TCP/Websocket 及 HTTP 的开发，而无需关心下层使用的协议。在此基础上，Alligator 还提供了一个进行长连接网关开发的脚手架，它是业务无关的，可以快速接入不同的业务场景。</p>
+<a id="more"></a>
 <h2 id="2-架构"><a href="#2-架构" class="headerlink" title="2. 架构"></a>2. 架构</h2><p><img src="/images/alligator/alligator-architecture.jpg" alt="alligator-architecture" title="alligator-architecture"></p>
 <p>模块说明：</p>
 <ul>
@@ -529,7 +530,31 @@
 <li>业务无关：对底层模块进行了统一地抽象及封装，业务人员可以专注业务开发；</li>
 </ul>
 <h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h2><p>Alligator 不仅提供了一个快速进行长连接开发的框架，同时还提供了一个开发脚手架，让长连接网关开发不再是一件困难的事。后续将出一个序列专门介绍其底层实现；</p>
-<p><a href="https://github.com/noahsarkzhang-ts/alligator" target="_blank" rel="noopener">工程代码</a></p>
+<p><strong><a href="https://github.com/noahsarkzhang-ts/alligator" target="_blank" rel="noopener">工程代码</a></strong></p>
+<p><strong>相关文章：</strong></p>
+<p><strong>Alligator网关：</strong></p>
+<p><a href="https://zhangxt.top/2021/07/31/alligator-gateway-overview/" target="_blank" rel="noopener">1. Alligator 系列：长连接网关概述</a></p>
+<p><a href="https://zhangxt.top/2022/01/02/alligator-project-structure/" target="_blank" rel="noopener">2. Alligator 系列：工程结构</a></p>
+<p><a href="https://zhangxt.top/2022/01/02/alligator-example/" target="_blank" rel="noopener">3. Alligator 系列：实例</a></p>
+<p><a href="https://zhangxt.top/2021/08/14/alligator-heartbeat-detection/" target="_blank" rel="noopener">4. Alligator 系列：心跳检测</a></p>
+<p><a href="https://zhangxt.top/2021/09/30/alligator-rabbitmq-deploy/" target="_blank" rel="noopener">5. Alligator 系列：RabbitMQ 基础知识及部署</a></p>
+<p><a href="https://zhangxt.top/2021/10/02/alligator-rocketmq-deploy/" target="_blank" rel="noopener">6. Alligator 系列：RocketMQ 基础知识及部署</a></p>
+<p><a href="https://zhangxt.top/2021/10/16/alligator-mq-rpc/" target="_blank" rel="noopener">7. Alligator 系列：MQ RPC</a></p>
+<p><a href="https://zhangxt.top/2021/10/17/alligator-protocol-bufffer/" target="_blank" rel="noopener">8. Alligator 系列：Protocol Buffer</a></p>
+<p><a href="https://zhangxt.top/2021/12/26/alligator-rpc/" target="_blank" rel="noopener">9. Alligator 系列：Alligator RPC</a></p>
+<p><a href="https://zhangxt.top/2022/01/02/alligator-example/" target="_blank" rel="noopener">10. Alligator 系列：实例</a></p>
+<p><strong>Netty相关：</strong></p>
+<p><a href="https://zhangxt.top/2021/08/18/netty-channelfuture/" target="_blank" rel="noopener">11. Netty 系列：ChannelFuture</a></p>
+<p><a href="https://zhangxt.top/2021/08/22/netty-reactor/" target="_blank" rel="noopener">12. Netty 系列：Reactor</a></p>
+<p><a href="https://zhangxt.top/2021/08/26/netty-server-bootstrap/" target="_blank" rel="noopener">13. Netty 系列：ServerBootstrap</a></p>
+<p><a href="https://zhangxt.top/2021/08/28/netty-channel-pipeline/" target="_blank" rel="noopener">14. Netty 系列：ChannelPipeline</a></p>
+<p><a href="https://zhangxt.top/2021/08/29/netty-eventloop/" target="_blank" rel="noopener">15. Netty 系列：EventLoop</a></p>
+<p><a href="https://zhangxt.top/2021/09/19/netty-memory-management/" target="_blank" rel="noopener">16. Netty 系列：内存管理（摘录）</a></p>
+<p><strong>RPC相关：</strong></p>
+<p><a href="https://zhangxt.top/2021/11/07/rpc-overview/" target="_blank" rel="noopener">17. RPC：RPC 概述</a></p>
+<p><a href="https://zhangxt.top/2021/11/14/grpc-overview/" target="_blank" rel="noopener">18. RPC：gRPC</a></p>
+<p><a href="https://zhangxt.top/2021/11/21/dubbo-overview/" target="_blank" rel="noopener">19. RPC：Dubbo</a></p>
+<p><a href="https://zhangxt.top/2021/11/21/rsocket-overview/" target="_blank" rel="noopener">20. RPC：RScocket</a></p>
 
       
     </div>
@@ -654,7 +679,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -709,7 +734,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1050,7 +1079,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1105,7 +1194,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1117,7 +1206,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1126,7 +1215,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

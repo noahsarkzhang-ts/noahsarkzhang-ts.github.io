@@ -116,7 +116,7 @@
 <meta property="og:site_name" content="以太格">
 <meta property="og:description" content="在大多数软件系统中，功能特性决定了系统能做什么，而非功能特性决定了系统能走多远，本篇文章专注于非功能特性中三个比较重要的特性：  可靠性（Reliability）：当出现意外情况如硬件、软件故障、人为失误等，系统应可以继续正常运转：虽然性能可能有所降低，但确保功能正确。 可扩展性（Scalability）:随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种增长。 可维护性（Ma">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-07-31T09:17:10.688Z">
+<meta property="og:updated_time" content="2022-01-02T12:36:08.437Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="系统设计-非功能性特性">
 <meta name="twitter:description" content="在大多数软件系统中，功能特性决定了系统能做什么，而非功能特性决定了系统能走多远，本篇文章专注于非功能特性中三个比较重要的特性：  可靠性（Reliability）：当出现意外情况如硬件、软件故障、人为失误等，系统应可以继续正常运转：虽然性能可能有所降低，但确保功能正确。 可扩展性（Scalability）:随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种增长。 可维护性（Ma">
@@ -428,7 +428,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-07-31 17:17:10" itemprop="dateModified" datetime="2021-07-31T17:17:10+08:00">2021-07-31</time>
+                <time title="修改时间：2022-01-02 20:36:08" itemprop="dateModified" datetime="2022-01-02T20:36:08+08:00">2022-01-02</time>
               
             
           </span>
@@ -513,6 +513,7 @@
 <li>可扩展性（Scalability）:随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种增长。</li>
 <li>可维护性（Maintainability）：随着时间的推移，许多新的人员参与到系统开发和运维，以维护现有功能或适配新场景等，系统都应高效运转。</li>
 </ul>
+<a id="more"></a>
 <h2 id="1-可靠性"><a href="#1-可靠性" class="headerlink" title="1. 可靠性"></a>1. 可靠性</h2><p>可靠性意味着即使发生故障，系统也可以正常工作。故障包括硬件（通常是随机的，不相关的），软件（缺陷通常是系统的，更加难以处理）以及人为（总是很难避免时不时会出错）方面。容错技术可以很好地隐藏某种类型故障，避免影响最终用户。</p>
 <h2 id="2-可扩展性"><a href="#2-可扩展性" class="headerlink" title="2. 可扩展性"></a>2. 可扩展性</h2><p>可扩展性是指负载增加时，有效保持系统性能的相关技术策略。即使系统现在工作可靠，并不意味着它将来一定能够可靠运转。发生退化的一常见原因是负载增加：例如并发用户从最初的10 000个增长到100 000个，或从100万到1000万；又或者系统目前要处理的数据量超出之前很多倍。可扩展性是用来描述系统应对负载增加能力的术语，为了讨论可扩展性，首先需要明确如何定量描述负载和性能？</p>
 <h3 id="2-1-负载"><a href="#2-1-负载" class="headerlink" title="2.1 负载"></a>2.1 负载</h3><p>负载可以用称为负载参数的若干数字来描述，参数的最佳选择取决于系统的体系结构，它可能是Web服务器的每秒请求处理次数，数据库写入的比例，聊天室的同时活动用户数量，缓存命中率等。有时平均值很重要，有时系统瓶颈来自于少数峰值。</p>
@@ -663,7 +664,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -718,7 +719,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1059,7 +1064,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1114,7 +1179,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1126,7 +1191,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1135,7 +1200,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

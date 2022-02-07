@@ -108,18 +108,18 @@
 
 
 
-  <meta name="description" content="1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Redis 镜像$ docker pull redis:6.2# 查看下载镜像$ docker images 2. 创建挂载目录在宿主机上创建 Reids 配置文件目录及数据目录。123456789$ cd /app/redis6.2# 创建 conf &amp;amp; data 目录$ mkdi">
+  <meta name="description" content="这篇文章主要介绍 redis 6.2 单机 Docker 的部署安装方式。">
 <meta name="keywords" content="docker,redis">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Redis 6.2 Docker 部署（单机）">
 <meta property="og:url" content="http://yoursite.com/2021/10/23/redis-6-2-docker-deployment/index.html">
 <meta property="og:site_name" content="以太格">
-<meta property="og:description" content="1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Redis 镜像$ docker pull redis:6.2# 查看下载镜像$ docker images 2. 创建挂载目录在宿主机上创建 Reids 配置文件目录及数据目录。123456789$ cd /app/redis6.2# 创建 conf &amp;amp; data 目录$ mkdi">
+<meta property="og:description" content="这篇文章主要介绍 redis 6.2 单机 Docker 的部署安装方式。">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2021-10-30T12:44:51.550Z">
+<meta property="og:updated_time" content="2022-01-29T08:06:25.659Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Redis 6.2 Docker 部署（单机）">
-<meta name="twitter:description" content="1. 拉取镜像12345678# 搜索 Mysql 镜像$ docker search mysql# 下载 Redis 镜像$ docker pull redis:6.2# 查看下载镜像$ docker images 2. 创建挂载目录在宿主机上创建 Reids 配置文件目录及数据目录。123456789$ cd /app/redis6.2# 创建 conf &amp;amp; data 目录$ mkdi">
+<meta name="twitter:description" content="这篇文章主要介绍 redis 6.2 单机 Docker 的部署安装方式。">
 
 
 
@@ -428,7 +428,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-10-30 20:44:51" itemprop="dateModified" datetime="2021-10-30T20:44:51+08:00">2021-10-30</time>
+                <time title="修改时间：2022-01-29 16:06:25" itemprop="dateModified" datetime="2022-01-29T16:06:25+08:00">2022-01-29</time>
               
             
           </span>
@@ -473,7 +473,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">6.6k</span>
+                <span title="本文字数">6.7k</span>
               
 
               
@@ -507,7 +507,9 @@
       
 
       
-        <h2 id="1-拉取镜像"><a href="#1-拉取镜像" class="headerlink" title="1. 拉取镜像"></a>1. 拉取镜像</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 搜索 Mysql 镜像</span></span><br><span class="line">$ docker search mysql</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 Redis 镜像</span></span><br><span class="line">$ docker pull redis:6.2</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看下载镜像</span></span><br><span class="line">$ docker images</span><br></pre></td></tr></table></figure>
+        <p>这篇文章主要介绍 redis 6.2 单机 Docker 的部署安装方式。</p>
+<a id="more"></a>
+<h2 id="1-拉取镜像"><a href="#1-拉取镜像" class="headerlink" title="1. 拉取镜像"></a>1. 拉取镜像</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 搜索 Mysql 镜像</span></span><br><span class="line">$ docker search redis</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 Redis 镜像</span></span><br><span class="line">$ docker pull redis:6.2</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看下载镜像</span></span><br><span class="line">$ docker images</span><br></pre></td></tr></table></figure>
 <h2 id="2-创建挂载目录"><a href="#2-创建挂载目录" class="headerlink" title="2. 创建挂载目录"></a>2. 创建挂载目录</h2><p>在宿主机上创建 Reids 配置文件目录及数据目录。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">$ <span class="built_in">cd</span> /app/redis6.2</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 conf &amp; data 目录</span></span><br><span class="line">$ mkdir conf</span><br><span class="line">$ mkdir data</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 redis 配置文件</span></span><br><span class="line">$ <span class="built_in">cd</span> conf</span><br><span class="line">$ wget wget http://download.redis.io/redis-stable/redis.conf</span><br></pre></td></tr></table></figure></p>
 <h2 id="3-修改-redis-conf-文件"><a href="#3-修改-redis-conf-文件" class="headerlink" title="3. 修改 redis.conf 文件"></a>3. 修改 redis.conf 文件</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment"># 注释 bind,否则只允许本机访问</span></span><br><span class="line"><span class="comment"># bind 127.0.0.1 -::1</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭安全模式</span></span><br><span class="line">protected-mode no</span><br><span class="line"></span><br><span class="line"><span class="comment"># 开启持久化（可选）</span></span><br><span class="line">appendonly yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># 后台运行</span></span><br><span class="line">daemonize yes</span><br><span class="line"></span><br><span class="line"><span class="comment"># 日志文件</span></span><br><span class="line">logfile <span class="string">"access.log"</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置访问密码</span></span><br><span class="line">requirepass 123456</span><br></pre></td></tr></table></figure>
 <h2 id="4-启动-Redis"><a href="#4-启动-Redis" class="headerlink" title="4. 启动 Redis"></a>4. 启动 Redis</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 Redis 6.2</span></span><br><span class="line">$ docker run -d \</span><br><span class="line">-p 6379:6379 --name redis6.2 \</span><br><span class="line">-v /app/redis6.2/conf/redis.conf:/etc/redis/redis.conf \</span><br><span class="line">-v /app/redis6.2/data:/data \</span><br><span class="line">--privileged=<span class="literal">true</span> redis:6.2 redis-server \ </span><br><span class="line">/etc/redis/redis.conf --appendonly yes</span><br></pre></td></tr></table></figure>
@@ -648,7 +650,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -703,7 +705,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1044,7 +1050,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1099,7 +1165,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1111,7 +1177,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1120,7 +1186,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 

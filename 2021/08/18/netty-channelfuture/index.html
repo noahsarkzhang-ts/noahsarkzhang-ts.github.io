@@ -117,7 +117,7 @@
 <meta property="og:description" content="1. 概述Netty 中所有的的 I/O 操作都是异步的。I/O 操作是比较耗时的，为了不阻塞调用线程，Netty 提供了 ChannelFuture 接口，使用 addListener()方法注册一个 ChannelFutureListener 监听器，可以在 I/O 操作结束之后进行通知返回结果。在下面的代码中，bind 操作返回一个 ChannelFuture 对象，可以继续执行后续操作，也">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://yoursite.com/images/netty/ChannelFuture-flow.jpg">
-<meta property="og:updated_time" content="2021-08-21T15:12:07.399Z">
+<meta property="og:updated_time" content="2022-01-02T12:35:18.638Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty 系列：ChannelFuture">
 <meta name="twitter:description" content="1. 概述Netty 中所有的的 I/O 操作都是异步的。I/O 操作是比较耗时的，为了不阻塞调用线程，Netty 提供了 ChannelFuture 接口，使用 addListener()方法注册一个 ChannelFutureListener 监听器，可以在 I/O 操作结束之后进行通知返回结果。在下面的代码中，bind 操作返回一个 ChannelFuture 对象，可以继续执行后续操作，也">
@@ -430,7 +430,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2021-08-21 23:12:07" itemprop="dateModified" datetime="2021-08-21T23:12:07+08:00">2021-08-21</time>
+                <time title="修改时间：2022-01-02 20:35:18" itemprop="dateModified" datetime="2022-01-02T20:35:18+08:00">2022-01-02</time>
               
             
           </span>
@@ -510,6 +510,7 @@
 
       
         <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>Netty 中所有的的 I/O 操作都是异步的。I/O 操作是比较耗时的，为了不阻塞调用线程，Netty 提供了 ChannelFuture 接口，使用 addListener()方法注册一个 ChannelFutureListener 监听器，可以在 I/O 操作结束之后进行通知返回结果。在下面的代码中，bind 操作返回一个 ChannelFuture 对象，可以继续执行后续操作，也可以调用 sync() 方法同步等待执行结果，给程序开发带来了更多的开发模式，结合不同的业务场景，可以方便选择异步还是同步模式。</p>
+<a id="more"></a>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Configure the server.</span></span><br><span class="line">EventLoopGroup bossGroup = <span class="keyword">new</span> NioEventLoopGroup(<span class="number">1</span>);</span><br><span class="line">EventLoopGroup workerGroup = <span class="keyword">new</span> NioEventLoopGroup();</span><br><span class="line"><span class="keyword">final</span> EchoServerHandler serverHandler = <span class="keyword">new</span> EchoServerHandler();</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    ServerBootstrap b = <span class="keyword">new</span> ServerBootstrap();</span><br><span class="line">    b.group(bossGroup, workerGroup)</span><br><span class="line">     .channel(NioServerSocketChannel<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">     .<span class="title">option</span>(<span class="title">ChannelOption</span>.<span class="title">SO_BACKLOG</span>, 100)</span></span><br><span class="line"><span class="class">     .<span class="title">handler</span>(<span class="title">new</span> <span class="title">LoggingHandler</span>(<span class="title">LogLevel</span>.<span class="title">INFO</span>))</span></span><br><span class="line"><span class="class">     .<span class="title">childHandler</span>(<span class="title">new</span> <span class="title">ChannelInitializer</span>&lt;<span class="title">SocketChannel</span>&gt;() </span>&#123;</span><br><span class="line">         <span class="meta">@Override</span></span><br><span class="line">         <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(SocketChannel ch)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">             ChannelPipeline p = ch.pipeline();</span><br><span class="line">             <span class="keyword">if</span> (sslCtx != <span class="keyword">null</span>) &#123;</span><br><span class="line">                 p.addLast(sslCtx.newHandler(ch.alloc()));</span><br><span class="line">             &#125;</span><br><span class="line">             </span><br><span class="line">             p.addLast(serverHandler);</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 绑定端口并等待完成</span></span><br><span class="line">    ChannelFuture f = b.bind(PORT).sync();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待 channel 关闭</span></span><br><span class="line">    f.channel().closeFuture().sync();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    </span><br><span class="line">    bossGroup.shutdownGracefully();</span><br><span class="line">    workerGroup.shutdownGracefully();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>这篇文章的主要目的是分析 ChannelFuture 在 Netty 中的实现原理。</p>
 <h2 id="2-原理"><a href="#2-原理" class="headerlink" title="2. 原理"></a>2. 原理</h2><p>ChannelFutrue 本质上是线程间交换数据的方式，一个线程等待另外一个线程的处理结果，取得结果一般有两种方式：1）同步等待，如同 get() 方法；2）注册回调，在设置结果的同时调用回调函数。其伪代码如下所示：</p>
@@ -673,7 +674,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">50</span>
+                    <span class="site-state-item-count">61</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -728,7 +729,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">21</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">23</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -1069,7 +1074,67 @@
                     
                       
                     
-                    <span class="site-state-item-count">164</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">194</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -1124,7 +1189,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2021</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
   <span class="with-love" id="animate">
     <i class="fa fa-user"></i>
   </span>
@@ -1136,7 +1201,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">197k</span>
+    <span title="站点总字数">217k</span>
   
 
   
@@ -1145,7 +1210,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">2:59</span>
+    <span title="站点阅读时长">3:18</span>
   
 </div>
 
