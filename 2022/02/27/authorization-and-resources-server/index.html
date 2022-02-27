@@ -116,7 +116,7 @@
 <meta property="og:site_name" content="以太格">
 <meta property="og:description" content="授权服务器是一个系统中比较重要的模块，主要提供请求的访问认证和资源的授权。在这里，使用 SpringSecurity + Oauth2 + Jwt 实现一个授权服务器。">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2022-02-27T12:40:03.518Z">
+<meta property="og:updated_time" content="2022-02-27T13:01:18.150Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Springboot 系列：授权服务器">
 <meta name="twitter:description" content="授权服务器是一个系统中比较重要的模块，主要提供请求的访问认证和资源的授权。在这里，使用 SpringSecurity + Oauth2 + Jwt 实现一个授权服务器。">
@@ -411,7 +411,7 @@
                 
               
 
-              <time title="创建时间：2022-02-27 11:23:53 / 修改时间：20:40:03" itemprop="dateCreated datePublished" datetime="2022-02-27T11:23:53+08:00">2022-02-27</time>
+              <time title="创建时间：2022-02-27 11:23:53 / 修改时间：21:01:18" itemprop="dateCreated datePublished" datetime="2022-02-27T11:23:53+08:00">2022-02-27</time>
             
 
             
@@ -461,7 +461,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">83k</span>
+                <span title="本文字数">84k</span>
               
 
               
@@ -607,6 +607,8 @@
 <h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><h3 id="获取-Jwt-token"><a href="#获取-Jwt-token" class="headerlink" title="获取 Jwt token"></a>获取 Jwt token</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ curl -X POST -d <span class="string">"username=admin&amp;password=123456&amp;grant_type=password&amp;client_id=dev&amp;client_secret=dev"</span> http://localhost:8080/oauth/token | json_pp</span><br><span class="line">  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current</span><br><span class="line">                                 Dload  Upload   Total   Spent    Left  Speed</span><br><span class="line">100  1502    0  1420  100    82   1283     74  0:00:01  0:00:01 --:--:--  1359</span><br><span class="line">&#123;</span><br><span class="line">   <span class="string">"access_token"</span> : <span class="string">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyIl0sInVzZXJfbmFtZSI6ImFkbWluIiwic2NvcGUiOlsiYXBwIl0sImV4cCI6MTY0NTk2ODc5NSwidXNlcklkIjoyLCJhdXRob3JpdGllcyI6WyJBRE1JTiJdLCJqdGkiOiI0NzFkMzk3MC0xNzkzLTQ0MTQtOWIyYS0xOGNjMjRiMGJjOGIiLCJjbGllbnRfaWQiOiJkZXYifQ.gRcGmDAxdL4Kfmn3zyaIOo-5aceZs_DUYQz656bQbeDr7kdKJyf0BhVSbkUrgVUtqH6SmKIRZlxaDFY56Bf-QMWQ7tR__2q47wvom932tItmd31QShyMqmzBYzAkm1oM-lSo6bGNqip04x4kRjdCdk6cd49IekW3tfFBotUIYbd7GmXbDjNrDSQZEUEBa--R6kX4JAJdOE_AgM8nnEtHa5ng8Plnx6_lWnEvo2k0H5oKLMlmtYIGjmDjQlkNs22XP7t6-pvSLYyUOjv9XeTjpJw58Ss7_gJMgSNCZ48IW1hRF4tPJigjzD88UQsjgrjB5UX2kBUiTHLZCjcIEUbLfQ"</span>,</span><br><span class="line">   <span class="string">"expires_in"</span> : 3599,</span><br><span class="line">   <span class="string">"jti"</span> : <span class="string">"471d3970-1793-4414-9b2a-18cc24b0bc8b"</span>,</span><br><span class="line">   <span class="string">"refresh_token"</span> : <span class="string">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyIl0sInVzZXJfbmFtZSI6ImFkbWluIiwic2NvcGUiOlsiYXBwIl0sImF0aSI6IjQ3MWQzOTcwLTE3OTMtNDQxNC05YjJhLTE4Y2MyNGIwYmM4YiIsImV4cCI6MTY0NTk2ODc5NSwidXNlcklkIjoyLCJhdXRob3JpdGllcyI6WyJBRE1JTiJdLCJqdGkiOiJmN2Q2NzVjOS1iOGY5LTQ3YmUtYjAxYi1jYmRiMTA2NzlhNDMiLCJjbGllbnRfaWQiOiJkZXYifQ.a5LcQyHn3FmbbcMI-5xgqr9kjZ1blSTKn8YoiayBwF_wVhFMJnOgbchv2st5jEPR2C5PpjfyeLOFBYoHhj1pm9bGBcnQCcMTmyyolulg6OfMju59xHXeLCHBsOWI8L38hWmtqay-P-2PHnRqL2oGBt95D01mxoVmztxVHa9k4S9aLNbL4x6AmThCFZK7DOzpstA4mdy9FpO1UJGVHQxERaXyyxOZtzSMR6Sd7-i34W0bCPe8YAjiVY4I0VqzKamodmek15b3R51Yl97JsT6ffi6Y31jkT_H_9CPUM9hFN5GgEkXsxoIVyRD44IvcJDKtbUY-e6Fl-NqbO3RTLNsPZw"</span>,</span><br><span class="line">   <span class="string">"scope"</span> : <span class="string">"app"</span>,</span><br><span class="line">   <span class="string">"token_type"</span> : <span class="string">"bearer"</span>,</span><br><span class="line">   <span class="string">"userId"</span> : 2</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <h3 id="访问资源服务器"><a href="#访问资源服务器" class="headerlink" title="访问资源服务器"></a>访问资源服务器</h3><p>带上 access_token 访问资源服务器。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ curl http://localhost:9091/hello?name=world \</span><br><span class="line">&gt;   -H <span class="string">"Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyIl0sInVzZXJfbmFtZSI6ImFkbWluIiwic2NvcGUiOlsiYXBwIl0sImV4cCI6MTY0NTk2ODc5NSwidXNlcklkIjoyLCJhdXRob3JpdGllcyI6WyJBRE1JTiJdLCJqdGkiOiI0NzFkMzk3MC0xNzkzLTQ0MTQtOWIyYS0xOGNjMjRiMGJjOGIiLCJjbGllbnRfaWQiOiJkZXYifQ.gRcGmDAxdL4Kfmn3zyaIOo-5aceZs_DUYQz656bQbeDr7kdKJyf0BhVSbkUrgVUtqH6SmKIRZlxaDFY56Bf-QMWQ7tR__2q47wvom932tItmd31QShyMqmzBYzAkm1oM-lSo6bGNqip04x4kRjdCdk6cd49IekW3tfFBotUIYbd7GmXbDjNrDSQZEUEBa--R6kX4JAJdOE_AgM8nnEtHa5ng8Plnx6_lWnEvo2k0H5oKLMlmtYIGjmDjQlkNs22XP7t6-pvSLYyUOjv9XeTjpJw58Ss7_gJMgSNCZ48IW1hRF4tPJigjzD88UQsjgrjB5UX2kBUiTHLZCjcIEUbLfQ"</span></span><br><span class="line">  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current</span><br><span class="line">                                 Dload  Upload   Total   Spent    Left  Speed</span><br><span class="line">100    13  100    13    0     0    114      0 --:--:-- --:--:-- --:--:--   115</span><br><span class="line"></span><br><span class="line">hello , world</span><br></pre></td></tr></table></figure>
+<p><br></p>
+<p><strong><a href="https://github.com/noahsarkzhang-ts/springboot-lab" target="_blank" rel="noopener">代码库：https://github.com/noahsarkzhang-ts/springboot-lab</a></strong></p>
 <p><br></p>
 <p><strong>参考：</strong></p>
 <hr>
