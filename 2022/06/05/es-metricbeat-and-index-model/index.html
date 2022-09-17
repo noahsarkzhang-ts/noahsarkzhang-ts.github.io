@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章包含两部分内容：1）使用 Metricbeat 采集系统 metric 指标; 2）分析 Metricbeat 的存储模型。">
+<meta name="keywords" content="kibana,metric,metricbeat">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Metricbeat">
+<meta property="og:url" content="http://yoursite.com/2022/06/05/es-metricbeat-and-index-model/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章包含两部分内容：1）使用 Metricbeat 采集系统 metric 指标; 2）分析 Metricbeat 的存储模型。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/es/metricbeat-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/kibana-metric-dashboard.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/kibana-metric-dashboard-system.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/sparse-data.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/docvalus-iteerator.jpg">
+<meta property="og:updated_time" content="2022-06-11T11:25:49.575Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Metricbeat">
+<meta name="twitter:description" content="这篇文章包含两部分内容：1）使用 Metricbeat 采集系统 metric 指标; 2）分析 Metricbeat 的存储模型。">
+<meta name="twitter:image" content="http://yoursite.com/images/es/metricbeat-flow.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/06/05/es-metricbeat-and-index-model/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Metricbeat | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/06/05/es-metricbeat-and-index-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Metricbeat
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-06-05 12:54:37" itemprop="dateCreated datePublished" datetime="2022-06-05T12:54:37+08:00">2022-06-05</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-06-11 19:25:49" itemprop="dateModified" datetime="2022-06-11T19:25:49+08:00">2022-06-11</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">37k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">34 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章包含两部分内容：1）使用 Metricbeat 采集系统 metric 指标; 2）分析 Metricbeat 的存储模型。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Metricbeat 是一个轻量型指标采集器，用于从系统和服务收集指标。Metricbeat 能够以一种轻量型的方式，输送各种系统和服务统计数据，从 CPU 到内存，从 Redis 到 Nginx，不一而足。其流程如下所示：</p>
+<p><img src="/images/es/metricbeat-flow.jpg" alt="metricbeat-flow" title="metricbeat-flow"></p>
+<p>Metric 数据采集的方式与 ELK 的流程是一致的，差别只是采集工具是 Metricbeat.</p>
+<p>在本文中，我们只安装 Metricbeat, Elasticsearch 及 Kibana 安装部署参考之前的文章：<a href="https://zhangxt.top/2022/01/29/es-deployment-in-docker/" target="_blank" rel="noopener">Docker 下安装 ES, Kibana</a></p>
+<p><strong>约定：</strong><br>Metricbeat, Elasticsearch 及 Kibana 三个组件的版本为：V7.14.2.</p>
+<h2 id="安装-Metricbeat"><a href="#安装-Metricbeat" class="headerlink" title="安装 Metricbeat"></a>安装 Metricbeat</h2><h3 id="下载及部署-Metricbeat"><a href="#下载及部署-Metricbeat" class="headerlink" title="下载及部署 Metricbeat"></a>下载及部署 Metricbeat</h3><p>从官方网址下载指定的版本：<a href="https://www.elastic.co/cn/downloads/past-releases/metricbeat-7-14-2" target="_blank" rel="noopener">Metricbeat 下载地址</a> </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载 Metricbeat</span></span><br><span class="line">$ wget https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-7.14.2-linux-x86_64.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 解压缩</span></span><br><span class="line">$ tar -xzvf metricbeat-7.14.2-linux-x86_64.tar.gz</span><br></pre></td></tr></table></figure>
+<h3 id="修改-metricbeat-yaml"><a href="#修改-metricbeat-yaml" class="headerlink" title="修改 metricbeat.yaml"></a>修改 metricbeat.yaml</h3><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ================================= Dashboards =================================</span></span><br><span class="line"><span class="comment"># 从本地导入 dashboard 模板</span></span><br><span class="line"><span class="attr">setup.dashboards.enabled:</span> <span class="literal">true</span> </span><br><span class="line"></span><br><span class="line"><span class="comment"># =================================== Kibana ===================================</span></span><br><span class="line"><span class="comment"># 导入 dashboards 需要登陆 Kibana</span></span><br><span class="line"><span class="attr">setup.kibana:</span></span><br><span class="line"></span><br><span class="line">  <span class="comment"># 设置 kibana 地址及用户名/密码</span></span><br><span class="line">  <span class="attr">host:</span> <span class="string">"192.168.1.100:5601"</span></span><br><span class="line">  <span class="attr">protocol:</span> <span class="string">"http"</span></span><br><span class="line">  <span class="attr">username:</span> <span class="string">"elastic"</span></span><br><span class="line">  <span class="attr">password:</span> <span class="string">"yourpassword"</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ---------------------------- Elasticsearch Output ----------------------------</span></span><br><span class="line"><span class="attr">output.elasticsearch:</span></span><br><span class="line">  <span class="comment"># 配置 Elasticsearch 地址</span></span><br><span class="line">  <span class="attr">hosts:</span> <span class="string">["192.168.1.100:9200"]</span></span><br><span class="line"></span><br><span class="line">  <span class="comment"># 设置协议 Protocol - either `http` (default) or `https`.</span></span><br><span class="line">  <span class="attr">protocol:</span> <span class="string">"http"</span></span><br><span class="line">  </span><br><span class="line">  <span class="comment"># 设置 username/password</span></span><br><span class="line">  <span class="attr">username:</span> <span class="string">"elastic"</span></span><br><span class="line">  <span class="attr">password:</span> <span class="string">"yourpassword"</span></span><br></pre></td></tr></table></figure>
+<p>从本地导入 dashboard, 在 kibana 上可方便查看 metric 信息。</p>
+<h3 id="开启模块"><a href="#开启模块" class="headerlink" title="开启模块"></a>开启模块</h3><p>Metricbeat 自带了很多监控模块，如 Mysql, 默认开启 <code>system</code> 模块，可以根据需要添加模块：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看 metircbeat 开启的模块</span></span><br><span class="line">$ ./metricbeat modules list</span><br><span class="line">Enabled:</span><br><span class="line">system</span><br><span class="line"></span><br><span class="line">Disabled:</span><br><span class="line">activemq</span><br><span class="line">aerospike</span><br><span class="line">apache</span><br><span class="line">appsearch</span><br><span class="line">aws</span><br><span class="line">awsfargate</span><br><span class="line">azure</span><br><span class="line">beat</span><br><span class="line">beat-xpack</span><br><span class="line">ceph</span><br><span class="line">ceph-mgr</span><br><span class="line">cloudfoundry</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="comment"># 开启模块</span></span><br><span class="line">$ ./metricbeat modules <span class="built_in">enable</span> 模块名</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭模块</span></span><br><span class="line">$ ./metricbeat modules disenable 模块名</span><br></pre></td></tr></table></figure>
+<p>可以通过文件 <code>./modules.d/system.yml</code> 查看监控的详细信息等。</p>
+<h3 id="启动-Metricbeat"><a href="#启动-Metricbeat" class="headerlink" title="启动 Metricbeat"></a>启动 Metricbeat</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup ./metricbeat -e -c metricbeat.yml &gt; metricbeat.log 2&gt;&amp;1 &amp;</span><br></pre></td></tr></table></figure>
+<h3 id="System-Metric-数据"><a href="#System-Metric-数据" class="headerlink" title="System Metric 数据"></a>System Metric 数据</h3><p>Metric 上报的数据格式如下所示：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"monitoring"</span>:&#123;</span><br><span class="line">        <span class="attr">"metrics"</span>:&#123;</span><br><span class="line">            <span class="attr">"beat"</span>:&#123;</span><br><span class="line">                <span class="attr">"cgroup"</span>:&#123;</span><br><span class="line">                    <span class="attr">"cpu"</span>:&#123;</span><br><span class="line">                        <span class="attr">"cfs"</span>:&#123;</span><br><span class="line">                            <span class="attr">"period"</span>:&#123;</span><br><span class="line">                                <span class="attr">"us"</span>:<span class="number">100000</span></span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;,</span><br><span class="line">                        <span class="attr">"id"</span>:<span class="string">"user.slice"</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"cpuacct"</span>:&#123;</span><br><span class="line">                        <span class="attr">"id"</span>:<span class="string">"user.slice"</span>,</span><br><span class="line">                        <span class="attr">"total"</span>:&#123;</span><br><span class="line">                            <span class="attr">"ns"</span>:<span class="number">229167185975607</span></span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"memory"</span>:&#123;</span><br><span class="line">                        <span class="attr">"id"</span>:<span class="string">"user.slice"</span>,</span><br><span class="line">                        <span class="attr">"mem"</span>:&#123;</span><br><span class="line">                            <span class="attr">"limit"</span>:&#123;</span><br><span class="line">                                <span class="attr">"bytes"</span>:<span class="number">9223372036854771712</span></span><br><span class="line">                            &#125;,</span><br><span class="line">                            <span class="attr">"usage"</span>:&#123;</span><br><span class="line">                                <span class="attr">"bytes"</span>:<span class="number">2822836224</span></span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"cpu"</span>:&#123;</span><br><span class="line">                    <span class="attr">"system"</span>:&#123;</span><br><span class="line">                        <span class="attr">"ticks"</span>:<span class="number">10380270</span>,</span><br><span class="line">                        <span class="attr">"time"</span>:&#123;</span><br><span class="line">                            <span class="attr">"ms"</span>:<span class="number">10380278</span></span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"total"</span>:&#123;</span><br><span class="line">                        <span class="attr">"ticks"</span>:<span class="number">20076350</span>,</span><br><span class="line">                        <span class="attr">"time"</span>:&#123;</span><br><span class="line">                            <span class="attr">"ms"</span>:<span class="number">20076360</span></span><br><span class="line">                        &#125;,</span><br><span class="line">                        <span class="attr">"value"</span>:<span class="number">20076350</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"user"</span>:&#123;</span><br><span class="line">                        <span class="attr">"ticks"</span>:<span class="number">9696080</span>,</span><br><span class="line">                        <span class="attr">"time"</span>:&#123;</span><br><span class="line">                            <span class="attr">"ms"</span>:<span class="number">9696082</span></span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"handles"</span>:&#123;</span><br><span class="line">                    <span class="attr">"limit"</span>:&#123;</span><br><span class="line">                        <span class="attr">"hard"</span>:<span class="number">4096</span>,</span><br><span class="line">                        <span class="attr">"soft"</span>:<span class="number">1024</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"open"</span>:<span class="number">10</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"info"</span>:&#123;</span><br><span class="line">                    <span class="attr">"ephemeral_id"</span>:<span class="string">"65c6d0a4-cf03-4e09-9011-fd649b3afa80"</span>,</span><br><span class="line">                    <span class="attr">"uptime"</span>:&#123;</span><br><span class="line">                        <span class="attr">"ms"</span>:<span class="number">359285941</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"version"</span>:<span class="string">"7.14.2"</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"memstats"</span>:&#123;</span><br><span class="line">                    <span class="attr">"gc_next"</span>:<span class="number">18072816</span>,</span><br><span class="line">                    <span class="attr">"memory_alloc"</span>:<span class="number">10275848</span>,</span><br><span class="line">                    <span class="attr">"memory_sys"</span>:<span class="number">77612040</span>,</span><br><span class="line">                    <span class="attr">"memory_total"</span>:<span class="number">646879155368</span>,</span><br><span class="line">                    <span class="attr">"rss"</span>:<span class="number">129318912</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"runtime"</span>:&#123;</span><br><span class="line">                    <span class="attr">"goroutines"</span>:<span class="number">23</span></span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"libbeat"</span>:&#123;</span><br><span class="line">                <span class="attr">"config"</span>:&#123;</span><br><span class="line">                    <span class="attr">"module"</span>:&#123;</span><br><span class="line">                        <span class="attr">"running"</span>:<span class="number">3</span>,</span><br><span class="line">                        <span class="attr">"starts"</span>:<span class="number">3</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"reloads"</span>:<span class="number">1</span>,</span><br><span class="line">                    <span class="attr">"scans"</span>:<span class="number">1</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"output"</span>:&#123;</span><br><span class="line">                    <span class="attr">"events"</span>:&#123;</span><br><span class="line">                        <span class="attr">"acked"</span>:<span class="number">806376</span>,</span><br><span class="line">                        <span class="attr">"active"</span>:<span class="number">21</span>,</span><br><span class="line">                        <span class="attr">"batches"</span>:<span class="number">35917</span>,</span><br><span class="line">                        <span class="attr">"total"</span>:<span class="number">806397</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"read"</span>:&#123;</span><br><span class="line">                        <span class="attr">"bytes"</span>:<span class="number">18887264</span>,</span><br><span class="line">                        <span class="attr">"errors"</span>:<span class="number">1</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"type"</span>:<span class="string">"elasticsearch"</span>,</span><br><span class="line">                    <span class="attr">"write"</span>:&#123;</span><br><span class="line">                        <span class="attr">"bytes"</span>:<span class="number">2675036055</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"pipeline"</span>:&#123;</span><br><span class="line">                    <span class="attr">"clients"</span>:<span class="number">0</span>,</span><br><span class="line">                    <span class="attr">"events"</span>:&#123;</span><br><span class="line">                        <span class="attr">"active"</span>:<span class="number">0</span>,</span><br><span class="line">                        <span class="attr">"published"</span>:<span class="number">806376</span>,</span><br><span class="line">                        <span class="attr">"retry"</span>:<span class="number">70</span>,</span><br><span class="line">                        <span class="attr">"total"</span>:<span class="number">806376</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"queue"</span>:&#123;</span><br><span class="line">                        <span class="attr">"acked"</span>:<span class="number">806376</span>,</span><br><span class="line">                        <span class="attr">"max_events"</span>:<span class="number">4096</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"metricbeat"</span>:&#123;</span><br><span class="line">                <span class="attr">"system"</span>:&#123;</span><br><span class="line">                    <span class="attr">"cpu"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">35919</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">35919</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"filesystem"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">17961</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">17961</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"fsstat"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">5987</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">5987</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"load"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">35919</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">35919</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"memory"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">35919</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">35919</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"network"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">323270</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">323270</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"process"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">279163</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">279163</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"process_summary"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">35919</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">35919</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"socket_summary"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">35919</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">35919</span></span><br><span class="line">                    &#125;,</span><br><span class="line">                    <span class="attr">"uptime"</span>:&#123;</span><br><span class="line">                        <span class="attr">"events"</span>:<span class="number">400</span>,</span><br><span class="line">                        <span class="attr">"success"</span>:<span class="number">400</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"system"</span>:&#123;</span><br><span class="line">                <span class="attr">"cpu"</span>:&#123;</span><br><span class="line">                    <span class="attr">"cores"</span>:<span class="number">4</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="attr">"load"</span>:&#123;</span><br><span class="line">                    <span class="attr">"1"</span>:<span class="number">0.03</span>,</span><br><span class="line">                    <span class="attr">"15"</span>:<span class="number">0.05</span>,</span><br><span class="line">                    <span class="attr">"5"</span>:<span class="number">0.05</span>,</span><br><span class="line">                    <span class="attr">"norm"</span>:&#123;</span><br><span class="line">                        <span class="attr">"1"</span>:<span class="number">0.0075</span>,</span><br><span class="line">                        <span class="attr">"15"</span>:<span class="number">0.0125</span>,</span><br><span class="line">                        <span class="attr">"5"</span>:<span class="number">0.0125</span></span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="查看-Metric-监控"><a href="#查看-Metric-监控" class="headerlink" title="查看 Metric 监控"></a>查看 Metric 监控</h2><p>可以在 <code>kibana</code> dashboard 查看监控数据。</p>
+<p><img src="/images/es/kibana-metric-dashboard.jpg" alt="kibana-metric-dashboard" title="kibana-metric-dashboard"></p>
+<p>可以在三种视图间切换：System Overview, Host Overview, Containers overview.<br><img src="/images/es/kibana-metric-dashboard-system.jpg" alt="kibana-metric-dashboard" title="kibana-metric-dashboard"></p>
+<h2 id="数据模型"><a href="#数据模型" class="headerlink" title="数据模型"></a>数据模型</h2><p>Metricbeat 所有的 Metric 数据存储在一张表中，预置了 3949 个字段，而大部分的字段是空的，没有值。</p>
+<h3 id="Index-Mapping"><a href="#Index-Mapping" class="headerlink" title="Index Mapping"></a>Index Mapping</h3><p>在 Mapping 中，按照模块组织字段，如 activemq, apache, system 等等。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"mappings"</span>:&#123;</span><br><span class="line">        <span class="attr">"_doc"</span>:&#123;</span><br><span class="line">            <span class="attr">"_meta"</span>:&#123;</span><br><span class="line">                <span class="attr">"beat"</span>:<span class="string">"metricbeat"</span>,</span><br><span class="line">                <span class="attr">"version"</span>:<span class="string">"7.14.2"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"dynamic_templates"</span>:Array[<span class="number">88</span>],</span><br><span class="line">            <span class="attr">"date_detection"</span>:<span class="literal">false</span>,</span><br><span class="line">            <span class="attr">"properties"</span>:&#123;</span><br><span class="line">                <span class="attr">"@timestamp"</span>:&#123;</span><br><span class="line">                    <span class="attr">"type"</span>:<span class="string">"date"</span></span><br><span class="line">                &#125;,</span><br><span class="line">                "activemq":Object&#123;...&#125;,</span><br><span class="line">                "aerospike":Object&#123;...&#125;,</span><br><span class="line">                "agent":Object&#123;...&#125;,</span><br><span class="line">                "apache":Object&#123;...&#125;,</span><br><span class="line">                ...</span><br><span class="line">                "system":&#123;</span><br><span class="line">                    "properties":&#123;</span><br><span class="line">                        "core":Object&#123;...&#125;,</span><br><span class="line">                        "cpu":Object&#123;...&#125;,</span><br><span class="line">                        "diskio":Object&#123;...&#125;,</span><br><span class="line">                        "entropy":Object&#123;...&#125;,</span><br><span class="line">                        "filesystem":Object&#123;...&#125;,</span><br><span class="line">                        "fsstat":Object&#123;...&#125;,</span><br><span class="line">                        "load":Object&#123;...&#125;,</span><br><span class="line">                        "memory":Object&#123;...&#125;,</span><br><span class="line">                        "network":Object&#123;...&#125;,</span><br><span class="line">                        "network_summary":Object&#123;...&#125;,</span><br><span class="line">                        "process":Object&#123;...&#125;,</span><br><span class="line">                        "raid":Object&#123;...&#125;,</span><br><span class="line">                        "service":Object&#123;...&#125;,</span><br><span class="line">                        "socket":Object&#123;...&#125;,</span><br><span class="line">                        "uptime":Object&#123;...&#125;,</span><br><span class="line">                        "users":Object&#123;...&#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">				...</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="稀疏数据"><a href="#稀疏数据" class="headerlink" title="稀疏数据"></a>稀疏数据</h3><p>在 Elasticsearch 6.0 (Lucene 7.0 ) 之前的版本中，Doc values 适合存储紧凑性的数据，这些数据所有字段都有值，对于稀疏数据（有很多空值），需要额外的空间来维护这些空值，会造成存储空间的浪费，也会影响索引的速度。什么类型的数据是稀疏数据呢？如下图所示：</p>
+<p><img src="/images/es/sparse-data.jpg" alt="sparse-data" title="sparse-data"></p>
+<p>如果文档中的字段只有很少一部分有值，那这个字段可以称为稀疏数据，如 <code>middle</code>, <code>city</code> , <code>state</code>.</p>
+<p>在 Lucene 7.0 (Elasticsearch 6.0 配套的 Lucene 版本) 内部使用迭代器方式遍历数据，它可以更有效的使用存储空间。</p>
+<p><img src="/images/es/docvalus-iteerator.jpg" alt="docvalus-iteerator" title="docvalus-iteerator"></p>
+<p>如上图所示，使用随机访问方式遍历 doc values(Elasticsearch 6.0 之前版本使用的方式), 需要维护空值。而迭代器方式则不需要存储空值，可以有效地节省存储空间。</p>
+<p>除了存储空间的优化，迭代器方式也可以提升索引的速度，虽然有了这些优化，还是尽量避免使用稀疏数据，相比较而言，紧凑性数据更为有效。</p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://www.elastic.co/guide/en/beats/metricbeat/current/setup-kibana-endpoint.html" target="_blank" rel="noopener">1. Configure the Kibana endpoint</a><br><a href="https://blog.csdn.net/weixin_34409741/article/details/88664175" target="_blank" rel="noopener">2. ELK MetricBeat配置监控主机性能</a><br><a href="https://www.elastic.co/cn/blog/minimize-index-storage-size-elasticsearch-6-0" target="_blank" rel="noopener">3. Elasticsearch 6.0: Sparse Field Improvements</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/kibana/" rel="tag"># kibana</a>
+          
+            <a href="/tags/metric/" rel="tag"># metric</a>
+          
+            <a href="/tags/metricbeat/" rel="tag"># metricbeat</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/05/elk-and-index-model/" rel="next" title="ELK">
+                <i class="fa fa-chevron-left"></i> ELK
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/11/skywalking-installation/" rel="prev" title="Skywalking">
+                Skywalking <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#安装-Metricbeat"><span class="nav-number">2.</span> <span class="nav-text">安装 Metricbeat</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#下载及部署-Metricbeat"><span class="nav-number">2.1.</span> <span class="nav-text">下载及部署 Metricbeat</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改-metricbeat-yaml"><span class="nav-number">2.2.</span> <span class="nav-text">修改 metricbeat.yaml</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#开启模块"><span class="nav-number">2.3.</span> <span class="nav-text">开启模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#启动-Metricbeat"><span class="nav-number">2.4.</span> <span class="nav-text">启动 Metricbeat</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#System-Metric-数据"><span class="nav-number">2.5.</span> <span class="nav-text">System Metric 数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查看-Metric-监控"><span class="nav-number">3.</span> <span class="nav-text">查看 Metric 监控</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据模型"><span class="nav-number">4.</span> <span class="nav-text">数据模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Index-Mapping"><span class="nav-number">4.1.</span> <span class="nav-text">Index Mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#稀疏数据"><span class="nav-number">4.2.</span> <span class="nav-text">稀疏数据</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

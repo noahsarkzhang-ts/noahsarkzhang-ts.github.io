@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="在之前的文章中讲述了《SpringSecurity 整体架构》，这篇文章承接上篇文章，主要讲述 SpringSecurity 的认证流程及相关的类。">
+<meta name="keywords" content="Spring Security,authentication,认证,AuthenticationManager,DaoAuthenticationProvider,UserDetails,Authentication">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Springboot 序列：SpringSecurity 认证">
+<meta property="og:url" content="http://yoursite.com/2022/04/04/springsecurity-authentication/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="在之前的文章中讲述了《SpringSecurity 整体架构》，这篇文章承接上篇文章，主要讲述 SpringSecurity 的认证流程及相关的类。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/Authentication-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/AuthenticationManager.jpg">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/UserDetails.jpg">
+<meta property="og:updated_time" content="2022-04-04T11:57:52.845Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Springboot 序列：SpringSecurity 认证">
+<meta name="twitter:description" content="在之前的文章中讲述了《SpringSecurity 整体架构》，这篇文章承接上篇文章，主要讲述 SpringSecurity 的认证流程及相关的类。">
+<meta name="twitter:image" content="http://yoursite.com/images/spring-cloud/Authentication-flow.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/04/04/springsecurity-authentication/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Springboot 序列：SpringSecurity 认证 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/04/04/springsecurity-authentication/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Springboot 序列：SpringSecurity 认证
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-04-04 12:14:34 / 修改时间：19:57:52" itemprop="dateCreated datePublished" datetime="2022-04-04T12:14:34+08:00">2022-04-04</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Springboot/" itemprop="url" rel="index"><span itemprop="name">Springboot</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">29k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">27 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>在之前的文章中讲述了《SpringSecurity 整体架构》，这篇文章承接上篇文章，主要讲述 SpringSecurity 的认证流程及相关的类。</p>
+<a id="more"></a>
+<h2 id="整体流程"><a href="#整体流程" class="headerlink" title="整体流程"></a>整体流程</h2><p>我们以之前文章的代码来分析认证的整体流程，关键步骤如下所示：</p>
+<p><img src="/images/spring-cloud/Authentication-flow.jpg" alt="Authentication-flow" title="Authentication-flow"></p>
+<p><strong>登陆主要流程：</strong></p>
+<ol>
+<li>用户首先打开登陆页面，页面的 endpoint 为 <code>login.html, Method: GET</code>, 该页面直接放行，返回给浏览器渲染展现；</li>
+<li>用户输入用户名/密码，执行登陆操作，endpoint 为 <code>login, Method: POST</code>, 而 <code>login</code> 是我们指定的登陆处理 endpoint; </li>
+<li><code>login, Method: POST</code> 请求被 UsernamePasswordAuthenticationFilter 拦截，读取参数构造请求对象 UsernamePasswordAuthenticationToken;</li>
+<li>将 UsernamePasswordAuthenticationToken 对象传递给 AuthenticationManager 进行认证，获取 Authentication 对象；</li>
+<li>AuthenticationManager 是一个接口，在这里使用的是其实现类 ProviderManager, ProviderManager 对象中包含有一组 AuthenticationProvider, 每一个 AuthenticationProvider 代表了一类认证场景，我们可以根据需求自定义 AuthenticationProvider 类实现我们的业务；</li>
+<li>AuthenticationProvider 的主要功能是将查询用户 UserDetails 对象并将其映射为 Authentication 对象，而每一个 AuthenticationProvider 对象只会针对特定的请求对象进行处理，在这里，由于我们的请求对象是 UsernamePasswordAuthenticationToken, 对应地， AuthenticationProvider 的实现类使用的是 DaoAuthenticationProvider; </li>
+<li>DaoAuthenticationProvider 需要获用户的信息，是通过 UserDetailsService 接口来实现的，在这里，我们自定义了 CustomerUserDetailsService 对象，实现从数据库中获取用户信息 UserDetails 对象，而 UserDetails 也是一个接口，需要我们自定义实现；</li>
+<li>在 DaoAuthenticationProvider 中获取用户信息 UserDetails 对象，需要将其转化为 Authentication 对象；</li>
+<li>ProviderManager 对象中获取到 Authentication 对象之后，进行复制操作之后，返回给 UsernamePasswordAuthenticationFilter 对象。这个 Authentication 对象持有用户的账号及权限信息，在后期的授权操作中会被用到。</li>
+</ol>
+<p><strong>登出主要流程：</strong></p>
+<ol>
+<li>登出的 endpoint 为 <code>logout, Method: GET</code>, 该 endpoint 被 LogoutFilter 拦截；</li>
+<li>在 LogoutFilter 中，登出的业务逻辑封装在 LogoutHandler 对象中，会执行会话的清理操作；</li>
+<li>操作成功之后再跳转到登出成功页面。</li>
+</ol>
+<h2 id="认证相关的类"><a href="#认证相关的类" class="headerlink" title="认证相关的类"></a>认证相关的类</h2><p><img src="/images/spring-cloud/AuthenticationManager.jpg" alt="AuthenticationManager" title="AuthenticationManager"></p>
+<ul>
+<li>AuthenticationManager: 认证的核心接口，输入为用户请求对象，如 UsernamePasswordAuthenticationToken，输出为认证对象 Authentication; </li>
+<li>ProviderManager: AuthenticationManager 接口实现类，它包含一组 AuthenticationProvider 对象，而每一个 AuthenticationProvider 代表了一类认证场景，它对应只会处理对应的请求对象；</li>
+<li>DaoAuthenticationProvider: AuthenticationProvider 接口实现类，主要功能是从 UserDetailsService 接口获取用户对象 UserDetails, 将转换为 Authentication 对象；</li>
+<li>UserDetailsService：用户查询接口，根据用户名查询用户信息；</li>
+<li>CustomerUserDetailsService：UserDetailsService 实现类，从数据库中获取用户信息；</li>
+<li>UserDetails: 用户信息接口，包括了获取用户名及权限的方法；</li>
+<li>Authentication: 认证对象对象；</li>
+</ul>
+<h2 id="用户模型"><a href="#用户模型" class="headerlink" title="用户模型"></a>用户模型</h2><p><img src="/images/spring-cloud/UserDetails.jpg" alt="UserDetails" title="UserDetails"></p>
+<p>在 SpringSecurity 中，定义了 UserDetails 及 Authentication 接口，用于存储用户及认证数据。通过 UserDetails 接口，业务系统可以将用户信息传递给 SpringSecurity, 然后封装成 Authentication, 供后续功能使用。</p>
+<h3 id="UserDeails-接口"><a href="#UserDeails-接口" class="headerlink" title="UserDeails 接口"></a>UserDeails 接口</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">UserDetails</span> <span class="keyword">extends</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取权限列表</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 权限列表</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	Collection&lt;? extends GrantedAuthority&gt; getAuthorities();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取用户密码</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> the password</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">String <span class="title">getPassword</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取用户名</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> the username (never &lt;code&gt;null&lt;/code&gt;)</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">String <span class="title">getUsername</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 判断用户是否过期</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> &lt;code&gt;true&lt;/code&gt; if the user's account is valid (ie non-expired),</span></span><br><span class="line"><span class="comment">	 * &lt;code&gt;false&lt;/code&gt; if no longer valid (ie expired)</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isAccountNonExpired</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 判断用户是否被锁定</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> &lt;code&gt;true&lt;/code&gt; if the user is not locked, &lt;code&gt;false&lt;/code&gt; otherwise</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isAccountNonLocked</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 判断密码是否过期</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> &lt;code&gt;true&lt;/code&gt; if the user's credentials are valid (ie non-expired),</span></span><br><span class="line"><span class="comment">	 * &lt;code&gt;false&lt;/code&gt; if no longer valid (ie expired)</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isCredentialsNonExpired</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 判断密码是否可用</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> &lt;code&gt;true&lt;/code&gt; if the user is enabled, &lt;code&gt;false&lt;/code&gt; otherwise</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isEnabled</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>UserDetails 提供了访问用户名称、状态及权限相关的方法，上层业务需要实现自己的 UserDetails 类，如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">User</span> <span class="keyword">implements</span> <span class="title">UserDetails</span>, <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Long id;</span><br><span class="line">    <span class="keyword">private</span> String username;</span><br><span class="line">    <span class="keyword">private</span> String password;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> List&lt;Role&gt; authorities;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Long <span class="title">getId</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setId</span><span class="params">(Long id)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.id = id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getUsername</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> username;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUsername</span><span class="params">(String username)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.username = username;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getPassword</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> password;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setPassword</span><span class="params">(String password)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.password = password;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;Role&gt; <span class="title">getAuthorities</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> authorities;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setAuthorities</span><span class="params">(List&lt;Role&gt; authorities)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.authorities = authorities;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>UserDetails 接口会包含一组权限，SpringSecurity 也定义了权限接口，如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">GrantedAuthority</span> <span class="keyword">extends</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取权限</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 权限</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">String <span class="title">getAuthority</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 GrantedAuthority 接口中，只是简单定义了返回权限名称的方法，业务上层可以进行扩展，用户的角色也包含在权限表中，使用 <code>ROLE_</code> 前缀来区分。</p>
+<h3 id="Authentication-接口"><a href="#Authentication-接口" class="headerlink" title="Authentication 接口"></a>Authentication 接口</h3><p>Authentication 接口存储认证成功的信息，它由 UserDetails 封装转换而来。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Authentication</span> <span class="keyword">extends</span> <span class="title">Principal</span>, <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取权限</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 权限列表</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	Collection&lt;? extends GrantedAuthority&gt; getAuthorities();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 密码 </span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 密码</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">Object <span class="title">getCredentials</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取请求对象相关的信息，如ip</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 详情对象</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">Object <span class="title">getDetails</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 获取用户信息</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> 用户信息</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function">Object <span class="title">getPrincipal</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 用户是否已经认证通过</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	 * <span class="doctag">@return</span> trur/false</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isAuthenticated</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * 设置认证结果</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="function"><span class="keyword">void</span> <span class="title">setAuthenticated</span><span class="params">(<span class="keyword">boolean</span> isAuthenticated)</span> <span class="keyword">throws</span> IllegalArgumentException</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 Authentication 中，将 Principal 定义为用户信息，Credentials 为密码信息，GrantedAuthority 为权限信息，另外还保存了请求对象详情信息。这些信息从 UserDetails, UsernamePasswordAuthenticationToken 中获取到。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Authentication <span class="title">authenticate</span><span class="params">(Authentication authentication)</span></span></span><br><span class="line"><span class="function">		<span class="keyword">throws</span> AuthenticationException </span>&#123;</span><br><span class="line">	Assert.isInstanceOf(UsernamePasswordAuthenticationToken<span class="class">.<span class="keyword">class</span>, <span class="title">authentication</span>,</span></span><br><span class="line"><span class="class">			() -&gt; <span class="title">messages</span>.<span class="title">getMessage</span>(</span></span><br><span class="line">					"AbstractUserDetailsAuthenticationProvider.onlySupports",</span><br><span class="line">					<span class="string">"Only UsernamePasswordAuthenticationToken is supported"</span>));</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Determine username</span></span><br><span class="line">	String username = (authentication.getPrincipal() == <span class="keyword">null</span>) ? <span class="string">"NONE_PROVIDED"</span></span><br><span class="line">			: authentication.getName();</span><br><span class="line"></span><br><span class="line">	<span class="keyword">boolean</span> cacheWasUsed = <span class="keyword">true</span>;</span><br><span class="line">	UserDetails user = <span class="keyword">this</span>.getUserDetailsService().loadUserByUsername(username);;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">	Object principalToReturn = user;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (forcePrincipalAsString) &#123;</span><br><span class="line">		principalToReturn = user.getUsername();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> createSuccessAuthentication(principalToReturn, authentication, user);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> Authentication <span class="title">createSuccessAuthentication</span><span class="params">(Object principal,</span></span></span><br><span class="line"><span class="function"><span class="params">		Authentication authentication, UserDetails user)</span> </span>&#123;</span><br><span class="line">	<span class="comment">// Ensure we return the original credentials the user supplied,</span></span><br><span class="line">	<span class="comment">// so subsequent attempts are successful even with encoded passwords.</span></span><br><span class="line">	<span class="comment">// Also ensure we return the original getDetails(), so that future</span></span><br><span class="line">	<span class="comment">// authentication events after cache expiry contain the details</span></span><br><span class="line">	UsernamePasswordAuthenticationToken result = <span class="keyword">new</span> UsernamePasswordAuthenticationToken(</span><br><span class="line">			principal, authentication.getCredentials(),</span><br><span class="line">			authoritiesMapper.mapAuthorities(user.getAuthorities()));</span><br><span class="line">	result.setDetails(authentication.getDetails());</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过代码可知：</p>
+<ul>
+<li>UserDetails —&gt; principal</li>
+<li>UserDetails.getAuthorities() —&gt; list of GrantedAuthority</li>
+<li>requestAuthentication.getCredentials() —&gt; credentials</li>
+<li>requestAuthentication..getDetails() —&gt; details</li>
+</ul>
+<h2 id="默认设置"><a href="#默认设置" class="headerlink" title="默认设置"></a>默认设置</h2><p><strong>Endpoints</strong><br>SpringSecurity 内置登陆/登出相关的 Endpoint, 用户不做任何配置即可使用，这些 Endpoint 包括：</p>
+<ol>
+<li>/login,GET: 登陆页面，默认由 DefaultLoginPageGeneratingFilter 对象生成;</li>
+<li>/login,POST: 对用户进行认证, 传入参数 <code>username</code> 和 <code>password</code> 生成 UsernamePasswordAuthenticationToken, 这两个参数名称可以修改；</li>
+<li>/login?error: 登陆出错页面；</li>
+<li>/login?logout: 成功登陆退出后跳转的页面。</li>
+</ol>
+<p><strong>默认参数</strong><br>在登陆页面表单中需要配置用户名称及密码，它们的默认名称如下：</p>
+<ol>
+<li>username: 用户名称；</li>
+<li>password: 用户密码。</li>
+</ol>
+<p>这些默认配置都可以在 <code>FormLoginConfigurer</code> 中配置：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">FormLoginConfigurer</span><br><span class="line">	   	.usernameParameter(<span class="string">"username"</span>)</span><br><span class="line">	   	.passwordParameter(<span class="string">"password"</span>)</span><br><span class="line">	   	.loginPage(<span class="string">"/authentication/login"</span>)</span><br><span class="line">	   	.failureUrl(<span class="string">"/authentication/login?failed"</span>)</span><br><span class="line">	   	.loginProcessingUrl(<span class="string">"/authentication/login/process"</span>)</span><br></pre></td></tr></table></figure>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="http://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Spring%20Security%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E5%AE%9E%E6%93%8D/03%20%20%E8%AE%A4%E8%AF%81%E4%BD%93%E7%B3%BB%EF%BC%9A%E5%A6%82%E4%BD%95%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Spring%20Security%20%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%E6%9C%BA%E5%88%B6%EF%BC%9F.md" target="_blank" rel="noopener">1. 03 认证体系：如何深入理解 Spring Security 用户认证机制？</a></p>
+<p><a href="http://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Spring%20Security%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E5%AE%9E%E6%93%8D/02%20%20%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%EF%BC%9A%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%20Spring%20Security%20%E6%9E%84%E5%BB%BA%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%E4%BD%93%E7%B3%BB%EF%BC%9F.md" target="_blank" rel="noopener">2. 02 用户认证：如何使用 Spring Security 构建用户认证体系？</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring-Security/" rel="tag"># Spring Security</a>
+          
+            <a href="/tags/authentication/" rel="tag"># authentication</a>
+          
+            <a href="/tags/认证/" rel="tag"># 认证</a>
+          
+            <a href="/tags/AuthenticationManager/" rel="tag"># AuthenticationManager</a>
+          
+            <a href="/tags/DaoAuthenticationProvider/" rel="tag"># DaoAuthenticationProvider</a>
+          
+            <a href="/tags/UserDetails/" rel="tag"># UserDetails</a>
+          
+            <a href="/tags/Authentication/" rel="tag"># Authentication</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/03/ice-rpc/" rel="next" title="RPC：ICE">
+                <i class="fa fa-chevron-left"></i> RPC：ICE
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/04/springsecurity-authorization/" rel="prev" title="Springboot 序列：SpringSecurity 授权">
+                Springboot 序列：SpringSecurity 授权 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#整体流程"><span class="nav-number">1.</span> <span class="nav-text">整体流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#认证相关的类"><span class="nav-number">2.</span> <span class="nav-text">认证相关的类</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#用户模型"><span class="nav-number">3.</span> <span class="nav-text">用户模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#UserDeails-接口"><span class="nav-number">3.1.</span> <span class="nav-text">UserDeails 接口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Authentication-接口"><span class="nav-number">3.2.</span> <span class="nav-text">Authentication 接口</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#默认设置"><span class="nav-number">4.</span> <span class="nav-text">默认设置</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

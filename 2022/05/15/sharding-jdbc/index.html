@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="分库主要是解决单库读写能力不足的问题，分表主要是解决单表数据量过大的问题，读写分离则是在读多写少场景下的一种优化方案。Sharding-JDBC 作为数据库中间件，提供了这三个功能（Sharding-JDBC 的功能不仅限于此）。这篇文章则主要讲述在 Springboot 下如何使用 Sharding-JDBC 来解决分库/分表及读写分离的问题。">
+<meta name="keywords" content="sharding jdbc,分库,分表">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Springboot 序列：Sharding-JDBC">
+<meta property="og:url" content="http://yoursite.com/2022/05/15/sharding-jdbc/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="分库主要是解决单库读写能力不足的问题，分表主要是解决单表数据量过大的问题，读写分离则是在读多写少场景下的一种优化方案。Sharding-JDBC 作为数据库中间件，提供了这三个功能（Sharding-JDBC 的功能不仅限于此）。这篇文章则主要讲述在 Springboot 下如何使用 Sharding-JDBC 来解决分库/分表及读写分离的问题。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/sharding-jdbc-example.jpg">
+<meta property="og:updated_time" content="2022-05-21T12:33:40.151Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Springboot 序列：Sharding-JDBC">
+<meta name="twitter:description" content="分库主要是解决单库读写能力不足的问题，分表主要是解决单表数据量过大的问题，读写分离则是在读多写少场景下的一种优化方案。Sharding-JDBC 作为数据库中间件，提供了这三个功能（Sharding-JDBC 的功能不仅限于此）。这篇文章则主要讲述在 Springboot 下如何使用 Sharding-JDBC 来解决分库/分表及读写分离的问题。">
+<meta name="twitter:image" content="http://yoursite.com/images/spring-cloud/sharding-jdbc-example.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/05/15/sharding-jdbc/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Springboot 序列：Sharding-JDBC | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/05/15/sharding-jdbc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Springboot 序列：Sharding-JDBC
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-05-15 09:51:11" itemprop="dateCreated datePublished" datetime="2022-05-15T09:51:11+08:00">2022-05-15</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-05-21 20:33:40" itemprop="dateModified" datetime="2022-05-21T20:33:40+08:00">2022-05-21</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Springboot/" itemprop="url" rel="index"><span itemprop="name">Springboot</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">74k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1:07</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>分库主要是解决单库读写能力不足的问题，分表主要是解决单表数据量过大的问题，读写分离则是在读多写少场景下的一种优化方案。Sharding-JDBC 作为数据库中间件，提供了这三个功能（Sharding-JDBC 的功能不仅限于此）。这篇文章则主要讲述在 Springboot 下如何使用 Sharding-JDBC 来解决分库/分表及读写分离的问题。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>ShardingSphere 是一套开源的分布式数据库中间件解决方案组成的生态圈，它由 Sharding-JDBC、Sharding-Proxy 和 Sharding-Sidecar（计划中）这3款相互独立的产品组成。 他们均提供标准化的数据分片、分布式事务和数据库治理功能，可适用于如 Java 同构、异构语言、云原生等各种多样化的应用场景。</p>
+<ul>
+<li>Sharding-JDBC: 定位为轻量级 Java 框架，在 Java 的 JDBC 层提供的额外服务。 它使用客户端直连数据库，以 jar 包形式提供服务，无需额外部署和依赖，可理解为增强版的 JDBC 驱动，完全兼容 JDBC 和各种 ORM 框架；</li>
+<li>Sharding-Proxy: 定位为透明化的数据库代理端，提供封装了数据库二进制协议的服务端版本，用于完成对异构语言的支持。 目前先提供 MySQL/PostgreSQL 版本，它可以使用任何兼容 MySQL/PostgreSQL 协议的访问客户端(如：MySQL Command Client, MySQL Workbench, Navicat等 )操作数据，对 DBA 更加友好；</li>
+<li>Sharding-Sidecar: 定位为 Kubernetes 的云原生数据库代理，以 Sidecar 的形式代理所有对数据库的访问。 通过无中心、零侵入的方案提供与数据库交互的的啮合层，即 Database Mesh，又可称数据网格。</li>
+</ul>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2><h3 id="数据分表"><a href="#数据分表" class="headerlink" title="数据分表"></a>数据分表</h3><p>数据分片指按照某个维度将存放在单一数据库中的数据分散地存放至多个数据库或表中以达到提升性能瓶颈以及可用性的效果。</p>
+<h3 id="读写分离"><a href="#读写分离" class="headerlink" title="读写分离"></a>读写分离</h3><p>对于同一时刻有大量并发读操作和较少写操作类型的应用系统来说，将数据库拆分为主库和从库，主库负责处理事务性的增删改操作，从库负责处理查询操作，能够有效的避免由数据更新导致的行锁，使得整个系统的查询性能得到极大的改善。</p>
+<p>与将数据根据分片键打散至各个数据节点的水平分片不同，读写分离则是根据 SQL 语义的分析，将读操作和写操作分别路由至主库与从库。</p>
+<h3 id="逻辑表"><a href="#逻辑表" class="headerlink" title="逻辑表"></a>逻辑表</h3><p>水平拆分的数据库（表）的相同逻辑和数据结构表的总称。例：订单数据根据主键尾数拆分为 10 张表，分别是 t_order_0 到 t_order_9，他们的逻辑表名为 t_order.</p>
+<h3 id="真实表"><a href="#真实表" class="headerlink" title="真实表"></a>真实表</h3><p>在分片的数据库中真实存在的物理表。即上个示例中的 t_order_0 到 t_order_9.</p>
+<h3 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h3><p>数据分片的最小单元。由数据源名称和数据表组成，例：ds_0.t_order_0.</p>
+<h3 id="绑定表"><a href="#绑定表" class="headerlink" title="绑定表"></a>绑定表</h3><p>指分片规则一致的主表和子表。例如：t_order 表和 t_order_item 表，均按照 order_id 分片，则此两张表互为绑定表关系。绑定表之间的多表关联查询不会出现笛卡尔积关联，关联查询效率将大大提升。</p>
+<h3 id="广播表"><a href="#广播表" class="headerlink" title="广播表"></a>广播表</h3><p>指所有的分片数据源中都存在的表，表结构和表中的数据在每个数据库中均完全一致。适用于数据量不大且需要与海量数据的表进行关联查询的场景，例如：字典表。</p>
+<h2 id="配置数据库"><a href="#配置数据库" class="headerlink" title="配置数据库"></a>配置数据库</h2><p>以 <code>t_order</code> 例，如下图所示：</p>
+<p><img src="/images/spring-cloud/sharding-jdbc-example.jpg" alt="sharding-jdbc-example" title="sharding-jdbc-example"></p>
+<ul>
+<li><code>t_order</code> 数据库有两个分片，以 <code>user_id</code> 为分片键，同一个用户的所有订单在一个库里。每一个分片有一个 slave 结点，实现主从复制；</li>
+<li><code>t_order</code> 以 <code>order_id</code> 为分片键，分为两个表；</li>
+<li><code>t_order_item</code> 与 <code>t_order</code> 是绑定关系，有同样的分片键；</li>
+<li><code>t_config</code> 为广播表，每个库都会 copy 一份数据。</li>
+</ul>
+<h3 id="主从配置"><a href="#主从配置" class="headerlink" title="主从配置"></a>主从配置</h3><p>需要建立 4 个库，分别是 master0, master1, slave0, slave1, 其中 master0, master1 是主库，slave1 是 master0 的从库，slave1 是 master1 的从库。在这里，我们使用 docker 来安装 4 个库，以 master0, slave0 为例。</p>
+<p><strong>安装数据库</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 master0</span></span><br><span class="line">$ docker run -d -p 3307:3306 --name mysql-master0 \</span><br><span class="line"> -v /data/mysql/master0/conf:/etc/mysql \</span><br><span class="line"> -v /data/mysql/master0/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line"> -v /data/mysql/master0/data:/var/lib/mysql \</span><br><span class="line"> -e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line"> mysql:5.7 \</span><br><span class="line"> --lower_case_table_names=1 \</span><br><span class="line"> --character_set_server=utf8 \</span><br><span class="line"> --innodb_log_file_size=256m</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 slave0</span></span><br><span class="line">$ docker run -d -p 3308:3306 --name mysql-slave0 \</span><br><span class="line"> -v /data/mysql/slave0/conf:/etc/mysql \</span><br><span class="line"> -v /data/mysql/slave0/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line"> -v /data/mysql/slave0/data:/var/lib/mysql \</span><br><span class="line"> -e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line"> mysql:5.7 \</span><br><span class="line"> --lower_case_table_names=1 \</span><br><span class="line"> --character_set_server=utf8 \</span><br><span class="line"> --innodb_log_file_size=256m</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 master1</span></span><br><span class="line">$ docker run -d -p 3309:3306 --name mysql-master1 \</span><br><span class="line"> -v /data/mysql/master1/conf:/etc/mysql \</span><br><span class="line"> -v /data/mysql/master1/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line"> -v /data/mysql/master1/data:/var/lib/mysql \</span><br><span class="line"> -e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line"> mysql:5.7 \</span><br><span class="line"> --lower_case_table_names=1 \</span><br><span class="line"> --character_set_server=utf8 \</span><br><span class="line"> --innodb_log_file_size=256m</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 slave1</span></span><br><span class="line">$ docker run -d -p 3310:3306 --name mysql-slave1 \</span><br><span class="line"> -v /data/mysql/slave1/conf:/etc/mysql \</span><br><span class="line"> -v /data/mysql/slave1/logs:/var/<span class="built_in">log</span>/mysql \</span><br><span class="line"> -v /data/mysql/slave1/data:/var/lib/mysql \</span><br><span class="line"> -e MYSQL_ROOT_PASSWORD=123456 \</span><br><span class="line"> mysql:5.7 \</span><br><span class="line"> --lower_case_table_names=1 \</span><br><span class="line"> --character_set_server=utf8 \</span><br><span class="line"> --innodb_log_file_size=256m</span><br></pre></td></tr></table></figure>
+<p>Mysql 配置参数：</p>
+<ul>
+<li>配置文件目录：/etc/mysql</li>
+<li>日志文件目录：/var/log/mysql</li>
+<li>数据文件目录：/var/lib/mysql</li>
+</ul>
+<p><strong>配置 my.cnf</strong></p>
+<p>master0 <code>my.cnf</code> 配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">[mysqld]</span></span><br><span class="line"><span class="meta">log-bin</span>=<span class="string">mysql-bin # 开启 binlog</span></span><br><span class="line"><span class="meta">binlog-format</span>=<span class="string">ROW # 选择 ROW 模式</span></span><br><span class="line"><span class="attr">server_id</span>=<span class="string">1 # 配置 MySQL replaction 需要定义。</span></span><br></pre></td></tr></table></figure></p>
+<p>slave0 <code>my.cnf</code> 配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">[mysqld]</span></span><br><span class="line"><span class="meta">log-bin</span>=<span class="string">mysql-bin # 开启 binlog</span></span><br><span class="line"><span class="meta">binlog-format</span>=<span class="string">ROW # 选择 ROW 模式</span></span><br><span class="line"><span class="attr">server_id</span>=<span class="string">2 # 配置 MySQL replaction 需要定义，不要和 master 的 slaveId 重复</span></span><br><span class="line"></span><br><span class="line"><span class="comment">## relay_log 配置中继日志</span></span><br><span class="line"><span class="attr">relay_log</span>=<span class="string">mysql-relay-bin</span></span><br><span class="line"></span><br><span class="line"><span class="comment">## 跳过主从复制中遇到的所有错误或指定类型的错误,避免slave端复制中断</span></span><br><span class="line"><span class="comment">## 如:1062错误是指一些主键重复,1032错误是因为主从数据库数据不一致</span></span><br><span class="line"><span class="attr">slave_skip_errors</span>=<span class="string">1062</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>获取 master position</strong></p>
+<p>进入主结点 master0, 获取 master 状态。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入容器</span></span><br><span class="line">$ docker <span class="built_in">exec</span> -it mysql-master0 /bin/bash</span><br><span class="line"></span><br><span class="line"><span class="comment"># 容器内，访问 Mysql 服务</span></span><br><span class="line">$ mysql -uroot -p123456</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 slave 用户，并赋予权限</span></span><br><span class="line">mysql&gt; CREATE USER slave IDENTIFIED BY <span class="string">'slave'</span>;  </span><br><span class="line">mysql&gt; GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO <span class="string">'slave'</span>@<span class="string">'%'</span>;</span><br><span class="line">mysql&gt; FLUSH PRIVILEGES;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取 master 状态</span></span><br><span class="line">mysql&gt; show master status;</span><br><span class="line">+------------------+----------+--------------+------------------+-------------------+</span><br><span class="line">| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |</span><br><span class="line">+------------------+----------+--------------+------------------+-------------------+</span><br><span class="line">| mysql-bin.000003 |      777 |              |                  |                   |</span><br><span class="line">+------------------+----------+--------------+------------------+-------------------+</span><br><span class="line">1 row <span class="keyword">in</span> <span class="built_in">set</span> (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>记下 <code>File</code> 和 <code>Position</code> 信息，后面会用到。</p>
+<p><strong>获取 master0 ip 信息</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ docker inspect --format=<span class="string">'&#123;&#123;.NetworkSettings.IPAddress&#125;&#125;'</span> mysql-master</span><br><span class="line">172.17.0.4</span><br></pre></td></tr></table></figure>
+<p><strong>开启主从功能</strong></p>
+<p>进入从结点，开启主从功能；<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入容器</span></span><br><span class="line">$ docker <span class="built_in">exec</span> -it mysql-master0 /bin/bash</span><br><span class="line"></span><br><span class="line"><span class="comment"># 容器内，访问 Mysql 服务</span></span><br><span class="line">$ mysql -uroot -p123456</span><br><span class="line"></span><br><span class="line"><span class="comment"># 根据 master0 ip, position 及 slave 用户设置主从</span></span><br><span class="line">mysql&gt; change master to master_host=<span class="string">'172.17.0.4'</span>,master_user=<span class="string">'slave'</span>,master_password=<span class="string">'slave'</span>,master_log_file=<span class="string">'mysql-bin.000003'</span>,master_log_pos=777;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动主从功能</span></span><br><span class="line">mysql&gt; start slave;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看从结点信息</span></span><br><span class="line">mysql&gt; show slave status\G</span><br></pre></td></tr></table></figure></p>
+<h3 id="初始化-Sql-脚本"><a href="#初始化-Sql-脚本" class="headerlink" title="初始化 Sql 脚本"></a>初始化 Sql 脚本</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">DATABASE</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> ds0 <span class="keyword">DEFAULT</span> <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">DEFAULT</span> <span class="keyword">COLLATE</span> utf8_bin;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="comment">-- Table structure for t_config</span></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`t_config`</span>;</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t_config`</span> (</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`code`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`name`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`create_date`</span> datetime <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="comment">-- Table structure for t_order_0</span></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`t_order_0`</span>;</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t_order_0`</span> (</span><br><span class="line">  <span class="string">`order_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`order_no`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`user_id`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`name`</span> <span class="built_in">varchar</span>(<span class="number">50</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`price`</span> <span class="built_in">decimal</span>(<span class="number">10</span>,<span class="number">2</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`order_id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span>  <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="comment">-- Table structure for t_order_1</span></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`t_order_1`</span>;</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t_order_1`</span> (</span><br><span class="line">  <span class="string">`order_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`order_no`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`user_id`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`name`</span> <span class="built_in">varchar</span>(<span class="number">50</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`price`</span> <span class="built_in">decimal</span>(<span class="number">10</span>,<span class="number">2</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`order_id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="comment">-- Table structure for t_order_item_0</span></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`t_order_item_0`</span>;</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t_order_item_0`</span> (</span><br><span class="line">  <span class="string">`item_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`order_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`order_no`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`user_id`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`item_name`</span> <span class="built_in">varchar</span>(<span class="number">50</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`price`</span> <span class="built_in">decimal</span>(<span class="number">10</span>,<span class="number">2</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`item_id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="comment">-- Table structure for t_order_item_1</span></span><br><span class="line"><span class="comment">-- ----------------------------</span></span><br><span class="line"><span class="keyword">DROP</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> <span class="string">`t_order_item_1`</span>;</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t_order_item_1`</span> (</span><br><span class="line">  <span class="string">`item_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`order_id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`order_no`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`item_name`</span> <span class="built_in">varchar</span>(<span class="number">50</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`user_id`</span> <span class="built_in">int</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  <span class="string">`price`</span> <span class="built_in">decimal</span>(<span class="number">10</span>,<span class="number">2</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`item_id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=utf8;</span><br></pre></td></tr></table></figure>
+<h2 id="Java-实例"><a href="#Java-实例" class="headerlink" title="Java 实例"></a>Java 实例</h2><h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- 依赖包版本管理 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">properties</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">maven.compiler.source</span>&gt;</span>1.8<span class="tag">&lt;/<span class="name">maven.compiler.source</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">maven.compiler.target</span>&gt;</span>1.8<span class="tag">&lt;/<span class="name">maven.compiler.target</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">project.build.sourceEncoding</span>&gt;</span>UTF-8<span class="tag">&lt;/<span class="name">project.build.sourceEncoding</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- spring-boot version --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">spring-boot.version</span>&gt;</span>2.2.5.RELEASE<span class="tag">&lt;/<span class="name">spring-boot.version</span>&gt;</span></span><br><span class="line">	</span><br><span class="line">    <span class="comment">&lt;!-- sharding-sphere version --&gt;</span>	</span><br><span class="line">    <span class="tag">&lt;<span class="name">sharding-sphere.version</span>&gt;</span>4.1.1<span class="tag">&lt;/<span class="name">sharding-sphere.version</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- mysql version --&gt;</span>	</span><br><span class="line">    <span class="tag">&lt;<span class="name">mysql.driver.version</span>&gt;</span>8.0.16<span class="tag">&lt;/<span class="name">mysql.driver.version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">mybatis-spring-boot.version</span>&gt;</span>1.3.5<span class="tag">&lt;/<span class="name">mybatis-spring-boot.version</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- druid version --&gt;</span>		</span><br><span class="line">    <span class="tag">&lt;<span class="name">druid.version</span>&gt;</span>1.2.6<span class="tag">&lt;/<span class="name">druid.version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">properties</span>&gt;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-boot-starter-test<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-boot-starter<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- shardingsphere --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.shardingsphere<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>sharding-jdbc-spring-boot-starter<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- mysql driver --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>mysql<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>mysql-connector-java<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- druid --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.alibaba<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>druid<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- mybatis --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.mybatis.spring.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>mybatis-spring-boot-starter<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>slf4j-api<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.7.26<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><strong>说明：</strong><br>使用 <code>druid</code> 连接池不需要引入 <code>druid-spring-boot-starter</code> 包，只要引入 <code>druid</code> 即可，否则加载数据源不成功。</p>
+<h3 id="定义数据库对象"><a href="#定义数据库对象" class="headerlink" title="定义数据库对象"></a>定义数据库对象</h3><p>以 <code>t_order</code> 为例。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Order</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Long orderId;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String orderNo;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Integer userId;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> BigDecimal price;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Order</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<h3 id="定义-Mapper-对象"><a href="#定义-Mapper-对象" class="headerlink" title="定义 Mapper 对象"></a>定义 Mapper 对象</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">OrderMapper</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Select</span>(<span class="string">"SELECT * FROM t_order"</span>)</span><br><span class="line">    <span class="function">List&lt;Order&gt; <span class="title">getAll</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Select</span>(<span class="string">"SELECT * FROM t_order WHERE order_id = #&#123;orderId&#125;"</span>)</span><br><span class="line">    <span class="function">Order <span class="title">get</span><span class="params">(Long orderId)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Insert</span>(<span class="string">"INSERT INTO t_order(order_no,user_id,name,price) VALUES(#&#123;orderNo&#125;,#&#123;userId&#125;, #&#123;name&#125;, #&#123;price&#125;)"</span>)</span><br><span class="line">    <span class="meta">@Options</span>(useGeneratedKeys = <span class="keyword">true</span>, keyProperty = <span class="string">"orderId"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">insert</span><span class="params">(Order order)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Update</span>(<span class="string">"UPDATE t_order SET name=#&#123;name&#125;,price=#&#123;price&#125; WHERE order_id =#&#123;orderId&#125;"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">update</span><span class="params">(Order order)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Delete</span>(<span class="string">"DELETE FROM t_order WHERE order_id =#&#123;orderId&#125;"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">delete</span><span class="params">(Long orderId)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Select</span>(</span><br><span class="line">            <span class="string">"&lt;script&gt;"</span></span><br><span class="line">            + <span class="string">"select "</span></span><br><span class="line">            + <span class="string">"o.order_id as orderId, "</span></span><br><span class="line">            + <span class="string">"o.order_no as orderNo, "</span></span><br><span class="line">            + <span class="string">"o.user_id as userId, "</span></span><br><span class="line">            + <span class="string">"o.name as name,"</span></span><br><span class="line">            + <span class="string">"o.price as price,"</span></span><br><span class="line">            + <span class="string">"oi.item_id as itemId "</span></span><br><span class="line">            + <span class="string">"from t_order o "</span></span><br><span class="line">            + <span class="string">"left join t_order_item oi on o.order_id = oi.order_id "</span></span><br><span class="line">            + <span class="string">"where o.order_id in "</span></span><br><span class="line">            + <span class="string">"&lt;foreach collection='orderIds' item='orderId' index='index' "</span></span><br><span class="line">            + <span class="string">"  open='(' close=')' separator=','&gt; "</span></span><br><span class="line">            + <span class="string">"  #&#123;orderId&#125; "</span></span><br><span class="line">            + <span class="string">"&lt;/foreach&gt;"</span></span><br><span class="line">            + <span class="string">"&lt;/script&gt;"</span></span><br><span class="line">            )</span><br><span class="line">    <span class="function">List&lt;OrderDetail&gt; <span class="title">getOrderDetails</span><span class="params">(@Param(<span class="string">"orderIds"</span>)</span> List&lt;Long&gt; orderIds)</span>;    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>说明：</strong></p>
+<ul>
+<li>若数据表主键由 Sharding-JDBC 生成，则在插入操作中不应包含主键，该主键由 Shardings-JDBC 生成，并改写 Sql 自动插入到数据库中，如此处的 <code>t_order</code>；</li>
+<li>可通过 <code>Options(useGeneratedKeys = true, keyProperty = &quot;orderId&quot;)</code> 选项，返回插入的主键。</li>
+</ul>
+<h3 id="Shardings-JDBC-配置"><a href="#Shardings-JDBC-配置" class="headerlink" title="Shardings-JDBC 配置"></a>Shardings-JDBC 配置</h3><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 定义数据源</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.names</span>=<span class="string">master0,slave0,master1,slave1</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义数据源 master0</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master0.type</span>=<span class="string">com.alibaba.druid.pool.DruidDataSource</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master0.driver-class-name</span>=<span class="string">com.mysql.cj.jdbc.Driver</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master0.url</span>=<span class="string">jdbc:mysql://192.168.1.100:3307/ds0?serverTimezone=Asia/Shanghai&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;useSSL=false</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master0.username</span>=<span class="string">root</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master0.password</span>=<span class="string">123456</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义数据源 slave0</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave0.type</span>=<span class="string">com.alibaba.druid.pool.DruidDataSource</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave0.driver-class-name</span>=<span class="string">com.mysql.cj.jdbc.Driver</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave0.url</span>=<span class="string">jdbc:mysql://192.168.1.100:3308/ds0?serverTimezone=Asia/Shanghai&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;useSSL=false</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave0.username</span>=<span class="string">root</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave0.password</span>=<span class="string">123456</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义数据源 master1</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master1.type</span>=<span class="string">com.alibaba.druid.pool.DruidDataSource</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master1.driver-class-name</span>=<span class="string">com.mysql.cj.jdbc.Driver</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master1.url</span>=<span class="string">jdbc:mysql://192.168.1.100:3309/ds1?serverTimezone=Asia/Shanghai&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;useSSL=false</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master1.username</span>=<span class="string">root</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.master1.password</span>=<span class="string">123456</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义数据源 slave1</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave1.type</span>=<span class="string">com.alibaba.druid.pool.DruidDataSource</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave1.driver-class-name</span>=<span class="string">com.mysql.cj.jdbc.Driver</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave1.url</span>=<span class="string">jdbc:mysql://192.168.1.100:3310/ds1?serverTimezone=Asia/Shanghai&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;useSSL=false</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave1.username</span>=<span class="string">root</span></span><br><span class="line"><span class="meta">spring.shardingsphere.datasource.slave1.password</span>=<span class="string">123456</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order 结点</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.actual-data-nodes</span>=<span class="string">ds$-&gt;&#123;0..1&#125;.t_order_$-&gt;&#123;0..1&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order 分库策略，以 user_id 为分片键</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.database-strategy.inline.sharding-column</span>=<span class="string">user_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.database-strategy.inline.algorithm-expression</span>=<span class="string">ds$-&gt;&#123;user_id % 2&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order 分表策略，以 order_id 为分片键</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.table-strategy.inline.sharding-column</span>=<span class="string">order_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.table-strategy.inline.algorithm-expression</span>=<span class="string">t_order_$-&gt;&#123;order_id % 2&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 order_id 键的生成策略，使用 SNOWFLAKE 算法</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.key-generator.column</span>=<span class="string">order_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order.key-generator.type</span>=<span class="string">SNOWFLAKE</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order_item 结点</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.actual-data-nodes</span>=<span class="string">ds$-&gt;&#123;0..1&#125;.t_order_item_$-&gt;&#123;0..1&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order_item 分库策略，以 user_id 为分片键</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.database-strategy.inline.sharding-column</span>=<span class="string">user_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.database-strategy.inline.algorithm-expression</span>=<span class="string">ds$-&gt;&#123;user_id % 2&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 t_order_item 分表策略，以 order_id 为分片键</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.table-strategy.inline.sharding-column</span>=<span class="string">order_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.table-strategy.inline.algorithm-expression</span>=<span class="string">t_order_item_$-&gt;&#123;order_id % 2&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义 item_id 键的生成策略，使用 SNOWFLAKE 算法</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.key-generator.column</span>=<span class="string">item_id</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.tables.t_order_item.key-generator.type</span>=<span class="string">SNOWFLAKE</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 t_ordem, t_order_item 为绑定关系</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.binding-tables</span>=<span class="string">t_order,t_order_item</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 t_config 为广播表</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.broadcast-tables</span>=<span class="string">t_config</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义名为 ds0 主从数据源，该数据源在数据库结点中引用</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.master-slave-rules.ds0.master-data-source-name</span>=<span class="string">master0</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.master-slave-rules.ds0.slave-data-source-names</span>=<span class="string">slave0</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义名为 ds1 主从数据源，该数据源在数据库结点中引用</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.master-slave-rules.ds1.master-data-source-name</span>=<span class="string">master1</span></span><br><span class="line"><span class="meta">spring.shardingsphere.sharding.master-slave-rules.ds1.slave-data-source-names</span>=<span class="string">slave1</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 输出改造后 sql</span></span><br><span class="line"><span class="meta">spring.shardingsphere.props.sql.show</span>=<span class="string">true</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 mybatis 对象别名目录</span></span><br><span class="line"><span class="meta">mybatis.type-aliases-package</span>=<span class="string">org.noahsark.shardingjdbc.model</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置日志文件</span></span><br><span class="line"><span class="meta">logging.file.name</span>=<span class="string">logs/jdbc.log</span></span><br></pre></td></tr></table></figure>
+<h3 id="测试代码"><a href="#测试代码" class="headerlink" title="测试代码"></a>测试代码</h3><p><strong>插入 Order 表</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">insertTest</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Integer orderNo;</span><br><span class="line">    Integer userId;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> num = <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line">    Order order = <span class="keyword">null</span>;</span><br><span class="line">    OrderItem orderItem = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; num; i++) &#123;</span><br><span class="line">        order = <span class="keyword">new</span> Order();</span><br><span class="line">        orderNo = random.nextInt(<span class="number">10000</span>) + <span class="number">1000</span>;</span><br><span class="line">        userId = random.nextInt(<span class="number">10000</span>) + <span class="number">10000</span>;</span><br><span class="line"></span><br><span class="line">        order.setName(<span class="string">"order-"</span> + orderNo);</span><br><span class="line">        order.setOrderNo(<span class="string">""</span> + orderNo);</span><br><span class="line">        order.setUserId(userId);</span><br><span class="line">        order.setPrice(<span class="keyword">new</span> BigDecimal(<span class="string">"1000.5"</span>));</span><br><span class="line"></span><br><span class="line">        orderMapper.insert(order);</span><br><span class="line"></span><br><span class="line">        orderItem = <span class="keyword">new</span> OrderItem();</span><br><span class="line">        orderItem.setOrderId(order.getOrderId());</span><br><span class="line">        orderItem.setOrderNo(order.getOrderNo());</span><br><span class="line">        orderItem.setUserId(order.getUserId());</span><br><span class="line">        orderItem.setItemName(<span class="string">"Item"</span> + random.nextInt(<span class="number">10000</span>));</span><br><span class="line">        orderItem.setPrice(<span class="keyword">new</span> BigDecimal(<span class="number">1000.5</span>));</span><br><span class="line"></span><br><span class="line">        orderItemMapper.insert(orderItem);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"orderId:"</span> + order.getOrderId());</span><br><span class="line">        System.out.println(<span class="string">"itemId:"</span> + orderItem.getItemId());</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>根据 <code>userId</code> 进行的分库，<code>orderId</code> 进行分表，<code>order</code> 表数据均衡分布到两个主库中。</p>
+<p><strong>关联查询</strong></p>
+<p>根据 <code>orderId</code> 列表 对 <code>order</code>, <code>order_item</code> 进行关联查询。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">getOrderDetailsTest</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    List&lt;Long&gt; list = Arrays.asList(<span class="number">732635574220881920L</span>, <span class="number">732635574220881920L</span>);</span><br><span class="line"></span><br><span class="line">    List&lt;OrderDetail&gt; orderDetails = orderMapper.getOrderDetails(list);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (OrderDetail orderDetail : orderDetails) &#123;</span><br><span class="line">        System.out.println(<span class="string">"orderDetail = "</span> + orderDetail);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>关联查询因为没有分库的信息，所以会查询所有的分库（如果设置了读写分离，则从主库的从查询），再将所有分库的结果进行聚合。在每一个分库中查询，又分为两种情况：1) 绑定表；2) 非绑定表；</p>
+<p><strong>绑定表</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">2022-05-21 15:38:24.602 [main] INFO  ShardingSphere-SQL - Logic SQL: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order o left join t_order_item oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) </span><br><span class="line"></span><br><span class="line">2022-05-21 15:38:24.603 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] </span><br><span class="line">2022-05-21 15:38:24.603 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920]</span><br></pre></td></tr></table></figure>
+<p>在两个分库两个分表的情况下，这个关联查询转化为两个查询，一个分库一个查询。由于 <code>orderId</code> 是分表键，可以定位到数据位于 <code>t_order_0</code> 和 <code>t_order_item_0</code> 表中，直接查询即可。</p>
+<p><strong>非绑定表</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">2022-05-21 15:39:34.135 [main] INFO  ShardingSphere-SQL - Logic SQL: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order o left join t_order_item oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) </span><br><span class="line"></span><br><span class="line">2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_1 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] </span><br><span class="line">2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] </span><br><span class="line">2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_1 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] </span><br><span class="line">2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920]</span><br></pre></td></tr></table></figure>
+<p>在两个分库两个分表的情况下，这个关联查询转化为四个查询。在一个分库中，根据分表键 <code>orderId</code>, 可以定位到这两个 <code>orderId</code> 位于 <code>t_order_0</code> 中，由于 <code>t_order_0</code> 和 <code>t_order_item_0</code> 表没有绑定关系，所以 <code>t_order_0</code> 表需要与所有 <code>t_order_item</code> 表进行关联查询，最终需要执行四个查询。</p>
+<p><strong>插入广播表</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">insertConfigTest</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    Config config = <span class="keyword">new</span> Config();</span><br><span class="line">    config.setCode(<span class="string">"OS"</span>);</span><br><span class="line">    config.setName(<span class="string">"os"</span>);</span><br><span class="line">    config.setCreateDate(<span class="keyword">new</span> Date());</span><br><span class="line"></span><br><span class="line">    configMapper.insert(config);</span><br><span class="line"></span><br><span class="line">    System.out.println(<span class="string">"config:"</span> + config);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>插入广播表会在所有分库中执行插入操作。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Logic SQL: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) </span><br><span class="line"></span><br><span class="line">2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Actual SQL: master0 ::: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) ::: [VISION, vision, 2022-05-21 15:40:27.155] </span><br><span class="line">2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Actual SQL: master1 ::: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) ::: [VISION, vision, 2022-05-21 15:40:27.155] </span><br><span class="line">config:Config&#123;id=null, code=&apos;VISION&apos;, name=&apos;vision&apos;, createDate=Sat May 21 15:40:27 CST 2022&#125;</span><br></pre></td></tr></table></figure>
+<p>如上所述，向 <code>t_config</code> 中插入一条数据，会中所有分库的主库中执行操作。</p>
+<p><strong>查询所有数据</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">getAllTest</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    List&lt;Order&gt; list = orderMapper.getAll();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (Order order : list) &#123;</span><br><span class="line">        System.out.println(<span class="string">"order = "</span> + order);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>查询语句中如果没有分库分表健，会默认查询所有表。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">2022-05-21 15:41:16.781 [main] INFO  ShardingSphere-SQL - Logic SQL: SELECT * FROM t_order </span><br><span class="line"></span><br><span class="line">2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: SELECT * FROM t_order_0 </span><br><span class="line">2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: SELECT * FROM t_order_1 </span><br><span class="line">2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: SELECT * FROM t_order_0 </span><br><span class="line">2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: SELECT * FROM t_order_1</span><br></pre></td></tr></table></figure>
+<p><a href="https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc" target="_blank" rel="noopener">工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc</a></p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://shardingsphere.apache.org/document/legacy/4.x/document/cn/overview/" target="_blank" rel="noopener">1. ShardingSphere 概览</a></p>
+<p><a href="https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-spring-boot/" target="_blank" rel="noopener">2. Sharding-JDBC &gt; 配置手册 &gt; Spring Boot配置</a></p>
+<p><a href="https://segmentfault.com/a/1190000038225441" target="_blank" rel="noopener">3. 分库分表神器 Sharding-JDBC，几千万的数据你不搞一下？</a></p>
+<p><a href="https://www.cnblogs.com/crazymakercircle/p/15955254.html" target="_blank" rel="noopener">4. Sharding-JDBC 实战（史上最全）</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/sharding-jdbc/" rel="tag"># sharding jdbc</a>
+          
+            <a href="/tags/分库/" rel="tag"># 分库</a>
+          
+            <a href="/tags/分表/" rel="tag"># 分表</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/08/sso/" rel="next" title="Springboot 序列：使用 Oauth2 实现单点登陆">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：使用 Oauth2 实现单点登陆
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/21/nginx/" rel="prev" title="Springboot 序列：Nginx">
+                Springboot 序列：Nginx <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#核心概念"><span class="nav-number">2.</span> <span class="nav-text">核心概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#数据分表"><span class="nav-number">2.1.</span> <span class="nav-text">数据分表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#读写分离"><span class="nav-number">2.2.</span> <span class="nav-text">读写分离</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#逻辑表"><span class="nav-number">2.3.</span> <span class="nav-text">逻辑表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#真实表"><span class="nav-number">2.4.</span> <span class="nav-text">真实表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据节点"><span class="nav-number">2.5.</span> <span class="nav-text">数据节点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#绑定表"><span class="nav-number">2.6.</span> <span class="nav-text">绑定表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#广播表"><span class="nav-number">2.7.</span> <span class="nav-text">广播表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#配置数据库"><span class="nav-number">3.</span> <span class="nav-text">配置数据库</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#主从配置"><span class="nav-number">3.1.</span> <span class="nav-text">主从配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#初始化-Sql-脚本"><span class="nav-number">3.2.</span> <span class="nav-text">初始化 Sql 脚本</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java-实例"><span class="nav-number">4.</span> <span class="nav-text">Java 实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#引入依赖"><span class="nav-number">4.1.</span> <span class="nav-text">引入依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#定义数据库对象"><span class="nav-number">4.2.</span> <span class="nav-text">定义数据库对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#定义-Mapper-对象"><span class="nav-number">4.3.</span> <span class="nav-text">定义 Mapper 对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Shardings-JDBC-配置"><span class="nav-number">4.4.</span> <span class="nav-text">Shardings-JDBC 配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#测试代码"><span class="nav-number">4.5.</span> <span class="nav-text">测试代码</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章讲述 Skywalking 的存储模型。">
+<meta name="keywords" content="metric,skywalking,存储模型,service,service instance,endpoint,trace,log,event">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Skywalking 存储模型">
+<meta property="og:url" content="http://yoursite.com/2022/07/02/skywalking-store-model/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章讲述 Skywalking 的存储模型。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-dashboard-v2.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-trace.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-log-v2.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-event-v2.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-example.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-topology.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-apm-metric.png">
+<meta property="og:updated_time" content="2022-07-09T04:39:14.404Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Skywalking 存储模型">
+<meta name="twitter:description" content="这篇文章讲述 Skywalking 的存储模型。">
+<meta name="twitter:image" content="http://yoursite.com/images/es/skywalking-dashboard-v2.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/07/02/skywalking-store-model/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Skywalking 存储模型 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/07/02/skywalking-store-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Skywalking 存储模型
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-07-02 10:37:52" itemprop="dateCreated datePublished" datetime="2022-07-02T10:37:52+08:00">2022-07-02</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-07-09 12:39:14" itemprop="dateModified" datetime="2022-07-09T12:39:14+08:00">2022-07-09</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">160k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">2:26</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章讲述 Skywalking 的存储模型。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>在 Skywalking 中主要存储有四种类型的数据：</p>
+<ol>
+<li>metric: 时序数据，该数据的特点是跟时间强相关，一般有四个元素构成：1) 名称；2）时间戳；3）数值；4）标签(tag),表示对指标的属性；</li>
+<li>trace: 调用链数据；</li>
+<li>log: 日志类数据，如项目中 logback 等框架输出的日志；</li>
+<li>event: 事件类型，如服务启动。</li>
+</ol>
+<p>其界面如下所示：</p>
+<p><strong>1. Metric</strong><br><img src="/images/es/skywalking-dashboard-v2.jpg" alt="skywalking-dashboard" title="skywalking-dashboard"></p>
+<p><strong>2. Trace</strong><br><img src="/images/es/skywalking-trace.jpg" alt="skywalking-trace" title="skywalking-trace"></p>
+<p><strong>3. Log</strong><br><img src="/images/es/skywalking-log-v2.jpg" alt="skywalking-log" title="skywalking-log"></p>
+<p><strong>4. Event</strong><br><img src="/images/es/skywalking-event-v2.jpg" alt="skywalking-event" title="skywalking-event"></p>
+<h2 id="Service-Instance-Endpoint-概念"><a href="#Service-Instance-Endpoint-概念" class="headerlink" title="Service-Instance-Endpoint 概念"></a>Service-Instance-Endpoint 概念</h2><p>在 Skywalking 中，有三个比较重要的概念：1）Service; 2) Instance; 3) Endpoint, 在 Metric, Trace, Log 数据中都会关联这些属性，从而方便统计和查询：</p>
+<ul>
+<li>Service: 代表一个可以提供服务能力的实体，可对应微服务体系中的一个服务；</li>
+<li>Instance: 代表一个服务实例进程，一个 Service 可以运行多个 Instance；</li>
+<li>Endpoint: 代表一个请求接口，一个服务中可以包含多个 Endpoint.</li>
+</ul>
+<h3 id="工程结构"><a href="#工程结构" class="headerlink" title="工程结构"></a>工程结构</h3><p>假定有如下的服务，其中 <code>NacosProviderApp</code> 是服务提供方，提供了一个 <code>/hello/{string}</code> endpoint, <code>NacosConsumerApp</code> 是服务消费方，通过浏览器访问。</p>
+<p><img src="/images/es/skywalking-example.jpg" alt="skywalking-example" title="skywalking-example"></p>
+<h3 id="Service-Instance-Endpoint-索引"><a href="#Service-Instance-Endpoint-索引" class="headerlink" title="Service-Instance-Endpoint 索引"></a>Service-Instance-Endpoint 索引</h3><p>项目接入 Skywalking 中，会使用相应的索引存储这些信息。</p>
+<table>
+<thead>
+<tr>
+<th>索引名称</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>{namespace}_service_traffic-yyyyMMdd</td>
+<td>服务信息</td>
+</tr>
+<tr>
+<td>{namespace}_instance_traffic-yyyyMMdd</td>
+<td>服务实例信息</td>
+</tr>
+<tr>
+<td>{namespace}_endpoint_traffic-yyyyMMdd</td>
+<td>Endpoint 信息</td>
+</tr>
+<tr>
+<td>{namespace}_service_relation_server_side-yyyyMMdd</td>
+<td>服务之间的关联关系</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ol>
+<li>假定 <code>namespace</code> 为 my-elasticsearch; </li>
+<li>每一份表会根据业务情况按天生成索引。</li>
+</ol>
+<h3 id="Service-索引"><a href="#Service-索引" class="headerlink" title="Service 索引"></a>Service 索引</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_service_traffic-20220701/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_service_traffic-20220701"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"copy_to"</span> : [</span><br><span class="line">            <span class="string">"name_match"</span></span><br><span class="line">          ]</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"name_match"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"analyzer"</span> : <span class="string">"oap_analyzer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"node_type"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_group"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>name</td>
+<td>keyword</td>
+<td>服务名称</td>
+</tr>
+<tr>
+<td>node_type</td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td>service_group</td>
+<td>keyword</td>
+<td>服务分组</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. 数据</strong><br>通过命令 <code>GET my-elasticsearch_service_traffic-20220701/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">2</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_service_traffic-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"node_type"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"NacosConsumerApp"</span>,</span><br><span class="line">          <span class="attr">"service_group"</span> : <span class="literal">null</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_service_traffic-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"node_type"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"NacosProviderApp"</span>,</span><br><span class="line">          <span class="attr">"service_group"</span> : <span class="literal">null</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>name</th>
+<th>node_type</th>
+<th>service_group</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>NacosProviderApp</td>
+<td>0</td>
+<td>null</td>
+<td></td>
+</tr>
+<tr>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>NacosConsumerApp</td>
+<td>0</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Instance-索引"><a href="#Instance-索引" class="headerlink" title="Instance 索引"></a>Instance 索引</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_instance_traffic-20220701/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_instance_traffic-20220701"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"last_ping"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"properties"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>last_ping</td>
+<td>long</td>
+<td>最近一次 ping 的时间</td>
+</tr>
+<tr>
+<td>name</td>
+<td>keyword</td>
+<td>“index” : false</td>
+</tr>
+<tr>
+<td>properties</td>
+<td>text</td>
+<td>属性字段，不索引，”index” : false</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td></td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. 数据</strong><br>通过命令 <code>GET my-elasticsearch_instance_traffic-20220701/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">4</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_instance_traffic-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_ZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"last_ping"</span> : <span class="number">202207021756</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"eb829f349f184d76b68d0eb60ccbabc1@192.168.68.62"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207011826</span>,</span><br><span class="line">          <span class="attr">"properties"</span> : <span class="string">""</span><span class="string">"&#123;"</span>OS Name<span class="string">":"</span>Windows <span class="number">10</span><span class="string">","</span>hostname<span class="string">":"</span>DESKTOP-ICO161<span class="string">","</span>Process No.<span class="string">":"</span><span class="number">7640</span><span class="string">","</span>language<span class="string">":"</span>java<span class="string">","</span>ipv4s<span class="string">":"</span><span class="number">192.168</span><span class="number">.68</span><span class="number">.62</span><span class="string">"&#125;"</span><span class="string">""</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_instance_traffic-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_ZGMzMDZkYTI1NWVkNDJjMWIxYjU2NmNlZTI3NDYwZWRAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"last_ping"</span> : <span class="number">202207021757</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"dc306da255ed42c1b1b566cee27460ed@192.168.68.62"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207011827</span>,</span><br><span class="line">          <span class="attr">"properties"</span> : <span class="string">""</span><span class="string">"&#123;"</span>OS Name<span class="string">":"</span>Windows <span class="number">10</span><span class="string">","</span>hostname<span class="string">":"</span>DESKTOP-ICO161<span class="string">","</span>Process No.<span class="string">":"</span><span class="number">22100</span><span class="string">","</span>language<span class="string">":"</span>java<span class="string">","</span>ipv4s<span class="string">":"</span><span class="number">192.168</span><span class="number">.68</span><span class="number">.62</span><span class="string">"&#125;"</span><span class="string">""</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>last_ping</th>
+<th>name</th>
+<th>service_id</th>
+<th>properties</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tm…</td>
+<td>202207021756</td>
+<td><a href="mailto:{..}@192.168.68.62" target="_blank" rel="noopener">{..}@192.168.68.62</a></td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>…</td>
+<td>202207011826</td>
+</tr>
+<tr>
+<td>Tm…</td>
+<td>202207021757</td>
+<td><a href="mailto:{...}@192.168.68.62" target="_blank" rel="noopener">{...}@192.168.68.62</a></td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>…</td>
+<td>202207011827</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ul>
+<li>通过 <code>last_ping</code> 字段进行服务的保活；</li>
+<li>通过 <code>service_id</code> 关联服务索引；</li>
+<li><code>time_bucket</code> 字段记录了服务启动的时间；</li>
+<li><code>service_id</code> 标识了一个服务实例，格式为：{随机字串}@hostname(ip).</li>
+</ul>
+<h3 id="Endpoint-索引"><a href="#Endpoint-索引" class="headerlink" title="Endpoint 索引"></a>Endpoint 索引</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_endpoint_traffic-20220626/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_endpoint_traffic-20220626"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"copy_to"</span> : [</span><br><span class="line">            <span class="string">"name_match"</span></span><br><span class="line">          ]</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"name_match"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"analyzer"</span> : <span class="string">"oap_analyzer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>name</td>
+<td>keyword</td>
+<td>将内容 copy_to name_match字段，进行分词索引</td>
+</tr>
+<tr>
+<td>name_match</td>
+<td>text</td>
+<td>进行分词索引</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td>关联到服务索引</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. 数据</strong></p>
+<p>通过命令 <code>GET my-elasticsearch_endpoint_traffic-20220626/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">2</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_endpoint_traffic-20220626"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"&#123;GET&#125;/echo/&#123;str&#125;"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202206261908</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_endpoint_traffic-20220626"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"&#123;GET&#125;/services/hello/&#123;str&#125;"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202206261908</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>name</th>
+<th>service_id</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tm…</td>
+<td>{GET}/echo/{str}</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>202206261908</td>
+</tr>
+<tr>
+<td>Tm…</td>
+<td>{GET}/services/hello/{str}</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>202206261908</td>
+</tr>
+</tbody>
+</table>
+<h3 id="服务关系索引"><a href="#服务关系索引" class="headerlink" title="服务关系索引"></a>服务关系索引</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_service_relation_server_side-20220627/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_service_relation_server_side-20220627"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"component_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"dest_service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"entity_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"source_service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>component_id</td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td>source_service_id</td>
+<td>keyword</td>
+<td>源服务 id</td>
+</tr>
+<tr>
+<td>dest_service_id</td>
+<td>keyword</td>
+<td>目标服务 id</td>
+</tr>
+<tr>
+<td>entity_id</td>
+<td>keyword</td>
+<td></td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. 数据</strong><br>通过命令 <code>GET my-elasticsearch_service_relation_server_side-20220627/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">2</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_service_relation_server_side-20220627"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"202206271817_TmFjb3NDb25zdW1lckFwcA==.1-TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"source_service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"component_id"</span> : <span class="number">14</span>,</span><br><span class="line">          <span class="attr">"dest_service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202206271817</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1-TmFjb3NQcm92aWRlckFwcA==.1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_service_relation_server_side-20220627"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"202206271817_VXNlcg==.0-TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"source_service_id"</span> : <span class="string">"VXNlcg==.0"</span>,</span><br><span class="line">          <span class="attr">"component_id"</span> : <span class="number">14</span>,</span><br><span class="line">          <span class="attr">"dest_service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202206271817</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"VXNlcg==.0-TmFjb3NDb25zdW1lckFwcA==.1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>component_id</th>
+<th>source_service_id</th>
+<th>dest_service_id</th>
+<th>entity_id</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>202..</td>
+<td>14</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>Tm…</td>
+<td>202206271817</td>
+</tr>
+<tr>
+<td>202..</td>
+<td>14</td>
+<td>VXNlcg==.0</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>VX…</td>
+<td>202206271817</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong><br>通过 <code>source_service_id</code> 和 <code>dest_service_id</code> 两个字段，可以建立起服务之间的调用关系，从而得到服务之间的拓扑图。根据上面的关系，可以得出拓扑图为：<code>VXNlcg==.0(user)  --&gt; TmFjb3NDb25zdW1lckFwcA==.1(NacosConsumerApp) --&gt; TmFjb3NQcm92aWRlckFwcA==.1(NacosProviderApp)</code>.</p>
+<p><img src="/images/es/skywalking-topology.jpg" alt="skywalking-topology" title="skywalking-topology"></p>
+<h2 id="Metric"><a href="#Metric" class="headerlink" title="Metric"></a>Metric</h2><p>Skywalking 可以存储以下类别的 Metric 数据：APM, Database, Event, Istio, Istio Data Plane, K8s, SelfObservability, VM, Web Browser. 项目中对接 Skywalking 之后，便可采集 APM 的数据。在本文中，我们分析 APM metric 指标，下图展示了 APM 中包含的所有指标。</p>
+<p><img src="/images/es/skywalking-apm-metric.png" alt="skywalking-apm-metric" title="skywalking-apm-metric"></p>
+<h3 id="统计维度"><a href="#统计维度" class="headerlink" title="统计维度"></a>统计维度</h3><p>APM metric 指标可以从四个不同的维度进行统计，分别是 Global, Service, Instance, Endpoint. 其含义如下：Global 是从全局整体的维度统计数据，其它维度参考上文的内容。</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>索引</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>all_percentile</td>
+<td>{namespace}_metrics-percentile-yyyyMMdd</td>
+<td>服务健康程度</td>
+</tr>
+<tr>
+<td>service_apdex</td>
+<td>{namespace}_metrics-apdex-yyyyMMdd</td>
+<td>服务健康程度</td>
+</tr>
+<tr>
+<td>service_resp_time</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>服务平均响应时间</td>
+</tr>
+<tr>
+<td>service_sla</td>
+<td>{namespace}_metrics-percent-yyyyMMdd</td>
+<td>服务请求成功率</td>
+</tr>
+<tr>
+<td>service_cpm</td>
+<td>{namespace}_metrics-cpm-yyyyMMdd</td>
+<td>服务每分钟请求数</td>
+</tr>
+<tr>
+<td>service_percentile</td>
+<td>{namespace}_metrics-percentile-yyyyMMdd</td>
+<td>百分比响应延时</td>
+</tr>
+<tr>
+<td>service_instance_cpm</td>
+<td>{namespace}_metrics-cpm-yyyyMMdd</td>
+<td>服务实例每分钟请求数</td>
+</tr>
+<tr>
+<td>service_instance_resp_time</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>每个服务实例的最大延时</td>
+</tr>
+<tr>
+<td>service_instance_sla</td>
+<td>{namespace}_metrics-percent-yyyyMMdd</td>
+<td>每个服务实例的请求成功率</td>
+</tr>
+<tr>
+<td>instance_jvm_cpu</td>
+<td>{namespace}_metrics-doubleavg-yyyyMMdd</td>
+<td>jvm占用CPU的百分比</td>
+</tr>
+<tr>
+<td>instance_jvm_memory_heap</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>JVM内存占用大小，单位m</td>
+</tr>
+<tr>
+<td>instance_jvm_young_gc_time</td>
+<td>{namespace}_metrics-sum-yyyyMMdd</td>
+<td>JVM垃圾回收时间</td>
+</tr>
+<tr>
+<td>instance_jvm_thread_live_count</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>JVM线程数量</td>
+</tr>
+<tr>
+<td>instance_jvm_thread_runnable_state_thread_count</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>JVM不同状态线程数量</td>
+</tr>
+<tr>
+<td>instance_jvm_class_loaded_class_count</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>JVM对象的数量</td>
+</tr>
+<tr>
+<td>endpoint_cpm</td>
+<td>{namespace}_metrics-cpm-yyyyMMdd</td>
+<td>每个端点的每分钟请求数</td>
+</tr>
+<tr>
+<td>endpoint_avg</td>
+<td>{namespace}_metrics-longavg-yyyyMMdd</td>
+<td>每个端点的最慢请求时间，单位ms</td>
+</tr>
+<tr>
+<td>endpoint_sla</td>
+<td>{namespace}_metrics-percent-yyyyMMdd</td>
+<td>每个端点的请求成功率</td>
+</tr>
+<tr>
+<td>endpoint_percentile</td>
+<td>{namespace}_metrics-percentile-yyyyMMdd</td>
+<td>当前端点每个时间段的响应时间占比</td>
+</tr>
+</tbody>
+</table>
+<p>下面以 <code>endpoint_avg</code>, <code>service_resp_time</code>,<code>endpoint_percentile</code> 为例，分析其存储模型。</p>
+<h3 id="endpoint-avg-请求响应的平均时间"><a href="#endpoint-avg-请求响应的平均时间" class="headerlink" title="endpoint_avg: 请求响应的平均时间"></a>endpoint_avg: 请求响应的平均时间</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_metrics-longavg-20220702/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_metrics-longavg-20220702"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"count"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"entity_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"metric_table"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"summation"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"value"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>count</td>
+<td>long</td>
+<td>数量</td>
+</tr>
+<tr>
+<td>entity_id</td>
+<td>keyword</td>
+<td>根据 metric_table 值不同，代表不同的含义，在这里，是指 endpont Id 值</td>
+</tr>
+<tr>
+<td>metric_table</td>
+<td>keyword</td>
+<td>指标名称</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td>service Id</td>
+</tr>
+<tr>
+<td>summation</td>
+<td>long</td>
+<td>总和</td>
+</tr>
+<tr>
+<td>value</td>
+<td>long</td>
+<td>平均值</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶, 这里是S, 如 202207021443</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ul>
+<li>metrics-longavg 索引了值为 <code>long</code> 类型的指标；</li>
+<li>metric_table 字段存储了指标的名称；</li>
+<li>entity_id 字段，根据 metric_table 值不同，代表不同的含义，在这里，是指 endpont Id 值；</li>
+<li>service_id 字段存储了 service 的 id;</li>
+<li>endpoint_avg 指标记录了 endpoint 每秒请求的数量、平均值及总和。</li>
+</ul>
+<p><strong>3. 数据</strong><br>通过以下命令查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">POST /my-elasticsearch_metrics-longavg-20220702/_search</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"bool"</span>: &#123;</span><br><span class="line">      <span class="attr">"must"</span>: [&#123;</span><br><span class="line">        <span class="attr">"term"</span>: &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span>: &#123;</span><br><span class="line">            <span class="attr">"value"</span>: <span class="string">"endpoint_avg"</span>,</span><br><span class="line">            <span class="attr">"boost"</span>: <span class="number">1.0</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;]</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结果如下：<br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">4</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">9.878767</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_avg_202207021443_TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.878767</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_avg"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">468</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">468</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_avg_202207021443_TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.878767</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_avg"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">514</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">514</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_avg_202207021444_TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.878767</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_avg"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">8</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">518</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">4145</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_avg_202207021444_TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.878767</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_avg"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">8</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">521</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">4171</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>metric_table</th>
+<th>service_id</th>
+<th>entity_id</th>
+<th>count</th>
+<th>summation</th>
+<th>value</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_avg</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0=</td>
+<td>1</td>
+<td>468</td>
+<td>468</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_avg</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ==</td>
+<td>1</td>
+<td>4145</td>
+<td>514</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_avg</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0=</td>
+<td>8</td>
+<td>4145</td>
+<td>518</td>
+<td>202207021444</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_avg</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ==</td>
+<td>8</td>
+<td>4171</td>
+<td>521</td>
+<td>202207021444</td>
+</tr>
+</tbody>
+</table>
+<p>第一行表示在 <code>202207021443</code> S, <code>NacosProviderApp</code> 服务的 <code>{GET}/services/hello/{str}</code> endpint 请求了一次，平均值为 <code>468</code> ms;<br>第一行表示在 <code>202207021443</code> S, <code>NacosConsumerApp</code> 服务的 <code>{GET}/echo/{str}</code> endpint 请求了一次，平均值为 <code>514</code> ms;</p>
+<h3 id="service-resp-time-服务平均响应时间"><a href="#service-resp-time-服务平均响应时间" class="headerlink" title="service_resp_time: 服务平均响应时间"></a>service_resp_time: 服务平均响应时间</h3><p><strong>1. Mapping</strong></p>
+<p>Mapping 见上文；</p>
+<p><strong>2. 索引结构</strong></p>
+<p>索引结构见上文。</p>
+<p><strong>说明：</strong></p>
+<ul>
+<li>entity_id 字段在这里代表了 service id.</li>
+</ul>
+<p><strong>3. 数据</strong><br>通过以下命令查看数据。<br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">POST /my-elasticsearch_metrics-longavg-20220702/_search</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"bool"</span>: &#123;</span><br><span class="line">      <span class="attr">"must"</span>: [&#123;</span><br><span class="line">        <span class="attr">"term"</span>: &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span>: &#123;</span><br><span class="line">            <span class="attr">"value"</span>: <span class="string">"service_resp_time"</span>,</span><br><span class="line">            <span class="attr">"boost"</span>: <span class="number">1.0</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;]</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>结果如下：<br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">4</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">9.861144</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"service_resp_time_202207021443_TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.861144</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"service_resp_time"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">514</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">514</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"service_resp_time_202207021443_TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.861144</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"service_resp_time"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">468</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">468</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"service_resp_time_202207021444_TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.861144</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"service_resp_time"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">8</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">521</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">4171</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-longavg-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"service_resp_time_202207021444_TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">9.861144</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"service_resp_time"</span>,</span><br><span class="line">          <span class="attr">"count"</span> : <span class="number">8</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="number">518</span>,</span><br><span class="line">          <span class="attr">"summation"</span> : <span class="number">4145</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>metric_table</th>
+<th>service_id</th>
+<th>entity_id</th>
+<th>count</th>
+<th>summation</th>
+<th>value</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>service…</td>
+<td>service_resp_time</td>
+<td></td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>1</td>
+<td>468</td>
+<td>468</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>service…</td>
+<td>service_resp_time</td>
+<td></td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>1</td>
+<td>514</td>
+<td>514</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>service…</td>
+<td>service_resp_time</td>
+<td></td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>8</td>
+<td>4145</td>
+<td>518</td>
+<td>202207021444</td>
+</tr>
+<tr>
+<td>service…</td>
+<td>service_resp_time</td>
+<td></td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>8</td>
+<td>4171</td>
+<td>521</td>
+<td>202207021444</td>
+</tr>
+</tbody>
+</table>
+<p>第一行表示在 <code>202207021443</code> S, NacosProviderApp 服务被请求了一次，平均值为 <code>468</code> ms;<br>第一行表示在 <code>202207021443</code> S, NacosConsumerApp 服务被请求了一次，平均值为 <code>514</code> ms;</p>
+<p>可见 <code>service_resp_time</code> 指标是指服务所有 endpoint 每秒请求的平均值、总数和总和。由于服务只有一个 endpoint, 所以，它与 <code>endpoint_avg</code> 指标值相同。</p>
+<h3 id="endpoint-percentile-endpoint-每个时间段的响应时间占比"><a href="#endpoint-percentile-endpoint-每个时间段的响应时间占比" class="headerlink" title="endpoint_percentile: endpoint 每个时间段的响应时间占比"></a>endpoint_percentile: endpoint 每个时间段的响应时间占比</h3><p><strong>1. Mapping</strong><br>通过命令 <code>GET my-elasticsearch_metrics-percentile-20220702/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_metrics-percentile-20220702"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"dataset"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"entity_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"metric_table"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"precision"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"value"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 索引结构</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>dataset</td>
+<td>text</td>
+<td>数据集</td>
+</tr>
+<tr>
+<td>entity_id</td>
+<td>keyword</td>
+<td>根据 metric_table 值不同，代表不同的含义</td>
+</tr>
+<tr>
+<td>metric_table</td>
+<td>keyword</td>
+<td>指标名称</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td>service Id</td>
+</tr>
+<tr>
+<td>precision</td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td>text</td>
+<td>指标值</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶, 这里是S, 如 202207021443</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. 数据</strong><br>通过以下命令查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">POST /my-elasticsearch_metrics-percentile-20220702/_search</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"query"</span>: &#123;</span><br><span class="line">    <span class="attr">"bool"</span>: &#123;</span><br><span class="line">      <span class="attr">"must"</span>: [&#123;</span><br><span class="line">        <span class="attr">"term"</span>: &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span>: &#123;</span><br><span class="line">            <span class="attr">"value"</span>: <span class="string">"endpoint_percentile"</span>,</span><br><span class="line">            <span class="attr">"boost"</span>: <span class="number">1.0</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;]</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结果如下：<br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">4</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.8170772</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-percentile-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_percentile_202207021443_TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.8170772</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_percentile"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"precision"</span> : <span class="number">10</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="string">"0,460|1,460|2,460|3,460|4,460"</span>,</span><br><span class="line">          <span class="attr">"dataset"</span> : <span class="string">"46,1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-percentile-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_percentile_202207021443_TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.8170772</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_percentile"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"precision"</span> : <span class="number">10</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021443</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="string">"0,510|1,510|2,510|3,510|4,510"</span>,</span><br><span class="line">          <span class="attr">"dataset"</span> : <span class="string">"51,1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-percentile-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_percentile_202207021444_TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.8170772</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_percentile"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"precision"</span> : <span class="number">10</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="string">"0,530|1,750|2,780|3,940|4,940"</span>,</span><br><span class="line">          <span class="attr">"dataset"</span> : <span class="string">"67,1|78,1|35,1|2,1|7,1|94,1|75,1|53,1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_metrics-percentile-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"endpoint_percentile_202207021444_TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.8170772</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"metric_table"</span> : <span class="string">"endpoint_percentile"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"precision"</span> : <span class="number">10</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207021444</span>,</span><br><span class="line">          <span class="attr">"entity_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">          <span class="attr">"value"</span> : <span class="string">"0,540|1,760|2,780|3,940|4,940"</span>,</span><br><span class="line">          <span class="attr">"dataset"</span> : <span class="string">"67,1|78,1|35,1|3,1|7,1|94,1|76,1|54,1"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<table>
+<thead>
+<tr>
+<th>_id</th>
+<th>metric_table</th>
+<th>service_id</th>
+<th>entity_id</th>
+<th>precision</th>
+<th>dataset</th>
+<th>value</th>
+<th>time_bucket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_percentile</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0=</td>
+<td>10</td>
+<td>…</td>
+<td>…</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_percentile</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ==</td>
+<td>10</td>
+<td>…</td>
+<td>…</td>
+<td>202207021443</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_percentile</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1</td>
+<td>TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0=</td>
+<td>10</td>
+<td>…</td>
+<td>…</td>
+<td>202207021444</td>
+</tr>
+<tr>
+<td>endpoint…</td>
+<td>endpoint_percentile</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1</td>
+<td>TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ==</td>
+<td>10</td>
+<td>…</td>
+<td>…</td>
+<td>202207021444</td>
+</tr>
+</tbody>
+</table>
+<p>第一行表示在 <code>202207021443</code> S, <code>NacosProviderApp</code> 服务的 <code>{GET}/services/hello/{str}</code> endpint 的 endpoint_percentile 值为 <code>0,460|1,460|2,460|3,460|4,460</code>;<br>第一行表示在 <code>202207021443</code> S, <code>NacosConsumerApp</code> 服务的 <code>{GET}/echo/{str}</code> endpint 的 endpoint_percentile 值为 <code>0,510|1,510|2,510|3,510|4,510</code>.</p>
+<p><strong>说明：</strong></p>
+<ul>
+<li>字段 <code>dataset</code> 和 <code>value</code> 存储的值不理解，后续再深入理解。</li>
+</ul>
+<h2 id="Trace"><a href="#Trace" class="headerlink" title="Trace"></a>Trace</h2><p>Trace 日志存储在 <code>{namespace}_segment-yyyyMMdd</code> 索引中。</p>
+<h3 id="Mapping"><a href="#Mapping" class="headerlink" title="Mapping"></a>Mapping</h3><p>通过命令 <code>GET my-elasticsearch_segment-20220702/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_segment-20220702"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"data_binary"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"binary"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"end_time"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"copy_to"</span> : [</span><br><span class="line">            <span class="string">"endpoint_name_match"</span></span><br><span class="line">          ]</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_name_match"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"analyzer"</span> : <span class="string">"oap_analyzer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"is_error"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"latency"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"segment_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_instance_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"start_time"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"statement"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"tags"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"trace_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"version"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="索引结构"><a href="#索引结构" class="headerlink" title="索引结构"></a>索引结构</h3><table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>trace_id</td>
+<td>keyword</td>
+<td>trace id</td>
+</tr>
+<tr>
+<td>segment_id</td>
+<td>keyword</td>
+<td>segment id</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td>service id</td>
+</tr>
+<tr>
+<td>service_instance_id</td>
+<td>keyword</td>
+<td>service instance id</td>
+</tr>
+<tr>
+<td>endpoint_id</td>
+<td>keyword</td>
+<td>endpoint id</td>
+</tr>
+<tr>
+<td>endpoint_name</td>
+<td>keyword</td>
+<td>endpoint name</td>
+</tr>
+<tr>
+<td>endpoint_name_match</td>
+<td>text</td>
+<td>对 endpoint name 分词索引</td>
+</tr>
+<tr>
+<td>tags</td>
+<td>keyword</td>
+<td>标签，可根据标签进行 Keyword 匹配查询</td>
+</tr>
+<tr>
+<td>statement</td>
+<td>keyword</td>
+<td>statement</td>
+</tr>
+<tr>
+<td>is_error</td>
+<td>integer</td>
+<td>是否错误</td>
+</tr>
+<tr>
+<td>latency</td>
+<td>integer</td>
+<td>延时</td>
+</tr>
+<tr>
+<td>version</td>
+<td>integer</td>
+<td>version</td>
+</tr>
+<tr>
+<td>tags</td>
+<td>keyword</td>
+<td>标签，可根据标签进行 Keyword 匹配查询</td>
+</tr>
+<tr>
+<td>start_time</td>
+<td>long</td>
+<td>开始时间</td>
+</tr>
+<tr>
+<td>end_time</td>
+<td>long</td>
+<td>结束时间</td>
+</tr>
+<tr>
+<td>data_binary</td>
+<td>data_binary</td>
+<td>完整数据，通过Base64编码存储</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ul>
+<li>tags 字段：使用数组存储，可以动态添加多个 tag, 但只能使用内置 tag, 不能自定义 tag; </li>
+<li>data_binary 字段：segment 内容通过 Base64 编码存储，不能索引。</li>
+</ul>
+<h3 id="数据"><a href="#数据" class="headerlink" title="数据"></a>数据</h3><p>通过以下命令 <code>GET my-elasticsearch_segment-20220702/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">1</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">5</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">5</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">18</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_segment-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.88.16567442415110000"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.88.16567442415110001"</span>,</span><br><span class="line">          <span class="attr">"endpoint_name"</span> : <span class="string">"&#123;GET&#125;/echo/&#123;str&#125;"</span>,</span><br><span class="line">          <span class="attr">"latency"</span> : <span class="number">673</span>,</span><br><span class="line">          <span class="attr">"end_time"</span> : <span class="number">1656744242184</span>,</span><br><span class="line">          <span class="attr">"endpoint_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_e0dFVH0vZWNoby97c3RyfQ=="</span>,</span><br><span class="line">          <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_ZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">          <span class="attr">"version"</span> : <span class="number">3</span>,</span><br><span class="line">          <span class="attr">"tags"</span> : [</span><br><span class="line">            <span class="string">"http.method=GET"</span>,</span><br><span class="line">            <span class="string">"http.method=GET"</span></span><br><span class="line">          ],</span><br><span class="line">          <span class="attr">"start_time"</span> : <span class="number">1656744241511</span>,</span><br><span class="line">          <span class="attr">"data_binary"</span> : <span class="string">"CjU1MjI3ZmU2ZDhmYmM0YWYzODcxZjRiNWQ2YzBhNzhiYS44OC4xNjU2NzQ0MjQxNTExMDAwMRI1NTIyN2ZlNmQ4ZmJjNGFmMzg3MWY0YjVkNmMwYTc4YmEuODguMTY1Njc0NDI0MTUxMTAwMDAalQEIARjo0pvtmzAgiNib7ZswMhovc2VydmljZXMvaGVsbG8vc2t5d2Fsa2luZzoTc2VydmljZS1wcm92aWRlcjo4MEABSANQDWI4CgN1cmwSMWh0dHA6Ly9zZXJ2aWNlLXByb3ZpZGVyL3NlcnZpY2VzL2hlbGxvL3NreXdhbGtpbmdiEgoLaHR0cC5tZXRob2QSA0dFVBpxEP///////////wEY59Kb7ZswIIjYm+2bMDIQe0dFVH0vZWNoby97c3RyfUgDUA5iLAoDdXJsEiVodHRwOi8vbG9jYWxob3N0OjkwOTIvZWNoby9za3l3YWxraW5nYhIKC2h0dHAubWV0aG9kEgNHRVQiEE5hY29zQ29uc3VtZXJBcHAqLmViODI5ZjM0OWYxODRkNzZiNjhkMGViNjBjY2JhYmMxQDE5Mi4xNjguNjguNjI="</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"statement"</span> : <span class="string">"&#123;GET&#125;/echo/&#123;str&#125; - 5227fe6d8fbc4af3871f4b5d6c0a78ba.88.16567442415110001"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">20220702144401</span>,</span><br><span class="line">          <span class="attr">"is_error"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"segment_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.88.16567442415110000"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_segment-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"4dcbfc1f16324d7fabf5bf2d2d12bb8a.85.16567442453060000"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.89.16567442453030001"</span>,</span><br><span class="line">          <span class="attr">"endpoint_name"</span> : <span class="string">"&#123;GET&#125;/services/hello/&#123;str&#125;"</span>,</span><br><span class="line">          <span class="attr">"latency"</span> : <span class="number">756</span>,</span><br><span class="line">          <span class="attr">"end_time"</span> : <span class="number">1656744246062</span>,</span><br><span class="line">          <span class="attr">"endpoint_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">          <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_ZGMzMDZkYTI1NWVkNDJjMWIxYjU2NmNlZTI3NDYwZWRAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">          <span class="attr">"version"</span> : <span class="number">3</span>,</span><br><span class="line">          <span class="attr">"tags"</span> : [</span><br><span class="line">            <span class="string">"http.method=GET"</span></span><br><span class="line">          ],</span><br><span class="line">          <span class="attr">"start_time"</span> : <span class="number">1656744245306</span>,</span><br><span class="line">          <span class="attr">"data_binary"</span> : <span class="string">"CjU1MjI3ZmU2ZDhmYmM0YWYzODcxZjRiNWQ2YzBhNzhiYS44OS4xNjU2NzQ0MjQ1MzAzMDAwMRI1NGRjYmZjMWYxNjMyNGQ3ZmFiZjViZjJkMmQxMmJiOGEuODUuMTY1Njc0NDI0NTMwNjAwMDAa5QIQ////////////ARi68JvtmzAgrvab7ZswKtkBEjU1MjI3ZmU2ZDhmYmM0YWYzODcxZjRiNWQ2YzBhNzhiYS44OS4xNjU2NzQ0MjQ1MzAzMDAwMRo1NTIyN2ZlNmQ4ZmJjNGFmMzg3MWY0YjVkNmMwYTc4YmEuODkuMTY1Njc0NDI0NTMwMzAwMDAgASoQTmFjb3NDb25zdW1lckFwcDIuZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42MjoQe0dFVH0vZWNoby97c3RyfUITc2VydmljZS1wcm92aWRlcjo4MDIae0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn1IA1AOYjoKA3VybBIzaHR0cDovLzE5Mi4xNjguNjguNjI6ODA3MC9zZXJ2aWNlcy9oZWxsby9za3l3YWxraW5nYhIKC2h0dHAubWV0aG9kEgNHRVQiEE5hY29zUHJvdmlkZXJBcHAqLmRjMzA2ZGEyNTVlZDQyYzFiMWI1NjZjZWUyNzQ2MGVkQDE5Mi4xNjguNjguNjI="</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"statement"</span> : <span class="string">"&#123;GET&#125;/services/hello/&#123;str&#125; - 5227fe6d8fbc4af3871f4b5d6c0a78ba.89.16567442453030001"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">20220702144405</span>,</span><br><span class="line">          <span class="attr">"is_error"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"segment_id"</span> : <span class="string">"4dcbfc1f16324d7fabf5bf2d2d12bb8a.85.16567442453060000"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      </span><br><span class="line">      <span class="comment">// ...</span></span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了简化，只复制了部分数据。一条完成的 Segment 数据如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.89.16567442453030001"</span>,</span><br><span class="line">  <span class="attr">"endpoint_name"</span> : <span class="string">"&#123;GET&#125;/services/hello/&#123;str&#125;"</span>,</span><br><span class="line">  <span class="attr">"latency"</span> : <span class="number">756</span>,</span><br><span class="line">  <span class="attr">"end_time"</span> : <span class="number">1656744246062</span>,</span><br><span class="line">  <span class="attr">"endpoint_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_e0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn0="</span>,</span><br><span class="line">  <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_ZGMzMDZkYTI1NWVkNDJjMWIxYjU2NmNlZTI3NDYwZWRAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">  <span class="attr">"version"</span> : <span class="number">3</span>,</span><br><span class="line">  <span class="attr">"tags"</span> : [</span><br><span class="line">    <span class="string">"http.method=GET"</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">"start_time"</span> : <span class="number">1656744245306</span>,</span><br><span class="line">  <span class="attr">"data_binary"</span> : <span class="string">"CjU1MjI3ZmU2ZDhmYmM0YWYzODcxZjRiNWQ2YzBhNzhiYS44OS4xNjU2NzQ0MjQ1MzAzMDAwMRI1NGRjYmZjMWYxNjMyNGQ3ZmFiZjViZjJkMmQxMmJiOGEuODUuMTY1Njc0NDI0NTMwNjAwMDAa5QIQ////////////ARi68JvtmzAgrvab7ZswKtkBEjU1MjI3ZmU2ZDhmYmM0YWYzODcxZjRiNWQ2YzBhNzhiYS44OS4xNjU2NzQ0MjQ1MzAzMDAwMRo1NTIyN2ZlNmQ4ZmJjNGFmMzg3MWY0YjVkNmMwYTc4YmEuODkuMTY1Njc0NDI0NTMwMzAwMDAgASoQTmFjb3NDb25zdW1lckFwcDIuZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42MjoQe0dFVH0vZWNoby97c3RyfUITc2VydmljZS1wcm92aWRlcjo4MDIae0dFVH0vc2VydmljZXMvaGVsbG8ve3N0cn1IA1AOYjoKA3VybBIzaHR0cDovLzE5Mi4xNjguNjguNjI6ODA3MC9zZXJ2aWNlcy9oZWxsby9za3l3YWxraW5nYhIKC2h0dHAubWV0aG9kEgNHRVQiEE5hY29zUHJvdmlkZXJBcHAqLmRjMzA2ZGEyNTVlZDQyYzFiMWI1NjZjZWUyNzQ2MGVkQDE5Mi4xNjguNjguNjI="</span>,</span><br><span class="line">  <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">  <span class="attr">"statement"</span> : <span class="string">"&#123;GET&#125;/services/hello/&#123;str&#125; - 5227fe6d8fbc4af3871f4b5d6c0a78ba.89.16567442453030001"</span>,</span><br><span class="line">  <span class="attr">"time_bucket"</span> : <span class="number">20220702144405</span>,</span><br><span class="line">  <span class="attr">"is_error"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"segment_id"</span> : <span class="string">"4dcbfc1f16324d7fabf5bf2d2d12bb8a.85.16567442453060000"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Log"><a href="#Log" class="headerlink" title="Log"></a>Log</h2><p>Log 日志存储在 <code>{namespace}_log-yyyyMMdd</code> 索引中。</p>
+<h3 id="Mapping-1"><a href="#Mapping-1" class="headerlink" title="Mapping"></a>Mapping</h3><p>通过命令 <code>GET my-elasticsearch_log-20220702/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_log-20220702"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"content"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"copy_to"</span> : [</span><br><span class="line">            <span class="string">"content_match"</span></span><br><span class="line">          ]</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"content_match"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"analyzer"</span> : <span class="string">"oap_log_analyzer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"content_type"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"copy_to"</span> : [</span><br><span class="line">            <span class="string">"endpoint_name_match"</span></span><br><span class="line">          ]</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint_name_match"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"analyzer"</span> : <span class="string">"oap_analyzer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_instance_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"span_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"integer"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"tags"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"tags_raw_data"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"binary"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"timestamp"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"trace_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"trace_segment_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"unique_id"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="索引结构-1"><a href="#索引结构-1" class="headerlink" title="索引结构"></a>索引结构</h3><table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>trace_id</td>
+<td>keyword</td>
+<td>trace id</td>
+</tr>
+<tr>
+<td>trace_segment_id</td>
+<td>keyword</td>
+<td>trace segment id</td>
+</tr>
+<tr>
+<td>unique_id</td>
+<td>keyword</td>
+<td>unique id</td>
+</tr>
+<tr>
+<td>span_id</td>
+<td>integer</td>
+<td>span id</td>
+</tr>
+<tr>
+<td>service_id</td>
+<td>keyword</td>
+<td>service id</td>
+</tr>
+<tr>
+<td>service_instance_id</td>
+<td>keyword</td>
+<td>service instance id</td>
+</tr>
+<tr>
+<td>endpoint_id</td>
+<td>keyword</td>
+<td>endpoint id</td>
+</tr>
+<tr>
+<td>endpoint_name</td>
+<td>keyword</td>
+<td>endpoint name</td>
+</tr>
+<tr>
+<td>endpoint_name_match</td>
+<td>text</td>
+<td>对 endpoint name 分词索引</td>
+</tr>
+<tr>
+<td>tags</td>
+<td>keyword</td>
+<td>标签，可根据标签进行 Keyword 匹配查询</td>
+</tr>
+<tr>
+<td>tags_raw_data</td>
+<td>binary</td>
+<td>标签原始内容，使用 Base64 编码存储</td>
+</tr>
+<tr>
+<td>statement</td>
+<td>keyword</td>
+<td>statement</td>
+</tr>
+<tr>
+<td>is_error</td>
+<td>integer</td>
+<td>是否错误</td>
+</tr>
+<tr>
+<td>latency</td>
+<td>integer</td>
+<td>延时</td>
+</tr>
+<tr>
+<td>version</td>
+<td>integer</td>
+<td>version</td>
+</tr>
+<tr>
+<td>tags</td>
+<td>keyword</td>
+<td>标签，可根据标签进行 Keyword 匹配查询</td>
+</tr>
+<tr>
+<td>timestamp</td>
+<td>long</td>
+<td>时间戳</td>
+</tr>
+<tr>
+<td>content</td>
+<td>keyword</td>
+<td>日志内容</td>
+</tr>
+<tr>
+<td>content_match</td>
+<td>text</td>
+<td>日志内容</td>
+</tr>
+<tr>
+<td>content_type</td>
+<td>integer</td>
+<td>content type</td>
+</tr>
+<tr>
+<td>content</td>
+<td>keyword</td>
+<td>对日志内容分词索引</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ul>
+<li>tags 字段：使用数组存储，可以动态添加多个 tag, 但只能使用内置 tag, 不能自定义 tag, 该字段只存储被索引的字段; </li>
+<li>tags_raw_data 字段：tags 原始内容通过 Base64 编码存储，不能索引；</li>
+</ul>
+<h3 id="数据-1"><a href="#数据-1" class="headerlink" title="数据"></a>数据</h3><p>通过以下命令 <code>GET my-elasticsearch_segment-20220702/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">1</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">5</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">5</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">18</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_log-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"fd0b1e10acaf4e089cec6b402a348cb2"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.87.16567442400710001"</span>,</span><br><span class="line">          <span class="attr">"unique_id"</span> : <span class="string">"fd0b1e10acaf4e089cec6b402a348cb2"</span>,</span><br><span class="line">          <span class="attr">"span_id"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"endpoint_name"</span> : <span class="literal">null</span>,</span><br><span class="line">          <span class="attr">"endpoint_id"</span> : <span class="literal">null</span>,</span><br><span class="line">          <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1_ZGMzMDZkYTI1NWVkNDJjMWIxYjU2NmNlZTI3NDYwZWRAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">          <span class="attr">"content"</span> : <span class="string">""</span><span class="string">"2022-07-02 14:44:00.075 [TID:5227fe6d8fbc4af3871f4b5d6c0a78ba.87.16567442400710001] [http-nio-8070-exec-6] INFO  o.n.n.NacosProviderApplication$EchoController -Receive a request:skywalking</span></span><br><span class="line"><span class="string">"</span><span class="string">""</span>,</span><br><span class="line">          <span class="attr">"tags"</span> : [</span><br><span class="line">            <span class="string">"level=INFO"</span></span><br><span class="line">          ],</span><br><span class="line">          <span class="attr">"trace_segment_id"</span> : <span class="string">"4dcbfc1f16324d7fabf5bf2d2d12bb8a.83.16567442400740000"</span>,</span><br><span class="line">          <span class="attr">"content_type"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"tags_raw_data"</span> : <span class="string">"Cg0KBWxldmVsEgRJTkZPCkQKBmxvZ2dlchI6b3JnLm5vYWhzYXJrLm5hY29zLk5hY29zUHJvdmlkZXJBcHBsaWNhdGlvbiRFY2hvQ29udHJvbGxlcgoeCgZ0aHJlYWQSFGh0dHAtbmlvLTgwNzAtZXhlYy02"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NQcm92aWRlckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">20220702144400</span>,</span><br><span class="line">          <span class="attr">"timestamp"</span> : <span class="number">1656744240075</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_log-20220702"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"826963aef56b4bbab4f607c46b43faeb"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970003"</span>,</span><br><span class="line">          <span class="attr">"unique_id"</span> : <span class="string">"826963aef56b4bbab4f607c46b43faeb"</span>,</span><br><span class="line">          <span class="attr">"span_id"</span> : <span class="number">0</span>,</span><br><span class="line">          <span class="attr">"endpoint_name"</span> : <span class="literal">null</span>,</span><br><span class="line">          <span class="attr">"endpoint_id"</span> : <span class="literal">null</span>,</span><br><span class="line">          <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_ZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">          <span class="attr">"content"</span> : <span class="string">""</span><span class="string">"2022-07-02 14:44:08.598 [TID:5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970003] [http-nio-9092-exec-1] INFO  o.n.n.NacosConsumerApplication$TestController -Receive a request:skywalking</span></span><br><span class="line"><span class="string">"</span><span class="string">""</span>,</span><br><span class="line">          <span class="attr">"tags"</span> : [</span><br><span class="line">            <span class="string">"level=INFO"</span></span><br><span class="line">          ],</span><br><span class="line">          <span class="attr">"trace_segment_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970002"</span>,</span><br><span class="line">          <span class="attr">"content_type"</span> : <span class="number">1</span>,</span><br><span class="line">          <span class="attr">"tags_raw_data"</span> : <span class="string">"Cg0KBWxldmVsEgRJTkZPCkQKBmxvZ2dlchI6b3JnLm5vYWhzYXJrLm5hY29zLk5hY29zQ29uc3VtZXJBcHBsaWNhdGlvbiRUZXN0Q29udHJvbGxlcgoeCgZ0aHJlYWQSFGh0dHAtbmlvLTkwOTItZXhlYy0x"</span>,</span><br><span class="line">          <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">20220702144408</span>,</span><br><span class="line">          <span class="attr">"timestamp"</span> : <span class="number">1656744248598</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// ...</span></span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了简化，只复制了部分数据。一条完成的 log 数据如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"trace_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970003"</span>,</span><br><span class="line">  <span class="attr">"unique_id"</span> : <span class="string">"826963aef56b4bbab4f607c46b43faeb"</span>,</span><br><span class="line">  <span class="attr">"span_id"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"endpoint_name"</span> : <span class="literal">null</span>,</span><br><span class="line">  <span class="attr">"endpoint_id"</span> : <span class="literal">null</span>,</span><br><span class="line">  <span class="attr">"service_instance_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1_ZWI4MjlmMzQ5ZjE4NGQ3NmI2OGQwZWI2MGNjYmFiYzFAMTkyLjE2OC42OC42Mg=="</span>,</span><br><span class="line">  <span class="attr">"content"</span> : <span class="string">""</span><span class="string">"2022-07-02 14:44:08.598 [TID:5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970003] [http-nio-9092-exec-1] INFO  o.n.n.NacosConsumerApplication$TestController -Receive a request:skywalking"</span><span class="string">""</span>,</span><br><span class="line">  <span class="attr">"tags"</span> : [</span><br><span class="line">    <span class="string">"level=INFO"</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">"trace_segment_id"</span> : <span class="string">"5227fe6d8fbc4af3871f4b5d6c0a78ba.80.16567442485970002"</span>,</span><br><span class="line">  <span class="attr">"content_type"</span> : <span class="number">1</span>,</span><br><span class="line">  <span class="attr">"tags_raw_data"</span> : <span class="string">"Cg0KBWxldmVsEgRJTkZPCkQKBmxvZ2dlchI6b3JnLm5vYWhzYXJrLm5hY29zLk5hY29zQ29uc3VtZXJBcHBsaWNhdGlvbiRUZXN0Q29udHJvbGxlcgoeCgZ0aHJlYWQSFGh0dHAtbmlvLTkwOTItZXhlYy0x"</span>,</span><br><span class="line">  <span class="attr">"service_id"</span> : <span class="string">"TmFjb3NDb25zdW1lckFwcA==.1"</span>,</span><br><span class="line">  <span class="attr">"time_bucket"</span> : <span class="number">20220702144408</span>,</span><br><span class="line">  <span class="attr">"timestamp"</span> : <span class="number">1656744248598</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Event"><a href="#Event" class="headerlink" title="Event"></a>Event</h2><p>Event 日志存储在 <code>{namespace}_events-yyyyMMdd</code> 索引中。</p>
+<h3 id="Mapping-2"><a href="#Mapping-2" class="headerlink" title="Mapping"></a>Mapping</h3><p>通过命令 <code>GET my-elasticsearch_events-20220701/_mapping</code> 查看索引结构。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"my-elasticsearch_events-20220701"</span> : &#123;</span><br><span class="line">    <span class="attr">"mappings"</span> : &#123;</span><br><span class="line">      <span class="attr">"properties"</span> : &#123;</span><br><span class="line">        <span class="attr">"end_time"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"endpoint"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"message"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"name"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"parameters"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span>,</span><br><span class="line">          <span class="attr">"index"</span> : <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"service_instance"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"start_time"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"time_bucket"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"type"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"uuid"</span> : &#123;</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="索引结构-2"><a href="#索引结构-2" class="headerlink" title="索引结构"></a>索引结构</h3><table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>类型</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>_id</td>
+<td>keyword</td>
+<td>唯一id</td>
+</tr>
+<tr>
+<td>uuid</td>
+<td>keyword</td>
+<td>uuid</td>
+</tr>
+<tr>
+<td>service</td>
+<td>keyword</td>
+<td>service</td>
+</tr>
+<tr>
+<td>service_instance</td>
+<td>keyword</td>
+<td>service instance</td>
+</tr>
+<tr>
+<td>endpoint</td>
+<td>keyword</td>
+<td>endpoint</td>
+</tr>
+<tr>
+<td>name</td>
+<td>keyword</td>
+<td>name</td>
+</tr>
+<tr>
+<td>type</td>
+<td>keyword</td>
+<td>type</td>
+</tr>
+<tr>
+<td>start_time</td>
+<td>long</td>
+<td>开始时间</td>
+</tr>
+<tr>
+<td>end_time</td>
+<td>long</td>
+<td>结束时间</td>
+</tr>
+<tr>
+<td>message</td>
+<td>keyword</td>
+<td>事件内容</td>
+</tr>
+<tr>
+<td>parameters</td>
+<td>keyword</td>
+<td>启动参数</td>
+</tr>
+<tr>
+<td>time_bucket</td>
+<td>long</td>
+<td>时间桶</td>
+</tr>
+</tbody>
+</table>
+<p><strong>说明：</strong></p>
+<ul>
+<li>service 字段：服务名称; </li>
+<li>service_instance 字段：服务实例名称；</li>
+</ul>
+<h3 id="数据-2"><a href="#数据-2" class="headerlink" title="数据"></a>数据</h3><p>通过以下命令 <code>GET my-elasticsearch_events-20220701/_search</code> 查看数据。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"took"</span> : <span class="number">0</span>,</span><br><span class="line">  <span class="attr">"timed_out"</span> : <span class="literal">false</span>,</span><br><span class="line">  <span class="attr">"_shards"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"successful"</span> : <span class="number">1</span>,</span><br><span class="line">    <span class="attr">"skipped"</span> : <span class="number">0</span>,</span><br><span class="line">    <span class="attr">"failed"</span> : <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"hits"</span> : &#123;</span><br><span class="line">    <span class="attr">"total"</span> : &#123;</span><br><span class="line">      <span class="attr">"value"</span> : <span class="number">4</span>,</span><br><span class="line">      <span class="attr">"relation"</span> : <span class="string">"eq"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">"max_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">    <span class="attr">"hits"</span> : [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_events-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"09e90a94-9154-48a5-a32c-6c2e18ca695d"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"start_time"</span> : <span class="number">1656671199452</span>,</span><br><span class="line">          <span class="attr">"endpoint"</span> : <span class="string">""</span>,</span><br><span class="line">          <span class="attr">"service"</span> : <span class="string">"NacosConsumerApp"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"Start"</span>,</span><br><span class="line">          <span class="attr">"end_time"</span> : <span class="number">1656671200887</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207011826</span>,</span><br><span class="line">          <span class="attr">"service_instance"</span> : <span class="string">""</span>,</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"Normal"</span>,</span><br><span class="line">          <span class="attr">"message"</span> : <span class="string">"Start Java Application"</span>,</span><br><span class="line">          <span class="attr">"uuid"</span> : <span class="string">"09e90a94-9154-48a5-a32c-6c2e18ca695d"</span>,</span><br><span class="line">          <span class="attr">"parameters"</span> : <span class="string">""</span><span class="string">"&#123;"</span>OPTS<span class="string">":"</span>-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate\u003dfalse -Dcom.sun.management.jmxremote.port\u003d62148 -Dcom.sun.management.jmxremote.ssl\u003dfalse -Dfile.encoding\u003dUTF<span class="number">-8</span> -Djava.rmi.server.hostname\u003dlocalhost -Dspring.application.admin.enabled\u003dtrue -Dspring.liveBeansView.mbeanDomain -Dspring.output.ansi.enabled\u003dalways -XX:TieredStopAtLevel\u003d1 -Xverify:none -javaagent:C:/Java/skywalking-es7<span class="number">-8.6</span><span class="number">.0</span>/agent/skywalking-agent.jar -javaagent:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\lib\\idea_rt.jar\u003d62149:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\bin<span class="string">"&#125;"</span><span class="string">""</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">"_index"</span> : <span class="string">"my-elasticsearch_events-20220701"</span>,</span><br><span class="line">        <span class="attr">"_type"</span> : <span class="string">"_doc"</span>,</span><br><span class="line">        <span class="attr">"_id"</span> : <span class="string">"3c64b57a-8f1c-4cd0-9622-fb9a665936b6"</span>,</span><br><span class="line">        <span class="attr">"_score"</span> : <span class="number">1.0</span>,</span><br><span class="line">        <span class="attr">"_source"</span> : &#123;</span><br><span class="line">          <span class="attr">"start_time"</span> : <span class="number">1656671244223</span>,</span><br><span class="line">          <span class="attr">"endpoint"</span> : <span class="string">""</span>,</span><br><span class="line">          <span class="attr">"service"</span> : <span class="string">"NacosConsumerApp"</span>,</span><br><span class="line">          <span class="attr">"name"</span> : <span class="string">"Start"</span>,</span><br><span class="line">          <span class="attr">"end_time"</span> : <span class="number">1656671245361</span>,</span><br><span class="line">          <span class="attr">"time_bucket"</span> : <span class="number">202207011827</span>,</span><br><span class="line">          <span class="attr">"service_instance"</span> : <span class="string">""</span>,</span><br><span class="line">          <span class="attr">"type"</span> : <span class="string">"Normal"</span>,</span><br><span class="line">          <span class="attr">"message"</span> : <span class="string">"Start Java Application"</span>,</span><br><span class="line">          <span class="attr">"uuid"</span> : <span class="string">"3c64b57a-8f1c-4cd0-9622-fb9a665936b6"</span>,</span><br><span class="line">          <span class="attr">"parameters"</span> : <span class="string">""</span><span class="string">"&#123;"</span>OPTS<span class="string">":"</span>-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate\u003dfalse -Dcom.sun.management.jmxremote.port\u003d62207 -Dcom.sun.management.jmxremote.ssl\u003dfalse -Dfile.encoding\u003dUTF<span class="number">-8</span> -Djava.rmi.server.hostname\u003dlocalhost -Dspring.application.admin.enabled\u003dtrue -Dspring.liveBeansView.mbeanDomain -Dspring.output.ansi.enabled\u003dalways -XX:TieredStopAtLevel\u003d1 -Xverify:none -javaagent:C:/Java/skywalking-es7<span class="number">-8.6</span><span class="number">.0</span>/agent/skywalking-agent.jar -javaagent:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\lib\\idea_rt.jar\u003d62208:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\bin<span class="string">"&#125;"</span><span class="string">""</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// ...</span></span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了简化，只复制了部分数据。一条完成的 event 数据如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"start_time"</span> : <span class="number">1656671244223</span>,</span><br><span class="line">  <span class="attr">"endpoint"</span> : <span class="string">""</span>,</span><br><span class="line">  <span class="attr">"service"</span> : <span class="string">"NacosConsumerApp"</span>,</span><br><span class="line">  <span class="attr">"name"</span> : <span class="string">"Start"</span>,</span><br><span class="line">  <span class="attr">"end_time"</span> : <span class="number">1656671245361</span>,</span><br><span class="line">  <span class="attr">"time_bucket"</span> : <span class="number">202207011827</span>,</span><br><span class="line">  <span class="attr">"service_instance"</span> : <span class="string">""</span>,</span><br><span class="line">  <span class="attr">"type"</span> : <span class="string">"Normal"</span>,</span><br><span class="line">  <span class="attr">"message"</span> : <span class="string">"Start Java Application"</span>,</span><br><span class="line">  <span class="attr">"uuid"</span> : <span class="string">"3c64b57a-8f1c-4cd0-9622-fb9a665936b6"</span>,</span><br><span class="line">  <span class="attr">"parameters"</span> : <span class="string">""</span><span class="string">"&#123;"</span>OPTS<span class="string">":"</span>-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate\u003dfalse -Dcom.sun.management.jmxremote.port\u003d62207 -Dcom.sun.management.jmxremote.ssl\u003dfalse -Dfile.encoding\u003dUTF<span class="number">-8</span> -Djava.rmi.server.hostname\u003dlocalhost -Dspring.application.admin.enabled\u003dtrue -Dspring.liveBeansView.mbeanDomain -Dspring.output.ansi.enabled\u003dalways -XX:TieredStopAtLevel\u003d1 -Xverify:none -javaagent:C:/Java/skywalking-es7<span class="number">-8.6</span><span class="number">.0</span>/agent/skywalking-agent.jar -javaagent:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\lib\\idea_rt.jar\u003d62208:C:\\Java\\IDEA<span class="number">-2018.3</span><span class="number">.2</span>\\bin<span class="string">"&#125;"</span><span class="string">""</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://skywalking.apache.org/zh/2019-03-29-introduction-of-skywalking-and-simple-practice/" target="_blank" rel="noopener">1. SkyWalking调研与初步实践</a><br><a href="https://www.jianshu.com/p/c164be9f6f72" target="_blank" rel="noopener">2. skywalking UI指标说明</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/metric/" rel="tag"># metric</a>
+          
+            <a href="/tags/skywalking/" rel="tag"># skywalking</a>
+          
+            <a href="/tags/存储模型/" rel="tag"># 存储模型</a>
+          
+            <a href="/tags/service/" rel="tag"># service</a>
+          
+            <a href="/tags/service-instance/" rel="tag"># service instance</a>
+          
+            <a href="/tags/endpoint/" rel="tag"># endpoint</a>
+          
+            <a href="/tags/trace/" rel="tag"># trace</a>
+          
+            <a href="/tags/log/" rel="tag"># log</a>
+          
+            <a href="/tags/event/" rel="tag"># event</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/11/skywalking-installation/" rel="next" title="Skywalking">
+                <i class="fa fa-chevron-left"></i> Skywalking
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/09/elasticsearch-data-model/" rel="prev" title="Elasticsearch 数据建模">
+                Elasticsearch 数据建模 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Service-Instance-Endpoint-概念"><span class="nav-number">2.</span> <span class="nav-text">Service-Instance-Endpoint 概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#工程结构"><span class="nav-number">2.1.</span> <span class="nav-text">工程结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Service-Instance-Endpoint-索引"><span class="nav-number">2.2.</span> <span class="nav-text">Service-Instance-Endpoint 索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Service-索引"><span class="nav-number">2.3.</span> <span class="nav-text">Service 索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Instance-索引"><span class="nav-number">2.4.</span> <span class="nav-text">Instance 索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Endpoint-索引"><span class="nav-number">2.5.</span> <span class="nav-text">Endpoint 索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务关系索引"><span class="nav-number">2.6.</span> <span class="nav-text">服务关系索引</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Metric"><span class="nav-number">3.</span> <span class="nav-text">Metric</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#统计维度"><span class="nav-number">3.1.</span> <span class="nav-text">统计维度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#endpoint-avg-请求响应的平均时间"><span class="nav-number">3.2.</span> <span class="nav-text">endpoint_avg: 请求响应的平均时间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#service-resp-time-服务平均响应时间"><span class="nav-number">3.3.</span> <span class="nav-text">service_resp_time: 服务平均响应时间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#endpoint-percentile-endpoint-每个时间段的响应时间占比"><span class="nav-number">3.4.</span> <span class="nav-text">endpoint_percentile: endpoint 每个时间段的响应时间占比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Trace"><span class="nav-number">4.</span> <span class="nav-text">Trace</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Mapping"><span class="nav-number">4.1.</span> <span class="nav-text">Mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#索引结构"><span class="nav-number">4.2.</span> <span class="nav-text">索引结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据"><span class="nav-number">4.3.</span> <span class="nav-text">数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Log"><span class="nav-number">5.</span> <span class="nav-text">Log</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Mapping-1"><span class="nav-number">5.1.</span> <span class="nav-text">Mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#索引结构-1"><span class="nav-number">5.2.</span> <span class="nav-text">索引结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据-1"><span class="nav-number">5.3.</span> <span class="nav-text">数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Event"><span class="nav-number">6.</span> <span class="nav-text">Event</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Mapping-2"><span class="nav-number">6.1.</span> <span class="nav-text">Mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#索引结构-2"><span class="nav-number">6.2.</span> <span class="nav-text">索引结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据-2"><span class="nav-number">6.3.</span> <span class="nav-text">数据</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

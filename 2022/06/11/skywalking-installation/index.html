@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章讲述 Skywalking 的简单安装及使用，后续再有文章分析其背后的数据模型。">
+<meta name="keywords" content="skywalking,apm,调用链">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Skywalking">
+<meta property="og:url" content="http://yoursite.com/2022/06/11/skywalking-installation/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章讲述 Skywalking 的简单安装及使用，后续再有文章分析其背后的数据模型。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-dashboard.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-idea.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-trace.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/skywalking-log.jpg">
+<meta property="og:updated_time" content="2022-06-26T11:27:32.791Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Skywalking">
+<meta name="twitter:description" content="这篇文章讲述 Skywalking 的简单安装及使用，后续再有文章分析其背后的数据模型。">
+<meta name="twitter:image" content="http://yoursite.com/images/es/skywalking.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/06/11/skywalking-installation/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Skywalking | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/06/11/skywalking-installation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Skywalking
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-06-11 19:29:26" itemprop="dateCreated datePublished" datetime="2022-06-11T19:29:26+08:00">2022-06-11</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-06-26 19:27:32" itemprop="dateModified" datetime="2022-06-26T19:27:32+08:00">2022-06-26</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">17k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">15 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章讲述 Skywalking 的简单安装及使用，后续再有文章分析其背后的数据模型。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Apache Skywalking 专门为微服务架构和云原生架构系统而设计并且支持分布式链路追踪的 APM 系统。Apache Skywalking 通过加载探针的方式收集应用调用链路信息，并对采集的调用链路信息进行分析，生成应用间关系和服务间关系以及服务指标。Apache Skywalking 目前支持多种语言，其中包括 Java，.Net Core，Node.js 和 Go 语言。其架构如下所示：</p>
+<p><img src="/images/es/skywalking.jpg" alt="skywalking" title="skywalking"></p>
+<p>整个系统分为三部分：</p>
+<ul>
+<li>agent：采集 tracing（调用链数据）和 metric（指标）信息并上报；</li>
+<li>OAP：收集 tracing 和 metric 信息通过 analysis core 模块将数据放入持久化容器中（ES，H2（内存数据库），mysql等等），并进行二次统计和监控告警；</li>
+<li>webapp：前后端分离，前端负责呈现，并将查询请求封装为 graphQL 提交给后端，后端通过 ribbon 做负载均衡转发给 OAP 集群，再将查询结果渲染展示。</li>
+</ul>
+<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><p><strong>1. 版本约定</strong></p>
+<ul>
+<li>OS: centos 7;</li>
+<li>Skywalking: 8.7.0 for es7; </li>
+<li>Elasticsearch: 7.14.2;</li>
+<li>Kibana: 7.14.2</li>
+</ul>
+<p>Elasticsearch 及 Kibana 安装部署参考之前的文章：<a href="https://zhangxt.top/2022/01/29/es-deployment-in-docker/" target="_blank" rel="noopener">Docker 下安装 ES, Kibana</a></p>
+<p><strong>2. 下载安装</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载 skywalking</span></span><br><span class="line">$ wget https://archive.apache.org/dist/skywalking/8.7.0/apache-skywalking-apm-es7-8.7.0.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 解压缩</span></span><br><span class="line">$ tar -xzvf apache-skywalking-apm-es7-8.7.0.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 切换到安装目录</span></span><br><span class="line">$ <span class="built_in">cd</span> apache-skywalking-apm-es7-8.7.0</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看目录结构</span></span><br><span class="line">$ ll</span><br><span class="line">drwxrwxr-x.  9 1001 1002   176 7月  30 2021 agent   <span class="comment"># agent 目录</span></span><br><span class="line">drwxr-xr-x.  2 root root   241 6月  10 16:45 bin    <span class="comment"># 启动脚本</span></span><br><span class="line">drwxr-xr-x. 11 root root  4096 6月  12 15:17 config <span class="comment"># 配置文件目录</span></span><br><span class="line">drwxr-xr-x.  2 root root    68 6月  10 10:24 config-examples</span><br><span class="line">-rwxrwxr-x.  1 1001 1002 31480 7月  30 2021 LICENSE</span><br><span class="line">drwxrwxr-x.  3 1001 1002  4096 6月  10 10:24 licenses</span><br><span class="line">drwxr-xr-x.  2 root root    80 6月  10 10:45 logs  <span class="comment"># 日志目录</span></span><br><span class="line">-rwxrwxr-x.  1 1001 1002 32519 7月  30 2021 NOTICE</span><br><span class="line">drwxrwxr-x.  2 1001 1002 12288 6月  10 17:21 oap-libs <span class="comment"># lib 目录</span></span><br><span class="line">-rw-rw-r--.  1 1001 1002  1951 7月  30 2021 README.txt</span><br><span class="line">drwxr-xr-x.  3 root root    30 6月  10 10:24 tools </span><br><span class="line">drwxr-xr-x.  2 root root    53 6月  10 10:44 webapp   <span class="comment"># web 程序</span></span><br></pre></td></tr></table></figure>
+<p><strong>3. 修改 Skywalking 配置</strong></p>
+<p>将 Skywalking 数据存储改为 Elasticsearch7, 修改 config/application.yaml 文件。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">storage:</span></span><br><span class="line">  <span class="attr">selector:</span> <span class="string">$&#123;SW_STORAGE:elasticsearch7&#125;</span>  <span class="comment"># 选择 elasticsearch7 作为后台存储，默认为 H2</span></span><br><span class="line">  <span class="attr">elasticsearch7:</span> <span class="comment"># elasticsearch7 参数配置</span></span><br><span class="line">    <span class="attr">nameSpace:</span> <span class="string">$&#123;SW_NAMESPACE:"my-elasticsearch"&#125;</span> <span class="comment"># 为了避免 index 名称冲突，可以设置 namespace 作为前缀</span></span><br><span class="line">    <span class="attr">clusterNodes:</span> <span class="string">$&#123;SW_STORAGE_ES_CLUSTER_NODES:192.168.1.100:9200&#125;</span> <span class="comment"># 配置 ES 地址 </span></span><br><span class="line">    <span class="attr">protocol:</span> <span class="string">$&#123;SW_STORAGE_ES_HTTP_PROTOCOL:"http"&#125;</span> <span class="comment"># 使用的协议</span></span><br><span class="line">    <span class="attr">user:</span> <span class="string">$&#123;SW_ES_USER:"elastic"&#125;</span> <span class="comment"># elasticsearch7 用户名</span></span><br><span class="line">    <span class="attr">password:</span> <span class="string">$&#123;SW_ES_PASSWORD:"chuanzhang"&#125;</span> <span class="comment"># 密码</span></span><br></pre></td></tr></table></figure>
+<p><strong>4. 启动 Skywalking</strong></p>
+<p>修改配置之后保存，便可启动 Skywalking.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 SkyWalking OAP 服务</span></span><br><span class="line">$ bin/oapService.sh</span><br></pre></td></tr></table></figure>
+<p><strong>5. 修改 SkyWalking UI 服务</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 SkyWalking UI 服务</span></span><br><span class="line">$ bin/webappService.sh</span><br></pre></td></tr></table></figure></p>
+<p>SkyWalking UI 默认端口是 <code>8080</code>, 可以通过 <code>webapp/webapp.yaml</code> 进行修改，在这里我们修改为 <code>8081</code>. 输入地址 <code>http://127.0.0.1:8081</code> 便可访问 Skywalking.</p>
+<p><img src="/images/es/skywalking-dashboard.jpg" alt="skywalking-dashboard" title="skywalking-dashboard"></p>
+<h2 id="集成"><a href="#集成" class="headerlink" title="集成"></a>集成</h2><p>SkyWalking 已经部署完成，现在需要将应用 trace 及 metric 日志采集到 SkyWalking, 对于 Java 应用来说相对比较简单，使用 <code>javaagent</code> 便可集成 SkyWalking.</p>
+<p><strong>1. 使用环境变量</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># SkyWalking Agent 配置</span></span><br><span class="line">$ <span class="built_in">export</span> SW_AGENT_NAME=skywalking-lab <span class="comment"># 配置应用名称</span></span><br><span class="line">$ <span class="built_in">export</span> SW_AGENT_COLLECTOR_BACKEND_SERVICES=127.0.0.1:11800 <span class="comment"># 配置 Collector 地址</span></span><br><span class="line">$ <span class="built_in">export</span> JAVA_AGENT=-javaagent:C:/Java/skywalking-es7-8.6.0/agent/skywalking-agent.jar <span class="comment"># SkyWalking Agent jar 地址</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Jar 启动</span></span><br><span class="line">$ java -jar <span class="variable">$JAVA_AGENT</span> -jar skywalking-lab.jar</span><br></pre></td></tr></table></figure>
+<p><strong>2. 使用 java 参数</strong><br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ java -jar -javaagent:C:/Java/skywalking-es7-8.6.0/agent/skywalking-agent.jar -Dskywalking.agent.application_code=skywalking-lab -Dskywalking.collector.servers=127.0.0.1:11800 skywalking-lab.jar</span><br></pre></td></tr></table></figure></p>
+<p>其中：</p>
+<ul>
+<li>skywalking.agent.application_code: 配置应用名称；</li>
+<li>skywalking.collector.servers: 配置 Collector 地址。</li>
+</ul>
+<p>另外，在开发联调阶段，也可以直接在 idea 中进行设置，如下图所示：</p>
+<p><img src="/images/es/skywalking-idea.jpg" alt="skywalking-idea" title="skywalking-idea"></p>
+<h2 id="日志采集"><a href="#日志采集" class="headerlink" title="日志采集"></a>日志采集</h2><p>SkyWalking 除了可以采集 trace 及 metric 数据之外，也可以在 log 日志中加入 <code>traceId</code>, 并将日志上传存储到 Elasticsearch7 中，结合 trace 一起定位问题。</p>
+<p><strong>1. 引入依赖</strong></p>
+<p>项目中使用的是 logback 框架，引入 skywalking 依赖即可，如果是其它日志框架，可以在官网中找到相关依赖。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.skywalking<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>apm-toolkit-logback-1.x<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>8.6.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><strong>2. 日志配置</strong></p>
+<p> 在 <code>logback.xml</code> 文件中加入 skywalking 的 <code>appender</code>, 其中 <code>tid</code> 表示 <code>tracId</code>, 最后引用该 <code>appender</code> 输出日志。</p>
+ <figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- skywalking 通过grpc采集日志 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">"GPRC_SKYWALKING"</span></span></span><br><span class="line"><span class="tag">          <span class="attr">class</span>=<span class="string">"org.apache.skywalking.apm.toolkit.log.logback.v1.x.log.GRPCLogClientAppender"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">class</span>=<span class="string">"ch.qos.logback.core.encoder.LayoutWrappingEncoder"</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">layout</span> <span class="attr">class</span>=<span class="string">"org.apache.skywalking.apm.toolkit.log.logback.v1.x.mdc.TraceIdMDCPatternLogbackLayout"</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">Pattern</span>&gt;</span>%d&#123;yyyy-MM-dd HH:mm:ss.SSS&#125; [%X&#123;tid&#125;] [%thread] %-5level %logger&#123;36&#125; -%msg%n<span class="tag">&lt;/<span class="name">Pattern</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">layout</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- 日志输出级别 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">root</span> <span class="attr">level</span>=<span class="string">"INFO"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">"STDOUT"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">"FILE"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">"GPRC_SKYWALKING"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">root</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p> 最后输出的日志格式如下所示：<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">17:20:53.698 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - [TID:N/A] - Tomcat initialized with port(s): 8070 (http)</span><br><span class="line">17:20:53.706 [main] INFO  o.a.coyote.http11.Http11NioProtocol - [TID:N/A] - Initializing ProtocolHandler [&quot;http-nio-8070&quot;]</span><br><span class="line">10:07:21.256 [http-nio-8070-exec-9] INFO  o.n.n.NacosProviderApplication$EchoController - [TID:4e52987712fb42308887530e7c8361bb.84.16559500412520005] - Receive a request:skywalking</span><br><span class="line">10:08:12.817 [http-nio-8070-exec-8] INFO  o.n.n.NacosProviderApplication$EchoController - [TID:4e52987712fb42308887530e7c8361bb.83.16559500928140003] - Receive a request:skywalking</span><br></pre></td></tr></table></figure></p>
+<p>未收到请求时 <code>traceId</code> 为 <code>[TID:N/A]</code>, 表示为空，收到请求之后便会正常输出。</p>
+<p><strong>3. 配置 agent</strong></p>
+<p>在本地 log 文件中包含了 <code>traceId</code> 之后，可以通过 gPRC 将日志传输给 skywalking, 再存储到 Elasticsearch7 中。要完成这个功能，需要在 <code>skywalking-es7-8.6.0/agent/config/agent.config</code> 文件中加入如下配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">plugin.toolkit.log.grpc.reporter.server_host</span>=<span class="string">$&#123;SW_GRPC_LOG_SERVER_HOST:192.168.1.100&#125;</span></span><br><span class="line"><span class="meta">plugin.toolkit.log.grpc.reporter.server_port</span>=<span class="string">$&#123;SW_GRPC_LOG_SERVER_PORT:11800&#125;</span></span><br><span class="line"><span class="meta">plugin.toolkit.log.grpc.reporter.max_message_size</span>=<span class="string">$&#123;SW_GRPC_LOG_MAX_MESSAGE_SIZE:10485760&#125;</span></span><br><span class="line"><span class="meta">plugin.toolkit.log.grpc.reporter.upstream_timeout</span>=<span class="string">$&#123;SW_GRPC_LOG_GRPC_UPSTREAM_TIMEOUT:30&#125;</span></span><br></pre></td></tr></table></figure></p>
+<p>通过参数指定日志上报服务的地址和端口，另外这些参数也可以通过环境变量进行配置。</p>
+<h2 id="界面"><a href="#界面" class="headerlink" title="界面"></a>界面</h2><p>引入应用之后，现在便可采集 trace 及 log 日志，其效果如下所示：</p>
+<p><strong>1. trace 查询</strong><br><img src="/images/es/skywalking-trace.jpg" alt="skywalking-trace" title="skywalking-trace"></p>
+<p><strong>2. log 查询</strong><br><img src="/images/es/skywalking-log.jpg" alt="skywalking-log" title="skywalking-log"></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://skywalking.apache.org/zh/2019-03-29-introduction-of-skywalking-and-simple-practice/" target="_blank" rel="noopener">1. SkyWalking调研与初步实践</a><br><a href="https://dubbo.apache.org/zh/docs/v2.7/admin/ops/skywalking/" target="_blank" rel="noopener">2. 使用 Apache Skywalking 做分布式跟踪</a><br><a href="https://skywalking.apache.org/zh/2020-04-19-skywalking-quick-start/" target="_blank" rel="noopener">3. SkyWalking 极简入门</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/skywalking/" rel="tag"># skywalking</a>
+          
+            <a href="/tags/apm/" rel="tag"># apm</a>
+          
+            <a href="/tags/调用链/" rel="tag"># 调用链</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/05/es-metricbeat-and-index-model/" rel="next" title="Metricbeat">
+                <i class="fa fa-chevron-left"></i> Metricbeat
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/02/skywalking-store-model/" rel="prev" title="Skywalking 存储模型">
+                Skywalking 存储模型 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#安装"><span class="nav-number">2.</span> <span class="nav-text">安装</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集成"><span class="nav-number">3.</span> <span class="nav-text">集成</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#日志采集"><span class="nav-number">4.</span> <span class="nav-text">日志采集</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#界面"><span class="nav-number">5.</span> <span class="nav-text">界面</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

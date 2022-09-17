@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Canal 是阿里开源的中间件，主要用途是基于 MySQL 数据库增量日志解析，提供增量数据订阅和消费。它有较多的使用场景，一种比较常用的场景是用来做业务 cache 刷新。这篇文章主要便是用来记录 Canal 的使用方式。">
+<meta name="keywords" content="canal,增量更新,instance">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Springboot 序列：Canal">
+<meta property="og:url" content="http://yoursite.com/2022/04/10/canal/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="Canal 是阿里开源的中间件，主要用途是基于 MySQL 数据库增量日志解析，提供增量数据订阅和消费。它有较多的使用场景，一种比较常用的场景是用来做业务 cache 刷新。这篇文章主要便是用来记录 Canal 的使用方式。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/canal.jpg">
+<meta property="og:updated_time" content="2022-04-17T12:52:43.371Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Springboot 序列：Canal">
+<meta name="twitter:description" content="Canal 是阿里开源的中间件，主要用途是基于 MySQL 数据库增量日志解析，提供增量数据订阅和消费。它有较多的使用场景，一种比较常用的场景是用来做业务 cache 刷新。这篇文章主要便是用来记录 Canal 的使用方式。">
+<meta name="twitter:image" content="http://yoursite.com/images/spring-cloud/canal.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/04/10/canal/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Springboot 序列：Canal | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/04/10/canal/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Springboot 序列：Canal
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-04-10 15:10:29" itemprop="dateCreated datePublished" datetime="2022-04-10T15:10:29+08:00">2022-04-10</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-04-17 20:52:43" itemprop="dateModified" datetime="2022-04-17T20:52:43+08:00">2022-04-17</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Springboot/" itemprop="url" rel="index"><span itemprop="name">Springboot</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">27k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">24 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>Canal 是阿里开源的中间件，主要用途是基于 MySQL 数据库增量日志解析，提供增量数据订阅和消费。它有较多的使用场景，一种比较常用的场景是用来做业务 cache 刷新。这篇文章主要便是用来记录 Canal 的使用方式。<br><a id="more"></a></p>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Canal 使用场景如下所示：</p>
+<p><img src="/images/spring-cloud/canal.jpg" alt="canal" title="canal"></p>
+<ul>
+<li><code>instance</code> 实例代表一组 Mysql 数据库表，即一组需要订阅的数据库对象；</li>
+<li>Canal server 伪装成一个 Mysql slave 去订阅 Mysql 的 binlog 日志；</li>
+<li>第三方应用可以集成 Canal client 客户端去 Canal server 订阅 Mysql 事件；</li>
+<li>为了实现组件的高可用引入 Zookeeper，Canal server 注册到 Zookeeper, 并竞争为某一个 <code>instance</code> 的主结点，一个 <code>instance</code> 只能有一个主结点；</li>
+<li>Canal client 也注册到 Zookeeper，并竞争为 <code>instance</code> 客户端，为了保证消息的顺序性，同时只能有一个 Client 消费一个 <code>instance</code>;</li>
+<li>Zookeeper 同时也保存了 <code>instance</code> 消费的 <code>position</code>, 便于下次重启时继续消息，保证消息不会丢失。 </li>
+</ul>
+<h2 id="前置条件"><a href="#前置条件" class="headerlink" title="前置条件"></a>前置条件</h2><h3 id="开启-ROW-模式"><a href="#开启-ROW-模式" class="headerlink" title="开启 ROW 模式"></a>开启 ROW 模式</h3><p>使用 Canal, 需要 Mysql 开启 Binlog 写入功能，配置 binlog-format 为 ROW 模式，my.cnf 配置如下：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">[mysqld]</span></span><br><span class="line"><span class="meta">log-bin</span>=<span class="string">mysql-bin # 开启 binlog</span></span><br><span class="line"><span class="meta">binlog-format</span>=<span class="string">ROW # 选择 ROW 模式</span></span><br><span class="line"><span class="attr">server_id</span>=<span class="string">1 # 配置 MySQL replaction 需要定义，不要和 canal 的 slaveId 重复</span></span><br></pre></td></tr></table></figure>
+<p>查看 Binlog 是否开启的命令：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">show variables like <span class="string">'%log_bin%'</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="配置用户"><a href="#配置用户" class="headerlink" title="配置用户"></a>配置用户</h3><p>可以给 Canal 配置一个专门的 Mysql 用户具有作为 MySQL slave 的权限。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">CREATE USER canal IDENTIFIED BY <span class="string">'canal'</span>;  </span><br><span class="line">GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO <span class="string">'canal'</span>@<span class="string">'%'</span>;</span><br><span class="line">-- GRANT ALL PRIVILEGES ON *.* TO <span class="string">'canal'</span>@<span class="string">'%'</span> ;</span><br><span class="line">FLUSH PRIVILEGES;</span><br></pre></td></tr></table></figure></p>
+<h2 id="单机模式"><a href="#单机模式" class="headerlink" title="单机模式"></a>单机模式</h2><p>在单机模式下，不引入 Zookeeper, 客户端与服务器直连，是比较简单的方式，可用于功能的测试验证。</p>
+<h3 id="安装-Canal-Server"><a href="#安装-Canal-Server" class="headerlink" title="安装 Canal Server"></a>安装 Canal Server</h3><ul>
+<li><p>下载<br>可以在 <strong><a href="https://github.com/alibaba/canal/releases" target="_blank" rel="noopener">官方网站</a> </strong> 下载最新的安装包，在这里，我们下载 <code>1.1.5</code> 的版本。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://github.com/alibaba/canal/releases/download/canal-1.1.5/canal.deployer-1.1.5.tar.gz</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>解压缩</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mkdir /data/app/canal</span><br><span class="line">tar zxvf canal.deployer-1.1.5.tar.gz  -C /data/app/canal</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>目录结构</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">drwxr-xr-x. 2 root root   93 4月   8 09:42 bin</span><br><span class="line">drwxr-xr-x. 5 root root  123 4月  12 18:55 conf</span><br><span class="line">drwxr-xr-x. 2 root root 4096 4月   7 17:40 lib</span><br><span class="line">drwxrwxrwx. 4 root root   34 4月   7 18:33 logs</span><br><span class="line">drwxrwxrwx. 2 root root  177 4月  19 2021 plugin</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置 canal</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#################################################</span></span><br><span class="line"><span class="comment">#########               common argument         #############</span></span><br><span class="line"><span class="comment">#################################################</span></span><br><span class="line"><span class="comment"># tcp bind ip</span></span><br><span class="line"><span class="meta">canal.ip</span> = <span class="string">192.168.1.100</span></span><br><span class="line"><span class="comment"># register ip to zookeeper</span></span><br><span class="line"><span class="meta">canal.register.ip</span> =<span class="string"></span></span><br><span class="line"><span class="meta">canal.port</span> = <span class="string">11111</span></span><br><span class="line"><span class="meta">canal.metrics.pull.port</span> = <span class="string">11112</span></span><br><span class="line"><span class="comment"># canal instance user/passwd</span></span><br><span class="line"><span class="comment"># canal.user = canal</span></span><br><span class="line"><span class="comment"># canal.passwd = E3619321C1A937C46A0D8BD1DAC39F93B27D4458</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># canal admin config</span></span><br><span class="line"><span class="comment">#canal.admin.manager = 127.0.0.1:8089</span></span><br><span class="line"><span class="meta">canal.admin.port</span> = <span class="string">11110</span></span><br><span class="line"><span class="meta">canal.admin.user</span> = <span class="string">admin</span></span><br><span class="line"><span class="meta">canal.admin.passwd</span> = <span class="string">4ACFE3202A5FF5CF467898FC58AAB1D615029441</span></span><br><span class="line"><span class="comment"># admin auto register</span></span><br><span class="line"><span class="comment">#canal.admin.register.auto = true</span></span><br><span class="line"><span class="comment">#canal.admin.register.cluster =</span></span><br><span class="line"><span class="comment">#canal.admin.register.name =</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># canal.zkServers = 192.168.7.115:2181</span></span><br><span class="line"><span class="comment"># flush data to zk</span></span><br><span class="line"><span class="meta">canal.zookeeper.flush.period</span> = <span class="string">1000</span></span><br><span class="line"></span><br><span class="line"><span class="attr">...</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#################################################</span></span><br><span class="line"><span class="comment">#########               destinations            #############</span></span><br><span class="line"><span class="comment">#################################################</span></span><br><span class="line"><span class="meta">canal.destinations</span> = <span class="string">example</span></span><br><span class="line"><span class="comment"># conf root dir</span></span><br><span class="line"><span class="meta">canal.conf.dir</span> = <span class="string">../conf</span></span><br><span class="line"><span class="comment"># auto scan instance dir add/remove and start/stop instance</span></span><br><span class="line"><span class="meta">canal.auto.scan</span> = <span class="string">true</span></span><br><span class="line"><span class="meta">canal.auto.scan.interval</span> = <span class="string">5</span></span><br><span class="line"><span class="comment"># set this value to 'true' means that when binlog pos not found, skip to latest.</span></span><br><span class="line"><span class="comment"># WARN: pls keep 'false' in production env, or if you know what you want.</span></span><br><span class="line"><span class="meta">canal.auto.reset.latest.pos.mode</span> = <span class="string">false</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>canal.ip: 指定 ip, 系统有多张网卡，比较有用；</li>
+<li>canal.zkServers: zookeeper 地址，在单机模式下没有用到；</li>
+<li>canal.destinations: 配置 instance, 默认情况下配置了 <code>example</code> 实例。</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><p>配置 instance<br>Canal Server 默认自带了一个 <code>example</code> 的 <code>instance</code>, 根据实际情况进行配置，文件路径为：conf/example/instance.properties.</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#################################################</span></span><br><span class="line"><span class="comment">## mysql serverId , v1.0.26+ will autoGen</span></span><br><span class="line"><span class="comment"># 设置 slaveId，不能与其它 server 及 mysql 配置冲突</span></span><br><span class="line"><span class="meta">canal.instance.mysql.slaveId</span>=<span class="string">1024</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># position info</span></span><br><span class="line"><span class="comment"># 配置 mysql master 节点信息</span></span><br><span class="line"><span class="meta">canal.instance.master.address</span>=<span class="string">127.0.0.1:3306</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 username/password</span></span><br><span class="line"><span class="meta">canal.instance.dbUsername</span>=<span class="string">canal</span></span><br><span class="line"><span class="meta">canal.instance.dbPassword</span>=<span class="string">canal</span></span><br><span class="line"><span class="meta">canal.instance.connectionCharset</span> = <span class="string">UTF-8</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># table regex</span></span><br><span class="line"><span class="comment"># 设置订阅的表</span></span><br><span class="line"><span class="meta">canal.instance.filter.regex</span>=<span class="string">.*\\..*</span></span><br><span class="line"><span class="comment"># table black regex</span></span><br><span class="line"><span class="comment"># 设置不订阅的表</span></span><br><span class="line"><span class="meta">canal.instance.filter.black.regex</span>=<span class="string">mysql\\.slave_.*</span></span><br><span class="line"><span class="comment"># table field filter(format: schema1.tableName1:field1/field2,schema2.tableName2:field1/field2)</span></span><br><span class="line"><span class="comment">#canal.instance.filter.field=test1.t_product:id/subject/keywords,test2.t_company:id/name/contact/ch</span></span><br><span class="line"><span class="comment"># table field black filter(format: schema1.tableName1:field1/field2,schema2.tableName2:field1/field2)</span></span><br><span class="line"><span class="comment">#canal.instance.filter.black.field=test1.t_product:subject/product_image,test2.t_company:id/name/contact/ch</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>canal.instance.mysql.slaveId: 设置 slaveId，不能与其它 server 及 mysql 配置冲突；</li>
+<li>anal.instance.master.address: 配置 mysql master 节点信息；</li>
+<li>canal.instance.dbUsername/dbPassword: 设置 username/password;</li>
+<li>canal.instance.filter.regex: 设置订阅的表；</li>
+<li>canal.instance.filter.black.regex: 设置不订阅的表。</li>
+</ul>
+</li>
+</ul>
+<h3 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh bin/startup.sh</span><br></pre></td></tr></table></figure>
+<h3 id="查看日志"><a href="#查看日志" class="headerlink" title="查看日志"></a>查看日志</h3><ul>
+<li><p>查看 server 日志</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tail -f logs/canal/canal.log</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看 instance 的日志</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tail -f logs/example/example.log</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="高可用模式"><a href="#高可用模式" class="headerlink" title="高可用模式"></a>高可用模式</h2><p>在单机模式下，Canal Server 宕机之后，Canal Client 不能实现自动切换。正常情况下，至少有两台 Canal Server, 一台宕机之后，另外一台自动接管，同时 Canal Client 也可感觉到 Canal Server 下线，执行切换操作。在这种工作模式下，需要引入 Zookeeper.</p>
+<h3 id="安装-Zookeeper"><a href="#安装-Zookeeper" class="headerlink" title="安装 Zookeeper"></a>安装 Zookeeper</h3><ul>
+<li><p>下载 Zookeeper</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget  https://downloads.apache.org/zookeeper/zookeeper-3.7.0/apache-zookeeper-3.7.0-bin.tar.gz</span><br><span class="line"></span><br><span class="line">tar -xzvf apache-zookeeper-3.7.0-bin.tar.gz -C /data/zookeeper-3.7.0/</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置 <code>zoo.cfg</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="built_in">cd</span> conf/</span><br><span class="line"></span><br><span class="line">cp zoo_sample.cfg zoo.cfg</span><br></pre></td></tr></table></figure>
+<p>  默认情况下没有 zoo.cfg 文件，我们使用 zoo_sample.cfg 生成，修改相关的配置：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># The number of milliseconds of each tick</span></span><br><span class="line"><span class="attr">tickTime</span>=<span class="string">2000</span></span><br><span class="line"><span class="comment"># The number of ticks that the initial</span></span><br><span class="line"><span class="comment"># synchronization phase can take</span></span><br><span class="line"><span class="attr">initLimit</span>=<span class="string">10</span></span><br><span class="line"><span class="comment"># The number of ticks that can pass between</span></span><br><span class="line"><span class="comment"># sending a request and getting an acknowledgement</span></span><br><span class="line"><span class="attr">syncLimit</span>=<span class="string">5</span></span><br><span class="line"><span class="comment"># the directory where the snapshot is stored.</span></span><br><span class="line"><span class="comment"># do not use /tmp for storage, /tmp here is just</span></span><br><span class="line"><span class="comment"># example sakes.</span></span><br><span class="line"><span class="attr">dataDir</span>=<span class="string">/data/zookeeper-3.7.0/data</span></span><br><span class="line"><span class="comment"># the port at which the clients will connect</span></span><br><span class="line"><span class="attr">clientPort</span>=<span class="string">2181</span></span><br><span class="line"><span class="comment"># the maximum number of client connections.</span></span><br><span class="line"><span class="comment"># increase this if you need to handle more clients</span></span><br><span class="line"><span class="comment">#maxClientCnxns=60</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># Be sure to read the maintenance section of the</span></span><br><span class="line"><span class="comment"># administrator guide before turning on autopurge.</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># The number of snapshots to retain in dataDir</span></span><br><span class="line"><span class="comment">#autopurge.snapRetainCount=3</span></span><br><span class="line"><span class="comment"># Purge task interval in hours</span></span><br><span class="line"><span class="comment"># Set to "0" to disable auto purge feature</span></span><br><span class="line"><span class="comment">#autopurge.purgeInterval=1</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>dataDir: 数据存储目录，建议修改。</li>
+</ul>
+</li>
+<li><p>修改日志目录<br>修改 conf/log4j.properties, 指定 Zookeeper 日志目录。</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">zookeeper.log.dir</span>=<span class="string">/fsmeeting/zookeeper-3.7.0/logs</span></span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="启动-Zookeeper"><a href="#启动-Zookeeper" class="headerlink" title="启动 Zookeeper"></a>启动 Zookeeper</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/zkServer.sh start</span><br></pre></td></tr></table></figure>
+<h3 id="修改-Canal-Server"><a href="#修改-Canal-Server" class="headerlink" title="修改 Canal Server"></a>修改 Canal Server</h3><ul>
+<li>修改 canal.properties<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">canal.zkServers</span>=<span class="string">127.0.0.1:2181</span></span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="客户端对接"><a href="#客户端对接" class="headerlink" title="客户端对接"></a>客户端对接</h2><p>启动了 Canal Server 及 Zookeeper 之后，应用就可以接入了。</p>
+<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.alibaba.otter<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>canal.client<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h3 id="接入服务器"><a href="#接入服务器" class="headerlink" title="接入服务器"></a>接入服务器</h3><ul>
+<li><p>单机直连模式</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">String destination = <span class="string">"example"</span>;</span><br><span class="line">String ip = <span class="string">"192.168.1.100"</span>;</span><br><span class="line">CanalConnector connector = CanalConnectors.newSingleConnector(<span class="keyword">new</span> InetSocketAddress(ip, <span class="number">11111</span>), destination,<span class="string">"canal"</span>,<span class="string">"canal"</span>);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>HA 模式</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">String destination = <span class="string">"example"</span>;</span><br><span class="line"><span class="comment">// 基于zookeeper动态获取canal server的地址，建立链接，其中一台server发生crash，可以支持failover</span></span><br><span class="line">CanalConnector connector = CanalConnectors.newClusterConnector(<span class="string">"192.168.1.100:2181"</span>, destination, <span class="string">"canal"</span>, <span class="string">"canal"</span>);</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p><a href="https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-canal" target="_blank" rel="noopener">源代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-canal</a></p>
+<h2 id="Zookeeper-数据"><a href="#Zookeeper-数据" class="headerlink" title="Zookeeper 数据"></a>Zookeeper 数据</h2><p>Canal 使用 Zookeeper 来选主和存储数据，选主用来保证一个 <code>instance</code> 只能有一个 Canal Server 订阅，同时只能由一个 Canal Client 消费。数据主要是指消费 <code>instance</code> 的 binlog 位置信息。</p>
+<ul>
+<li><p>连接 zk</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/zkCli.sh -server 127.0.0.1:2181</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看消费的位置 position</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">get /otter/canal/destinations/example/1001/cursor</span><br><span class="line">&#123;<span class="string">"@type"</span>:<span class="string">"com.alibaba.otter.canal.protocol.position.LogPosition"</span>,<span class="string">"identity"</span>:&#123;<span class="string">"slaveId"</span>:-1,<span class="string">"sourceAddress"</span>:&#123;<span class="string">"address"</span>:<span class="string">"localhost"</span>,<span class="string">"port"</span>:3306&#125;&#125;,<span class="string">"postion"</span>:&#123;<span class="string">"gtid"</span>:<span class="string">""</span>,<span class="string">"included"</span>:<span class="literal">false</span>,<span class="string">"journalName"</span>:<span class="string">"mysql-bin.000001"</span>,<span class="string">"position"</span>:26863,<span class="string">"serverId"</span>:1,<span class="string">"timestamp"</span>:1649662361000&#125;&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看客户端</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">get /otter/canal/destinations/example/1001/running</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看服务器</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">get /otter/canal/destinations/example/running</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>如果 Canal server 报有关 position 的异常信息，可以尝试删除 <code>/otter/canal/destinations/example/1001/cursor</code> 节点再重启。</p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://github.com/alibaba/canal" target="_blank" rel="noopener">1. canal github 官网</a></p>
+<p><a href="https://segmentfault.com/a/1190000023297973" target="_blank" rel="noopener">2. 阿里canal是怎么通过zookeeper实现HA机制的？</a></p>
+<p><a href="https://blog.csdn.net/XDSXHDYY/article/details/97825508" target="_blank" rel="noopener">3. canal介绍及HA集群模式搭建</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/canal/" rel="tag"># canal</a>
+          
+            <a href="/tags/增量更新/" rel="tag"># 增量更新</a>
+          
+            <a href="/tags/instance/" rel="tag"># instance</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/04/springsecurity-authorization/" rel="next" title="Springboot 序列：SpringSecurity 授权">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：SpringSecurity 授权
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/16/spring-cloud-rpc/" rel="prev" title="Springboot 序列：Spring Cloud RPC">
+                Springboot 序列：Spring Cloud RPC <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#前置条件"><span class="nav-number">2.</span> <span class="nav-text">前置条件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#开启-ROW-模式"><span class="nav-number">2.1.</span> <span class="nav-text">开启 ROW 模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置用户"><span class="nav-number">2.2.</span> <span class="nav-text">配置用户</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#单机模式"><span class="nav-number">3.</span> <span class="nav-text">单机模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#安装-Canal-Server"><span class="nav-number">3.1.</span> <span class="nav-text">安装 Canal Server</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#启动"><span class="nav-number">3.2.</span> <span class="nav-text">启动</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查看日志"><span class="nav-number">3.3.</span> <span class="nav-text">查看日志</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高可用模式"><span class="nav-number">4.</span> <span class="nav-text">高可用模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#安装-Zookeeper"><span class="nav-number">4.1.</span> <span class="nav-text">安装 Zookeeper</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#启动-Zookeeper"><span class="nav-number">4.2.</span> <span class="nav-text">启动 Zookeeper</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改-Canal-Server"><span class="nav-number">4.3.</span> <span class="nav-text">修改 Canal Server</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#客户端对接"><span class="nav-number">5.</span> <span class="nav-text">客户端对接</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#引入依赖"><span class="nav-number">5.1.</span> <span class="nav-text">引入依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#接入服务器"><span class="nav-number">5.2.</span> <span class="nav-text">接入服务器</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Zookeeper-数据"><span class="nav-number">6.</span> <span class="nav-text">Zookeeper 数据</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

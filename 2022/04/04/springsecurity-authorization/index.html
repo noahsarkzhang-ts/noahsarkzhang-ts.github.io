@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规则列表，进行投票决定是否放行。本文将讲述这一过程，并分析底层的数据结构。">
+<meta name="keywords" content="Spring Security,Authentication,authorization,授权,ExpressionUrlAuthorizationConfigurer,FilterSecurityInterceptor,ConfigAttribute">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Springboot 序列：SpringSecurity 授权">
+<meta property="og:url" content="http://yoursite.com/2022/04/04/springsecurity-authorization/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规则列表，进行投票决定是否放行。本文将讲述这一过程，并分析底层的数据结构。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/Authorization.jpg">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/AccessDecisionManager.jpg">
+<meta property="og:updated_time" content="2022-04-05T07:04:37.211Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Springboot 序列：SpringSecurity 授权">
+<meta name="twitter:description" content="Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规则列表，进行投票决定是否放行。本文将讲述这一过程，并分析底层的数据结构。">
+<meta name="twitter:image" content="http://yoursite.com/images/spring-cloud/Authorization.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/04/04/springsecurity-authorization/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Springboot 序列：SpringSecurity 授权 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/04/04/springsecurity-authorization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Springboot 序列：SpringSecurity 授权
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-04-04 19:56:22" itemprop="dateCreated datePublished" datetime="2022-04-04T19:56:22+08:00">2022-04-04</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-04-05 15:04:37" itemprop="dateModified" datetime="2022-04-05T15:04:37+08:00">2022-04-05</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Springboot/" itemprop="url" rel="index"><span itemprop="name">Springboot</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">33k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">30 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规则列表，进行投票决定是否放行。本文将讲述这一过程，并分析底层的数据结构。</p>
+<a id="more"></a>
+<h2 id="整体流程"><a href="#整体流程" class="headerlink" title="整体流程"></a>整体流程</h2><p><img src="/images/spring-cloud/Authorization.jpg" alt="Authorization" title="Authorization"></p>
+<p><strong>授权流程如下：</strong></p>
+<ol>
+<li>用户认证成功之后，会绑定一个 Authentication 对象，一般是 UsernamePasswordAuthenticationToken 对象；</li>
+<li>请求被 FilterSecurityInterceptor 拦截，并根据请求的 URL 从 ExpressionBasedFilterInvocationSecurityMetadataSource 中获取匹配的一组 ConfigAttribute 列表；</li>
+<li>ConfigAttribute 列表代表了一组权限规则，由用户自定义指定的，如 <code>permitAll</code>, <code>authenticated</code>, <code>denyAll</code> 等等；</li>
+<li>将请求操作封装为 FilterInvocation, 并将它作为参数，连同 Authentication, ConfigAttribute 列表传递给 AccessDecisionManager 接口，由该接口决策是否放行；</li>
+<li>AccessDecisionManager 接口的实现类是 AffirmativeBased, 在该类中，会持有多个 Voter, 每一个 Voter 都可以对权限规则列表进行投票，只要一个失败便失败；</li>
+<li>在这里，Voter 使用的是 WebExpressionVoter, 它使用 SpEL (Spring 表达式语言) 进行逻辑判断。</li>
+</ol>
+<h2 id="相关类"><a href="#相关类" class="headerlink" title="相关类"></a>相关类</h2><p>在上文的整体流程中，涉及到一些数据结构，如 ConfigAttribute 列表。这是怎么产生的？这个章节将会详细讲到。我们先看一个整体的类图，然后再结合一个实例分析。</p>
+<p><img src="/images/spring-cloud/AccessDecisionManager.jpg" alt="AccessDecisionManager" title="AccessDecisionManager"></p>
+<p><strong>关键类：</strong></p>
+<ul>
+<li>ExpressionUrlAuthorizationConfigurer: 授权操作的配置类，这会对创建和初始化相关的类，如上文提到的 FilterSecurityInterceptor, AccessDecisionManager,ExpressionBasedFilterInvocationSecurityMetadataSource; </li>
+<li>FilterSecurityInterceptor: 授权过滤器，这会拦截所有的请求，进行权限判断，这是授权操作的入口；</li>
+<li>AccessDecisionManager: 它是授权判断的关键类，是否可以访问由它来决策；</li>
+<li>ExpressionBasedFilterInvocationSecurityMetadataSource：存储权限规则列表，每一个请求都会对应一个权限规则列表；</li>
+<li>ExpressionInterceptUrlRegistry: 存储用户配置的权限规则列表，ExpressionBasedFilterInvocationSecurityMetadataSource 中的数据便是由该类转化映射而来，或者说该类存储了最原始的规则列表。</li>
+<li>ConfigAttribute：配置属性接口，存储了权限规则的内容；</li>
+<li>SecurityConfig：ConfigAttribute 实现类，它只是简单将权限规则存储为 String 类型；</li>
+<li>WebExpressionConfigAttribute：表达式类型的 ConfigAttribute 实现类，可以使用 SpEL 表达式来判断是否有权限，它由 SecurityConfig 对象转化而来；</li>
+</ul>
+<h2 id="实例"><a href="#实例" class="headerlink" title="实例"></a>实例</h2><p>以下面的配置为例，配置两个规则，<code>/admin/**</code> 请求需要 <code>ADMIN</code> 角色才能访问，其它的请求只要登陆便可访问。我们来分析它是生成什么样的 ConfigAttribute 列表；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">http.authorizeRequests()</span><br><span class="line">    .antMatchers(<span class="string">"/admin/**"</span>).hasRole(<span class="string">"ADMIN"</span>)</span><br><span class="line">    .anyRequest().authenticated()</span><br></pre></td></tr></table></figure>
+<h3 id="引入配置类"><a href="#引入配置类" class="headerlink" title="引入配置类"></a>引入配置类</h3><p>调用 <code>http.authorizeRequests()</code> 方法后，便向 HttpSecurity 对象中加入了 ExpressionUrlAuthorizationConfigurer, 它会完成授权相关类的创建及初始化。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> ExpressionUrlAuthorizationConfigurer&lt;HttpSecurity&gt;.<span class="function">ExpressionInterceptUrlRegistry <span class="title">authorizeRequests</span><span class="params">()</span></span></span><br><span class="line"><span class="function">		<span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">	ApplicationContext context = getContext();</span><br><span class="line">	<span class="keyword">return</span> getOrApply(<span class="keyword">new</span> ExpressionUrlAuthorizationConfigurer&lt;&gt;(context))</span><br><span class="line">			.getRegistry();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="生成-SecurityConfig-对象"><a href="#生成-SecurityConfig-对象" class="headerlink" title="生成 SecurityConfig 对象"></a>生成 SecurityConfig 对象</h3><p>跟踪代码可知， <code>antMatchers(&quot;/admin/**&quot;)</code> 方法会生成一个 AuthorizedUrl 对象， 并将 <code>/admin/**</code> 转化一个 AntPathRequestMatcher 对象。<code>hasRole(&quot;ADMIN&quot;)</code> 方法首先会转化成 <code>hasRole(&#39;ROLE_ADMIN&#39;)</code> 字符串，然后生成 SecurityConfig 对象，最终转化为一个 UrlMapping 对象存储到 ExpressionInterceptUrlRegistry 对象中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ExpressionUrlAuthorizationConfigurer</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">hasRole</span><span class="params">(String role)</span> </span>&#123;</span><br><span class="line">	Assert.notNull(role, <span class="string">"role cannot be null"</span>);</span><br><span class="line">	<span class="keyword">if</span> (role.startsWith(<span class="string">"ROLE_"</span>)) &#123;</span><br><span class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(</span><br><span class="line">				<span class="string">"role should not start with 'ROLE_' since it is automatically inserted. Got '"</span></span><br><span class="line">						+ role + <span class="string">"'"</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 1、生成权限字符串	</span></span><br><span class="line">	<span class="keyword">return</span> <span class="string">"hasRole('ROLE_"</span> + role + <span class="string">"')"</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// AuthorizedUrl</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> ExpressionInterceptUrlRegistry <span class="title">access</span><span class="params">(String attribute)</span> </span>&#123;</span><br><span class="line">	<span class="keyword">if</span> (not) &#123;</span><br><span class="line">		attribute = <span class="string">"!"</span> + attribute;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 2、生成 SecurityConfig 对象，并存储到 UrlMapping 中</span></span><br><span class="line">	interceptUrl(requestMatchers, SecurityConfig.createList(attribute));</span><br><span class="line">	<span class="keyword">return</span> ExpressionUrlAuthorizationConfigurer.<span class="keyword">this</span>.REGISTRY;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ExpressionUrlAuthorizationConfigurer</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">interceptUrl</span><span class="params">(Iterable&lt;? extends RequestMatcher&gt; requestMatchers,</span></span></span><br><span class="line"><span class="function"><span class="params">		Collection&lt;ConfigAttribute&gt; configAttributes)</span> </span>&#123;</span><br><span class="line">	<span class="comment">// 3. 将 UrlMapping 存储到 ExpressionInterceptUrlRegistry 中</span></span><br><span class="line">	<span class="keyword">for</span> (RequestMatcher requestMatcher : requestMatchers) &#123;</span><br><span class="line">		REGISTRY.addMapping(<span class="keyword">new</span> AbstractConfigAttributeRequestMatcherRegistry.UrlMapping(</span><br><span class="line">				requestMatcher, configAttributes));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由此可知，我们知道有如下的转化关系：</p>
+<ul>
+<li>/admin/** —&gt; AntPathRequestMatcher</li>
+<li>hasRole(“ADMIN”) —&gt; hasRole(‘ROLE_ADMIN’) —&gt; SecurityConfig</li>
+<li>antMatchers(“/admin/**”).hasRole(“ADMIN”) —&gt; UrlMapping</li>
+</ul>
+<p>我们来看下 <code>ConfigAttribute</code>, <code>SecurityConfig</code>, <code>UrlMapping</code> 的结构：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ConfigAttribute</span> <span class="keyword">extends</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="function">String <span class="title">getAttribute</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig</span> <span class="keyword">implements</span> <span class="title">ConfigAttribute</span> </span>&#123;</span><br><span class="line">	<span class="comment">// ~ Instance fields</span></span><br><span class="line">	<span class="comment">// ================================================================================================</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> String attrib;</span><br><span class="line"></span><br><span class="line">	</span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> String <span class="title">getAttribute</span><span class="params">()</span> </span>&#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="keyword">this</span>.attrib;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">static</span> List&lt;ConfigAttribute&gt; <span class="title">createList</span><span class="params">(String... attributeNames)</span> </span>&#123;</span><br><span class="line">		Assert.notNull(attributeNames, <span class="string">"You must supply an array of attribute names"</span>);</span><br><span class="line">		List&lt;ConfigAttribute&gt; attributes = <span class="keyword">new</span> ArrayList&lt;&gt;(</span><br><span class="line">				attributeNames.length);</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> (String attribute : attributeNames) &#123;</span><br><span class="line">			attributes.add(<span class="keyword">new</span> SecurityConfig(attribute.trim()));</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> attributes;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">UrlMapping</span> </span>&#123;</span><br><span class="line">	<span class="keyword">private</span> RequestMatcher requestMatcher;</span><br><span class="line">	<span class="keyword">private</span> Collection&lt;ConfigAttribute&gt; configAttrs;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ..</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>UrlMapping 是一个数据存储类，它将 <code>antMatchers(&quot;/admin/**&quot;).hasRole(&quot;ADMIN&quot;)</code> 相关的数据封装在 UrlMapping 中，并最终存储到 ExpressionInterceptUrlRegistry 中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractConfigAttributeRequestMatcherRegistry</span>&lt;<span class="title">C</span>&gt; <span class="keyword">extends</span></span></span><br><span class="line"><span class="class">		<span class="title">AbstractRequestMatcherRegistry</span>&lt;<span class="title">C</span>&gt; </span>&#123;</span><br><span class="line">	<span class="keyword">private</span> List&lt;UrlMapping&gt; urlMappings = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">	<span class="keyword">private</span> List&lt;RequestMatcher&gt; unmappedMatchers;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">addMapping</span><span class="params">(UrlMapping urlMapping)</span> </span>&#123;</span><br><span class="line">		<span class="keyword">this</span>.unmappedMatchers = <span class="keyword">null</span>;</span><br><span class="line">		<span class="keyword">this</span>.urlMappings.add(urlMapping);</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="转化为-WebExpressionConfigAttribute-对象"><a href="#转化为-WebExpressionConfigAttribute-对象" class="headerlink" title="转化为 WebExpressionConfigAttribute 对象"></a>转化为 WebExpressionConfigAttribute 对象</h3><p>将权限配置转化为 UrlMapping 并存储到 ExpressionInterceptUrlRegistry 中之后，在 FilterSecurityInterceptor 中并不能直接使用它，而是将它转化为 WebExpressionConfigAttribute 对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">final</span> ExpressionBasedFilterInvocationSecurityMetadataSource <span class="title">createMetadataSource</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		H http)</span> </span>&#123;</span><br><span class="line">	LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; requestMap = REGISTRY</span><br><span class="line">			.createRequestMap();</span><br><span class="line">	<span class="keyword">if</span> (requestMap.isEmpty()) &#123;</span><br><span class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(</span><br><span class="line">				<span class="string">"At least one mapping is required (i.e. authorizeRequests().anyRequest().authenticated())"</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">new</span> ExpressionBasedFilterInvocationSecurityMetadataSource(requestMap,</span><br><span class="line">			getExpressionHandler(http));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先它将 ExpressionInterceptUrlRegistry 中的 <code>List&lt;UrlMapping&gt;</code> 转化为 <code>LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt;</code>, 然后再将 SecurityConfig 转化为 WebExpressionConfigAttribute.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ExpressionBasedFilterInvocationSecurityMetadataSource</span></span></span><br><span class="line"><span class="class">		<span class="keyword">extends</span> <span class="title">DefaultFilterInvocationSecurityMetadataSource</span> </span>&#123;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> Map&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; requestMap;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 1、构造 ExpressionBasedFilterInvocationSecurityMetadataSource</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="title">ExpressionBasedFilterInvocationSecurityMetadataSource</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">			LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; requestMap,</span></span></span><br><span class="line"><span class="function"><span class="params">			SecurityExpressionHandler&lt;FilterInvocation&gt; expressionHandler)</span> </span>&#123;</span><br><span class="line">			</span><br><span class="line">		requestMap = processMap(requestMap, expressionHandler.getExpressionParser());</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">static</span> LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; processMap(</span><br><span class="line">			LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; requestMap,</span><br><span class="line">			ExpressionParser parser) &#123;</span><br><span class="line">		Assert.notNull(parser, <span class="string">"SecurityExpressionHandler returned a null parser object"</span>);</span><br><span class="line"></span><br><span class="line">		LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; requestToExpressionAttributesMap = <span class="keyword">new</span> LinkedHashMap&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt;(</span><br><span class="line">				requestMap);</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> (Map.Entry&lt;RequestMatcher, Collection&lt;ConfigAttribute&gt;&gt; entry : requestMap</span><br><span class="line">				.entrySet()) &#123;</span><br><span class="line">			RequestMatcher request = entry.getKey();</span><br><span class="line"></span><br><span class="line">			ArrayList&lt;ConfigAttribute&gt; attributes = <span class="keyword">new</span> ArrayList&lt;&gt;(<span class="number">1</span>);</span><br><span class="line">			String expression = entry.getValue().toArray(<span class="keyword">new</span> ConfigAttribute[<span class="number">1</span>])[<span class="number">0</span>]</span><br><span class="line">					.getAttribute();</span><br><span class="line"></span><br><span class="line">			AbstractVariableEvaluationContextPostProcessor postProcessor = createPostProcessor(</span><br><span class="line">					request);</span><br><span class="line">			<span class="keyword">try</span> &#123;</span><br><span class="line">				<span class="comment">// 2、生成 WebExpressionConfigAttribute 对象</span></span><br><span class="line">				attributes.add(<span class="keyword">new</span> WebExpressionConfigAttribute(</span><br><span class="line">						parser.parseExpression(expression), postProcessor));</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">catch</span> (ParseException e) &#123;</span><br><span class="line">				<span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(</span><br><span class="line">						<span class="string">"Failed to parse expression '"</span> + expression + <span class="string">"'"</span>);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			requestToExpressionAttributesMap.put(request, attributes);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> requestToExpressionAttributesMap;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，在 FilterSecurityInterceptor 中得到的 ConfigAttibute 已经转化为 WebExpressionConfigAttribute 对象。</p>
+<h3 id="权限的判断"><a href="#权限的判断" class="headerlink" title="权限的判断"></a>权限的判断</h3><p>在 WebExpressionVoter 中会创建一个 EvaluationContext 及 Expression 来完成权限的判断，如 <code>hasRole(&#39;ROLE_ADMIN&#39;)</code>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">vote</span><span class="params">(Authentication authentication, FilterInvocation fi,</span></span></span><br><span class="line"><span class="function"><span class="params">		Collection&lt;ConfigAttribute&gt; attributes)</span> </span>&#123;</span><br><span class="line">	<span class="keyword">assert</span> authentication != <span class="keyword">null</span>;</span><br><span class="line">	<span class="keyword">assert</span> fi != <span class="keyword">null</span>;</span><br><span class="line">	<span class="keyword">assert</span> attributes != <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">	WebExpressionConfigAttribute weca = findConfigAttribute(attributes);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (weca == <span class="keyword">null</span>) &#123;</span><br><span class="line">		<span class="keyword">return</span> ACCESS_ABSTAIN;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	EvaluationContext ctx = expressionHandler.createEvaluationContext(authentication,</span><br><span class="line">			fi);</span><br><span class="line">	ctx = weca.postProcess(ctx, fi);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> ExpressionUtils.evaluateAsBoolean(weca.getAuthorizeExpression(), ctx) ? ACCESS_GRANTED</span><br><span class="line">			: ACCESS_DENIED;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们进一步来看下 EvaluationContext 包含什么内容？</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> EvaluationContext <span class="title">createEvaluationContext</span><span class="params">(Authentication authentication,</span></span></span><br><span class="line"><span class="function"><span class="params">		T invocation)</span> </span>&#123;</span><br><span class="line">	SecurityExpressionOperations root = createSecurityExpressionRoot(authentication,</span><br><span class="line">			invocation);</span><br><span class="line">	StandardEvaluationContext ctx = createEvaluationContextInternal(authentication,</span><br><span class="line">			invocation);</span><br><span class="line">	ctx.setBeanResolver(br);</span><br><span class="line">	ctx.setRootObject(root);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> ctx;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过 Authentication 和 FilterInvocation 对象创建了一个 SecurityExpressionOperations 对象，并将其作为 StandardEvaluationContext 对象的 RootObject. </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SecurityExpressionOperations</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="function">Authentication <span class="title">getAuthentication</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasAuthority</span><span class="params">(String authority)</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasAnyAuthority</span><span class="params">(String... authorities)</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasRole</span><span class="params">(String role)</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasAnyRole</span><span class="params">(String... roles)</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">permitAll</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">denyAll</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isAnonymous</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isAuthenticated</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isRememberMe</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">isFullyAuthenticated</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasPermission</span><span class="params">(Object target, Object permission)</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">boolean</span> <span class="title">hasPermission</span><span class="params">(Object targetId, String targetType, Object permission)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>SecurityExpressionOperations 包含了一系列权限判断的方法，而 SpEL 表达式权限的判断是调用该接口中的方法来实现的。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
+<li>ExpressionUrlAuthorizationConfigurer 类完成对 FilterSecurityInterceptor, AccessDecisionManager, ExpressionBasedFilterInvocationSecurityMetadataSource 对象的创建及初始化；</li>
+<li>HttpSecurity 中的权限配置会转化为 UrlMapping 对象并存储到 ExpressionInterceptUrlRegistry 中，并最终转化为 WebExpressionConfigAttribute 对象；</li>
+<li>权限判断最终转化为 SpEL 表达式值的计算，而方法的判断封装在 SecurityExpressionOperations 对象中。</li>
+</ul>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring-Security/" rel="tag"># Spring Security</a>
+          
+            <a href="/tags/Authentication/" rel="tag"># Authentication</a>
+          
+            <a href="/tags/authorization/" rel="tag"># authorization</a>
+          
+            <a href="/tags/授权/" rel="tag"># 授权</a>
+          
+            <a href="/tags/ExpressionUrlAuthorizationConfigurer/" rel="tag"># ExpressionUrlAuthorizationConfigurer</a>
+          
+            <a href="/tags/FilterSecurityInterceptor/" rel="tag"># FilterSecurityInterceptor</a>
+          
+            <a href="/tags/ConfigAttribute/" rel="tag"># ConfigAttribute</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/04/springsecurity-authentication/" rel="next" title="Springboot 序列：SpringSecurity 认证">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：SpringSecurity 认证
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/10/canal/" rel="prev" title="Springboot 序列：Canal">
+                Springboot 序列：Canal <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#整体流程"><span class="nav-number">1.</span> <span class="nav-text">整体流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关类"><span class="nav-number">2.</span> <span class="nav-text">相关类</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实例"><span class="nav-number">3.</span> <span class="nav-text">实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#引入配置类"><span class="nav-number">3.1.</span> <span class="nav-text">引入配置类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#生成-SecurityConfig-对象"><span class="nav-number">3.2.</span> <span class="nav-text">生成 SecurityConfig 对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#转化为-WebExpressionConfigAttribute-对象"><span class="nav-number">3.3.</span> <span class="nav-text">转化为 WebExpressionConfigAttribute 对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#权限的判断"><span class="nav-number">3.4.</span> <span class="nav-text">权限的判断</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

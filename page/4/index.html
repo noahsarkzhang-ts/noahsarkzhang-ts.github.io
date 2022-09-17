@@ -369,7 +369,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/08/14/alligator-heartbeat-detection/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/02/13/deploy-kafka-and-flink/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -389,7 +389,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2021/08/14/alligator-heartbeat-detection/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Alligator 系列：心跳检测</a>
+                <a href="/2022/02/13/deploy-kafka-and-flink/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Kafka 及 Flink 单机环境部署</a>
               
             
           </h1>
@@ -414,24 +414,12 @@
                 
               
 
-              <time title="创建时间：2021-08-14 17:30:36" itemprop="dateCreated datePublished" datetime="2021-08-14T17:30:36+08:00">2021-08-14</time>
+              <time title="创建时间：2022-02-13 17:13:13 / 修改时间：20:13:03" itemprop="dateCreated datePublished" datetime="2022-02-13T17:13:13+08:00">2022-02-13</time>
             
 
             
               
 
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 15:45:07" itemprop="dateModified" datetime="2022-01-02T15:45:07+08:00">2022-01-02</time>
               
             
           </span>
@@ -448,7 +436,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Alligator网关/" itemprop="url" rel="index"><span itemprop="name">Alligator网关</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/部署/" itemprop="url" rel="index"><span itemprop="name">部署</span></a></span>
 
                 
                 
@@ -476,7 +464,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">8.8k</span>
+                <span title="本文字数">8.1k</span>
               
 
               
@@ -490,7 +478,7 @@
                 
                   <span class="post-meta-item-text">阅读时长 &asymp;</span>
                 
-                <span title="阅读时长">8 分钟</span>
+                <span title="阅读时长">7 分钟</span>
               
             </div>
           
@@ -511,11 +499,11 @@
 
       
         
-          <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在长连接系统中，客户端及服务器之间需要通过发送心跳包来感知对方的存活状态，一般来说，心跳包不承载业务信息，不过在一些场景中，会把当前服务的状态推送给对方。在 Alligator 系统中统一在客户端发送心跳包，服务器会检测当前连接的空闲时间（即多久未收到数据），若超过一定时间，则判定为连接断线。在客户端，会检测连接的空闲写时间，超过一定时间，则触发发送心跳包，同时对服务端的响应做计数，超时一定次数未收到心跳响应，则判定服务器下线，触发重连操作。在注册中心系统中，客户端发送的心跳包中，会带上当前客户端的负载信息（连接数或用户数），注册中心根据这些负载信息，可以实现流量的有效负载。</p>
+          <p>在 Centos 7.6 上部署一个单机的 kakfa 及 Flink, 用于学习的目的。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2021/08/14/alligator-heartbeat-detection/#more" rel="contents">
+              <a class="btn" href="/2022/02/13/deploy-kafka-and-flink/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -575,7 +563,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/07/31/alligator-gateway-overview/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/02/12/top-command/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -595,7 +583,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2021/07/31/alligator-gateway-overview/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Alligator 系列：长连接网关概述</a>
+                <a href="/2022/02/12/top-command/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">性能：Top 命令</a>
               
             
           </h1>
@@ -620,24 +608,12 @@
                 
               
 
-              <time title="创建时间：2021-07-31 19:58:01" itemprop="dateCreated datePublished" datetime="2021-07-31T19:58:01+08:00">2021-07-31</time>
+              <time title="创建时间：2022-02-12 20:21:08 / 修改时间：21:24:57" itemprop="dateCreated datePublished" datetime="2022-02-12T20:21:08+08:00">2022-02-12</time>
             
 
             
               
 
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-09 21:45:07" itemprop="dateModified" datetime="2022-01-09T21:45:07+08:00">2022-01-09</time>
               
             
           </span>
@@ -654,7 +630,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Alligator网关/" itemprop="url" rel="index"><span itemprop="name">Alligator网关</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Performance/" itemprop="url" rel="index"><span itemprop="name">Performance</span></a></span>
 
                 
                 
@@ -682,7 +658,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">4.2k</span>
+                <span title="本文字数">7.9k</span>
               
 
               
@@ -696,7 +672,7 @@
                 
                   <span class="post-meta-item-text">阅读时长 &asymp;</span>
                 
-                <span title="阅读时长">4 分钟</span>
+                <span title="阅读时长">7 分钟</span>
               
             </div>
           
@@ -717,11 +693,11 @@
 
       
         
-          <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行封装，隐藏不同协议之间的差异，对上层应用提供一套统一的接口，上层业务只关心业务，那么就会减少开发人员的学习成本，快速接入项目。<br>Alligator 项目就是为了解决上述的场景而开发的，它提供了一个框架，可以让开发人员快速进行 TCP/Websocket 及 HTTP 的开发，而无需关心下层使用的协议。在此基础上，Alligator 还提供了一个进行长连接网关开发的脚手架，它是业务无关的，可以快速接入不同的业务场景。</p>
+          <p>在日常工作，查看服务器的负载、CPU 及内存使用情况，尤其查看进程使用内存、CPU 的占比，定位哪个进程占用了最多的内存及 CPU 周期，这个时候，就可以使用 Top 命令了。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2021/07/31/alligator-gateway-overview/#more" rel="contents">
+              <a class="btn" href="/2022/02/12/top-command/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -781,7 +757,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/07/24/Use-nginx-to-publish-a-website/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/02/06/elasticsearch-storage-model/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -801,7 +777,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2021/07/24/Use-nginx-to-publish-a-website/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">用 Nginx 发布网站</a>
+                <a href="/2022/02/06/elasticsearch-storage-model/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Elasticsearch 存储模型</a>
               
             
           </h1>
@@ -826,7 +802,7 @@
                 
               
 
-              <time title="创建时间：2021-07-24 21:49:11" itemprop="dateCreated datePublished" datetime="2021-07-24T21:49:11+08:00">2021-07-24</time>
+              <time title="创建时间：2022-02-06 12:20:56" itemprop="dateCreated datePublished" datetime="2022-02-06T12:20:56+08:00">2022-02-06</time>
             
 
             
@@ -843,7 +819,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2022-01-02 20:38:14" itemprop="dateModified" datetime="2022-01-02T20:38:14+08:00">2022-01-02</time>
+                <time title="修改时间：2022-02-07 17:50:43" itemprop="dateModified" datetime="2022-02-07T17:50:43+08:00">2022-02-07</time>
               
             
           </span>
@@ -860,7 +836,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/hexo/" itemprop="url" rel="index"><span itemprop="name">hexo</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
 
                 
                 
@@ -888,7 +864,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">9.5k</span>
+                <span title="本文字数">18k</span>
               
 
               
@@ -902,7 +878,7 @@
                 
                   <span class="post-meta-item-text">阅读时长 &asymp;</span>
                 
-                <span title="阅读时长">9 分钟</span>
+                <span title="阅读时长">16 分钟</span>
               
             </div>
           
@@ -923,11 +899,11 @@
 
       
         
-          <p>之前买了一台阿里云的云主机，一直想把用起来。考虑到我的个人网站之前部署在 github 上，网页加载比较慢，正好可以用云主机进行部署，提升速度，开始操作。</p>
+          <p>Elasticsearch 提供了行存及列存的能力，行存用于搜索功能，列存用于聚合和计算。这两种存储模型在文件系统中是如何实现的？它们之间有什么差异？这篇文章对其做一个简单的分析。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2021/07/24/Use-nginx-to-publish-a-website/#more" rel="contents">
+              <a class="btn" href="/2022/02/06/elasticsearch-storage-model/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -987,7 +963,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/02/14/network-model-of-k8s/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/02/05/es-common-operations/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -1007,7 +983,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2021/02/14/network-model-of-k8s/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">思维导图-容器网络模型</a>
+                <a href="/2022/02/05/es-common-operations/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Elasticsearch 常用操作</a>
               
             
           </h1>
@@ -1032,7 +1008,7 @@
                 
               
 
-              <time title="创建时间：2021-02-14 19:27:24" itemprop="dateCreated datePublished" datetime="2021-02-14T19:27:24+08:00">2021-02-14</time>
+              <time title="创建时间：2022-02-05 16:05:22" itemprop="dateCreated datePublished" datetime="2022-02-05T16:05:22+08:00">2022-02-05</time>
             
 
             
@@ -1049,7 +1025,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2022-01-02 20:36:02" itemprop="dateModified" datetime="2022-01-02T20:36:02+08:00">2022-01-02</time>
+                <time title="修改时间：2022-02-13 17:35:20" itemprop="dateModified" datetime="2022-02-13T17:35:20+08:00">2022-02-13</time>
               
             
           </span>
@@ -1066,7 +1042,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/k8s/" itemprop="url" rel="index"><span itemprop="name">k8s</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
 
                 
                 
@@ -1094,7 +1070,7 @@
                 
                   <span class="post-meta-item-text">本文字数：</span>
                 
-                <span title="本文字数">175</span>
+                <span title="本文字数">29k</span>
               
 
               
@@ -1108,7 +1084,7 @@
                 
                   <span class="post-meta-item-text">阅读时长 &asymp;</span>
                 
-                <span title="阅读时长">1 分钟</span>
+                <span title="阅读时长">27 分钟</span>
               
             </div>
           
@@ -1129,11 +1105,11 @@
 
       
         
-          <p>这篇文章是学习刘超老师在“极客时间”的课程《趣谈网络协议》之后，做的一个总结。</p>
+          <p>记录 Elasticsearch 常用的操作，如索引、查询、分词及调试等等相关的操作。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2021/02/14/network-model-of-k8s/#more" rel="contents">
+              <a class="btn" href="/2022/02/05/es-common-operations/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -1193,7 +1169,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/02/14/laws-and-principles/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/29/es-deployment-in-docker/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -1213,7 +1189,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2021/02/14/laws-and-principles/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">法则及基本原则</a>
+                <a href="/2022/01/29/es-deployment-in-docker/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Docker 下安装 ES, Kibana</a>
               
             
           </h1>
@@ -1238,7 +1214,7 @@
                 
               
 
-              <time title="创建时间：2021-02-14 10:06:31" itemprop="dateCreated datePublished" datetime="2021-02-14T10:06:31+08:00">2021-02-14</time>
+              <time title="创建时间：2022-01-29 15:44:46" itemprop="dateCreated datePublished" datetime="2022-01-29T15:44:46+08:00">2022-01-29</time>
             
 
             
@@ -1255,7 +1231,7 @@
                 
                   <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2022-01-02 20:34:32" itemprop="dateModified" datetime="2022-01-02T20:34:32+08:00">2022-01-02</time>
+                <time title="修改时间：2022-01-31 11:22:01" itemprop="dateModified" datetime="2022-01-31T11:22:01+08:00">2022-01-31</time>
               
             
           </span>
@@ -1272,213 +1248,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/法则/" itemprop="url" rel="index"><span itemprop="name">法则</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-            <div class="post-symbolscount">
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-file-word-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">本文字数：</span>
-                
-                <span title="本文字数">1.3k</span>
-              
-
-              
-                <span class="post-meta-divider">|</span>
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-clock-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
-                
-                <span title="阅读时长">1 分钟</span>
-              
-            </div>
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <p>这篇文章主要是记录一些生活或工作中基本原则，方便后续查看及思考。</p>
-          <!--noindex-->
-          
-            <div class="post-button text-center">
-              <a class="btn" href="/2021/02/14/laws-and-principles/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-         
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/31/mysql-log/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2021/01/31/mysql-log/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Mysql 事务日志</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2021-01-31 17:56:29" itemprop="dateCreated datePublished" datetime="2021-01-31T17:56:29+08:00">2021-01-31</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 20:35:05" itemprop="dateModified" datetime="2022-01-02T20:35:05+08:00">2022-01-02</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/数据库/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/部署/" itemprop="url" rel="index"><span itemprop="name">部署</span></a></span>
 
                 
                 
@@ -1541,16 +1311,11 @@
 
       
         
-          <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于 WAL（ Write-Ahead Logging） 技术，存储事务过程中对数据表的修改，主要是数据页的修改，保证了事务的持久性。这三种日志在数据库表的更新操作（包括新增、修改及删除）中，相互配合，保障了事务的顺利执行，下图以一次数据更新操作演示了它们的工作机制。<br><img src="/images/mysql-log/mysql-transaction-overview.jpg" alt="mysql-transaction-overview" title="mysql-transaction-overview"></p>
-<ol>
-<li>undo log 存储在系统表空间中（新版的 Mysql 已经可以设置独立的表空间），对 undo log 的更改同样记录到 redo log中；</li>
-<li>redo log 由独立的日志文件存储，日志文件只有追加操作，顺序写入到磁盘中，相比数据页的随机写入，具有较高的效率；</li>
-<li>binlog log 配合 redo log，实现了内部的 XA 协议，保证了数据在 Innodb 及 Mysql 之间的一致性。</li>
-</ol>
+          <p>记录在 Docker 中安装 Elasticsearch 7.14.2 及 Kibana 7.14.2, 构建一个单机的实验环境。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2021/01/31/mysql-log/#more" rel="contents">
+              <a class="btn" href="/2022/01/29/es-deployment-in-docker/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -1610,7 +1375,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/29/gossip-protocol/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/29/docker-deployment/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Noahsark">
@@ -1630,7 +1395,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2020/11/29/gossip-protocol/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Gossip 协议</a>
+                <a href="/2022/01/29/docker-deployment/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Docker 安装部署</a>
               
             
           </h1>
@@ -1655,24 +1420,12 @@
                 
               
 
-              <time title="创建时间：2020-11-29 17:15:14" itemprop="dateCreated datePublished" datetime="2020-11-29T17:15:14+08:00">2020-11-29</time>
+              <time title="创建时间：2022-01-29 15:43:58 / 修改时间：23:25:55" itemprop="dateCreated datePublished" datetime="2022-01-29T15:43:58+08:00">2022-01-29</time>
             
 
             
               
 
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 20:33:43" itemprop="dateModified" datetime="2022-01-02T20:33:43+08:00">2022-01-02</time>
               
             
           </span>
@@ -1689,638 +1442,7 @@
                 <span class="post-meta-item-text">分类于</span>
               
               
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/一致性算法/" itemprop="url" rel="index"><span itemprop="name">一致性算法</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-            <div class="post-symbolscount">
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-file-word-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">本文字数：</span>
-                
-                <span title="本文字数">16k</span>
-              
-
-              
-                <span class="post-meta-divider">|</span>
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-clock-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
-                
-                <span title="阅读时长">14 分钟</span>
-              
-            </div>
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在一致性算法中，Raft 及 Paxos 是强一致性的算法，属于 CP（一致性及分区容错性） 的使用场景，为了保证算法的准确性，必须保证大部分节点（服务器）是正常的（三个节点容忍一个节点失败）。但在 AP （可用性及分区容错性）场景中，即使只有少数机器的存在，仍然可以对外提供服务，这些场景包括：失败检测、路由同步、Pub/Sub 及动态负载均衡。而 Gossip 协议就是这样一种支持最终一致性算法的协议。</p>
-          <!--noindex-->
-          
-            <div class="post-button text-center">
-              <a class="btn" href="/2020/11/29/gossip-protocol/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-         
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/08/paxos-and-raft/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2020/11/08/paxos-and-raft/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Paxos 和 Raft 算法</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2020-11-08 16:31:26" itemprop="dateCreated datePublished" datetime="2020-11-08T16:31:26+08:00">2020-11-08</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 20:36:24" itemprop="dateModified" datetime="2022-01-02T20:36:24+08:00">2022-01-02</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/一致性算法/" itemprop="url" rel="index"><span itemprop="name">一致性算法</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-            <div class="post-symbolscount">
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-file-word-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">本文字数：</span>
-                
-                <span title="本文字数">23k</span>
-              
-
-              
-                <span class="post-meta-divider">|</span>
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-clock-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
-                
-                <span title="阅读时长">21 分钟</span>
-              
-            </div>
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>在分布式系统中，一个核心的问题就是解决数据一致性的问题，即共识问题（多副本共识问题）：</p>
-<blockquote>
-<p>Consensus Problem : Requires agreement among a number of processes (or agents) for a single data value.</p>
-</blockquote>
-<p>共识问题简单来说，就是多个进程（代理）就某个单值达成一致，主要的应用场景数据多副本的复制。而 Paxos 及 Raft 算法的提出便是为了解决共识问题，它们在工程实现上得到了广泛的应用，如 Goggle 的 Chubby、Apache 的 ZooKeeper 及 Raft算法实现 Etcd。这些算法都可以统称为一致性算法。</p>
-<p><img src="/images/consensus-algorithm/paxos-evolution.jpg" alt="paxos-evolution" title="paxos-evolution"></p>
-<p>一致性算法大概可以分为4个类型：</p>
-<ol>
-<li>Basic-Paxos : 提供就一个提案达成一致的算法，是最基本的算法，在工程实践中很少使用该算法；</li>
-<li>Multi-Paxos : 在 Basic-Paxos 算法的基础上，提供了就一批提案达成一致的算法，在工程中有很多类似的实现；</li>
-<li>Raft : 针对 Multi-Paxos 算法难于理解及实现复杂，提供了一种简化的实现；</li>
-<li>Multi-Raft : 为了提供更大的并发请求量，可以将单个 Raft 集群进行分区，提供更大的集群规模。</li>
-</ol>
-<p>这篇文章就四种类型的算法进行一个概要的分析，更多的是逻辑概念层面，不会对细节及实现过多讨论，那也超出本人的认知。</p>
-          <!--noindex-->
-          
-            <div class="post-button text-center">
-              <a class="btn" href="/2020/11/08/paxos-and-raft/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-         
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/10/08/select-and-epoll/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2020/10/08/select-and-epoll/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">Select 和 Epoll实现</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2020-10-08 18:17:33" itemprop="dateCreated datePublished" datetime="2020-10-08T18:17:33+08:00">2020-10-08</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 20:37:24" itemprop="dateModified" datetime="2022-01-02T20:37:24+08:00">2022-01-02</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/网络协议/" itemprop="url" rel="index"><span itemprop="name">网络协议</span></a></span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-            <div class="post-symbolscount">
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-file-word-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">本文字数：</span>
-                
-                <span title="本文字数">41k</span>
-              
-
-              
-                <span class="post-meta-divider">|</span>
-              
-
-              
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-clock-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
-                
-                <span title="阅读时长">37 分钟</span>
-              
-            </div>
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <p>这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。</p>
-          <!--noindex-->
-          
-            <div class="post-button text-center">
-              <a class="btn" href="/2020/10/08/select-and-epoll/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-         
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-       
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/09/20/illustrated-TCP-protocol/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Noahsark">
-      <meta itemprop="description" content="不畏将来，不念过往">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="以太格">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2020/09/20/illustrated-TCP-protocol/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">图解TCP协议</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2020-09-20 16:58:48" itemprop="dateCreated datePublished" datetime="2020-09-20T16:58:48+08:00">2020-09-20</time>
-            
-
-            
-              
-
-              
-                
-                <span class="post-meta-divider">|</span>
-                
-
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                
-                  <span class="post-meta-item-text">更新于</span>
-                
-                <time title="修改时间：2022-01-02 20:33:54" itemprop="dateModified" datetime="2022-01-02T20:33:54+08:00">2022-01-02</time>
-              
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/网络协议/" itemprop="url" rel="index"><span itemprop="name">网络协议</span></a></span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/部署/" itemprop="url" rel="index"><span itemprop="name">部署</span></a></span>
 
                 
                 
@@ -2383,11 +1505,811 @@
 
       
         
-          <p>这篇文章讲述网络报文从网卡 NIC （network interface controller）接收，再到操作系统网络协议栈处理，最后到用户程序接收报文处理报文的简化过程，希望能对TCP协议进行一个整体、概括性的总结。</p>
+          <p>记录 Docker 在 CentOS 7 版本上的安装流程。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2020/09/20/illustrated-TCP-protocol/#more" rel="contents">
+              <a class="btn" href="/2022/01/29/docker-deployment/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+         
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/22/measurement-of-monitoring-system/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2022/01/22/measurement-of-monitoring-system/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">量化：监控系统的量化指标（摘录）</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-01-22 12:10:27 / 修改时间：12:30:11" itemprop="dateCreated datePublished" datetime="2022-01-22T12:10:27+08:00">2022-01-22</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/量化/" itemprop="url" rel="index"><span itemprop="name">量化</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">2.1k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">2 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          <p>如何衡量一个系统的好坏，如何提升它，如何管理它？ 管理学大师彼得·德鲁克曾说 “你如果无法度量它，就无法管理它 (If you can’t measure it, you can’t manage it)”。从这里可以看出，如果想全面管理提升一个系统，就需要先对它的各项性能指标有一个衡量，知道它的薄弱点在哪里，找到病症所在才能对症下药。</p>
+          <!--noindex-->
+          
+            <div class="post-button text-center">
+              <a class="btn" href="/2022/01/22/measurement-of-monitoring-system/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+         
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/22/four-golden-signals-of-monitor/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2022/01/22/four-golden-signals-of-monitor/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">量化：监控系统 4 大黄金指标（摘录）</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-01-22 11:03:49 / 修改时间：12:34:09" itemprop="dateCreated datePublished" datetime="2022-01-22T11:03:49+08:00">2022-01-22</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/量化/" itemprop="url" rel="index"><span itemprop="name">量化</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">1.7k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">2 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          <p>Four Golden Signals 是 Google 针对大量分布式监控的经验总结，4 个黄金指标可以在服务级别帮助衡量终端用户体验、服务中断、业务影响等层面的问题。主要包括四种类型的指标：延迟，通讯量，错误以及饱和度。</p>
+          <!--noindex-->
+          
+            <div class="post-button text-center">
+              <a class="btn" href="/2022/01/22/four-golden-signals-of-monitor/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+         
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/09/transmission-measurement/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2022/01/09/transmission-measurement/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">量化：网络延迟</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-01-09 21:11:03" itemprop="dateCreated datePublished" datetime="2022-01-09T21:11:03+08:00">2022-01-09</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-01-22 10:18:55" itemprop="dateModified" datetime="2022-01-22T10:18:55+08:00">2022-01-22</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/量化/" itemprop="url" rel="index"><span itemprop="name">量化</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">3.2k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">3 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          <p>影响网络通信质量的两大因素：延迟和带宽。延迟主要指分组从信息源发送到目的地所需的时间，而带宽主要是指逻辑或物理通信路径最大的吞吐量。这篇文章主要讲述网络延迟的组成部分及如何评估传输速率及理论上的最大传输速率。</p>
+          <!--noindex-->
+          
+            <div class="post-button text-center">
+              <a class="btn" href="/2022/01/09/transmission-measurement/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+         
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/01/09/measurement-overview/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2022/01/09/measurement-overview/" class="post-title-link" itemprop="http://yoursite.com/page/4/index.html">量化：量化总述</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-01-09 21:05:17" itemprop="dateCreated datePublished" datetime="2022-01-09T21:05:17+08:00">2022-01-09</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-01-22 12:34:45" itemprop="dateModified" datetime="2022-01-22T12:34:45+08:00">2022-01-22</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/量化/" itemprop="url" rel="index"><span itemprop="name">量化</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">538</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          <p>这个系列主要记录常用的量化指标，如网络传输、性能、监控指标及关于量化的方法论。这些指标给出了能力的边界，可以有助于我们在做系统设计时限定系统性能的边界，为设计决策提供数据的支撑，最终优化系统的设计。</p>
+          <!--noindex-->
+          
+            <div class="post-button text-center">
+              <a class="btn" href="/2022/01/09/measurement-overview/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -2436,7 +2358,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -2479,7 +2401,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">64</span>
+                    <span class="site-state-item-count">93</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
@@ -2542,7 +2464,11 @@
                     
                       
                     
-                    <span class="site-state-item-count">25</span>
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
                     <span class="site-state-item-name">分类</span>
                   </a>
                 </div>
@@ -2959,7 +2885,201 @@
                     
                       
                     
-                    <span class="site-state-item-count">202</span>
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
                     <span class="site-state-item-name">标签</span>
                   </a>
                 </div>
@@ -3010,7 +3130,7 @@
       <i class="fa fa-area-chart"></i>
     </span>
     
-    <span title="站点总字数">223k</span>
+    <span title="站点总字数">301k</span>
   
 
   
@@ -3019,7 +3139,7 @@
       <i class="fa fa-coffee"></i>
     </span>
     
-    <span title="站点阅读时长">3:23</span>
+    <span title="站点阅读时长">4:34</span>
   
 </div>
 

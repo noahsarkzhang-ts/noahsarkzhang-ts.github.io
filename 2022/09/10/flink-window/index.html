@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章简要介绍 Flink Window 分桶。">
+<meta name="keywords" content="window,分桶,ReduceFunction,AggregateFunction,增量聚合">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flink 系列：Window 分桶">
+<meta property="og:url" content="http://yoursite.com/2022/09/10/flink-window/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章简要介绍 Flink Window 分桶。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/flink/flink-window.jpg">
+<meta property="og:updated_time" content="2022-09-11T10:06:59.015Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Flink 系列：Window 分桶">
+<meta name="twitter:description" content="这篇文章简要介绍 Flink Window 分桶。">
+<meta name="twitter:image" content="http://yoursite.com/images/flink/flink-window.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/09/10/flink-window/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Flink 系列：Window 分桶 | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/09/10/flink-window/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Flink 系列：Window 分桶
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-09-10 17:41:14" itemprop="dateCreated datePublished" datetime="2022-09-10T17:41:14+08:00">2022-09-10</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-09-11 18:06:59" itemprop="dateModified" datetime="2022-09-11T18:06:59+08:00">2022-09-11</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Flink/" itemprop="url" rel="index"><span itemprop="name">Flink</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">61k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">56 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章简要介绍 Flink <code>Window</code> 分桶。 </p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Flink Window 一句话描述就是对数据进行切割分桶，方便后续业务的计算，以下面的图示为例。</p>
+<p><img src="/images/flink/flink-window.jpg" alt="flink-window" title="flink-window"></p>
+<p><strong>数据流程：</strong></p>
+<ol>
+<li>数据源：传感器每 1S 采集上报的数据，数据格式为：<code>&lt;传感器id,时间戳(ms),温度&gt;</code>；</li>
+<li>数据分组: 数据按照<code>传感器id</code>进行分组，执行该操作之后，为分为三股逻辑数据流，每一股流包含了一个<code>传感器id</code>所有的数据；</li>
+<li>分桶：将一个<code>传感器id</code>上的数据按照每 5S 进行切割分桶，如 0~4S,5-9S. 一个桶中包含了同一个时间段内的所有数据；</li>
+<li>窗口函数：数据分桶之后，可以对其应用窗口函数，如从每个桶中取最小值、最大值、平均值等等。</li>
+</ol>
+<p>后文将使用一个实例来模拟这个过程。</p>
+<h2 id="窗口-API"><a href="#窗口-API" class="headerlink" title="窗口 API"></a>窗口 API</h2><h3 id="基本结构"><a href="#基本结构" class="headerlink" title="基本结构"></a>基本结构</h3><p>Flink 窗口有两种类型：keyed streams 和 non-keyed streams. 它们的区别在于是否需要对数据进行分组（keyBy 操作），不进行 keyBy 操作是将所有数据作为一个逻辑上的 Stream, 所有的窗口计算会被同一个 task 完成，也就是 parallelism 为 1. 在调用方式上，keyed streams 要调用 keyBy(…) 后再调用 window(…) ， 而 non-keyed streams 只用直接调用 windowAll(…)。</p>
+<p><strong>Keyed Windows</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">stream</span><br><span class="line">       .keyBy(...)               &lt;-  仅 keyed 窗口需要</span><br><span class="line">       .window(...)              &lt;-  必填项：<span class="string">"assigner"</span></span><br><span class="line">      [.trigger(...)]            &lt;-  可选项：<span class="string">"trigger"</span> (省略则使用默认 trigger)</span><br><span class="line">      [.evictor(...)]            &lt;-  可选项：<span class="string">"evictor"</span> (省略则不使用 evictor)</span><br><span class="line">      [.allowedLateness(...)]    &lt;-  可选项：<span class="string">"lateness"</span> (省略则为 <span class="number">0</span>)</span><br><span class="line">      [.sideOutputLateData(...)] &lt;-  可选项：<span class="string">"output tag"</span> (省略则不对迟到数据使用 side output)</span><br><span class="line">       .reduce/aggregate/apply()      &lt;-  必填项：<span class="string">"function"</span></span><br><span class="line">      [.getSideOutput(...)]      &lt;-  可选项：<span class="string">"output tag"</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>Non-Keyed Windows</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">stream</span><br><span class="line">       .windowAll(...)           &lt;-  必填项：<span class="string">"assigner"</span></span><br><span class="line">      [.trigger(...)]            &lt;-  可选项：<span class="string">"trigger"</span> (<span class="keyword">else</span> <span class="keyword">default</span> trigger)</span><br><span class="line">      [.evictor(...)]            &lt;-  可选项：<span class="string">"evictor"</span> (<span class="keyword">else</span> no evictor)</span><br><span class="line">      [.allowedLateness(...)]    &lt;-  可选项：<span class="string">"lateness"</span> (<span class="keyword">else</span> zero)</span><br><span class="line">      [.sideOutputLateData(...)] &lt;-  可选项：<span class="string">"output tag"</span> (<span class="keyword">else</span> no side output <span class="keyword">for</span> late data)</span><br><span class="line">       .reduce/aggregate/apply()      &lt;-  必填项：<span class="string">"function"</span></span><br><span class="line">      [.getSideOutput(...)]      &lt;-  可选项：<span class="string">"output tag"</span></span><br></pre></td></tr></table></figure></p>
+<p>上面方括号（[…]）中的命令是可选的。也就是说，Flink 允许自定义多样化的窗口操作来满足需求。</p>
+<h3 id="窗口生命周期"><a href="#窗口生命周期" class="headerlink" title="窗口生命周期"></a>窗口生命周期</h3><p>简单来说，一个窗口在第一个属于它的元素到达时就会被创建，然后在时间（event 或 processing time） 超过窗口的“结束时间戳 + 用户定义的 allowed lateness ” 时被完全删除。Flink 仅保证删除基于时间的窗口，其他类型的窗口不做保证， 比如全局窗口。 例如，对于一个基于 event time 且范围互不重合（滚动）的窗口策略， 如果窗口设置的时长为五分钟、可容忍的迟到时间（allowed lateness）为 1 分钟， 那么第一个元素落入 12:00 至 12:05 这个区间时，Flink 就会为这个区间创建一个新的窗口。 当 watermark 越过 12:06 时，这个窗口将被摧毁。</p>
+<p>另外，每个窗口会设置自己的 Trigger 和 function (ProcessWindowFunction、ReduceFunction、或 AggregateFunction）。该 function 决定如何计算窗口中的内容， 而 Trigger 决定何时窗口中的数据可以被 function 计算。 Trigger 的触发（fire）条件可能是“当窗口中有多于 4 条数据”或“当 watermark 越过窗口的结束时间”等。 Trigger 还可以在 window 被创建后、删除前的这段时间内定义何时清理（purge）窗口中的数据。 这里的数据仅指窗口内的元素，不包括窗口的 meta data。也就是说，窗口在 purge 后仍然可以加入新的数据。</p>
+<p>除此之外，也可以指定一个 Evictor （详见 Evictors），在 trigger 触发之后，Evictor 可以在窗口函数的前后删除数据。</p>
+<h3 id="keyBy"><a href="#keyBy" class="headerlink" title="keyBy"></a>keyBy</h3><p>keyBy 定义了是否对数据进行分组操作，类似于 SQL 语句中的 <code>GROUP BY</code> 操作，可以指定多个字段进行分组操作。</p>
+<h3 id="Window-assigner"><a href="#Window-assigner" class="headerlink" title="Window assigner"></a>Window assigner</h3><p>Window assigner 定义了 stream 中的元素如何被分发到各个窗口。 在 window(…)（用于 keyed streams）或 windowAll(…) （用于 non-keyed streams）中可以指定一个 WindowAssigner。 WindowAssigner 负责将 stream 中的每个数据分发到一个或多个窗口中。 Flink 为最常用的情况提供了一些定义好的 window assigner，也就是 tumbling windows、 sliding windows、 session windows 和 global windows。另外，也可以继承 WindowAssigner 类来实现自定义的 window assigner。 所有内置的 window assigner（除了 global window）都是基于时间分发数据的，processing time 或 event time 均可。 </p>
+<p>基于时间的窗口用 start timestamp（包含）和 end timestamp（不包含）描述窗口的大小。 在代码中，Flink 处理基于时间的窗口使用的是 TimeWindow， 它有查询开始和结束 timestamp 以及返回窗口所能储存的最大 timestamp 的方法 maxTimestamp()。</p>
+<h3 id="窗口函数（Window-Functions）"><a href="#窗口函数（Window-Functions）" class="headerlink" title="窗口函数（Window Functions）"></a>窗口函数（Window Functions）</h3><p>窗口函数（Window Functions）定义了 Triggers 触发计算后，如何计算每个窗口中的数据。</p>
+<p>窗口函数有三种：ReduceFunction、AggregateFunction 或 ProcessWindowFunction。 前两者执行起来更高效，因为 Flink 可以在每条数据到达窗口后进行增量聚合（incrementally aggregate）。 而 ProcessWindowFunction 会得到能够遍历当前窗口内所有数据的 Iterable，以及关于这个窗口的 meta-information。</p>
+<p>使用 ProcessWindowFunction 的窗口转换操作没有其他两种函数高效，因为 Flink 在窗口触发前必须缓存里面的所有数据。 ProcessWindowFunction 可以与 ReduceFunction 或 AggregateFunction 合并来提高效率。 这样做既可以增量聚合窗口内的数据，又可以从 ProcessWindowFunction 接收窗口的 metadata。</p>
+<p><strong>ReduceFunction</strong></p>
+<p>ReduceFunction 指定两条输入数据如何合并起来产生一条输出数据，输入和输出数据的类型必须相同。 Flink 使用 ReduceFunction 对窗口中的数据进行增量聚合。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">DataStream&lt;Tuple2&lt;String, Long&gt;&gt; input = ...;</span><br><span class="line"></span><br><span class="line">input</span><br><span class="line">    .keyBy(&lt;key selector&gt;)</span><br><span class="line">    .window(&lt;window assigner&gt;)</span><br><span class="line">    .reduce(<span class="keyword">new</span> ReduceFunction&lt;Tuple2&lt;String, Long&gt;&gt;() &#123;</span><br><span class="line">      <span class="function"><span class="keyword">public</span> Tuple2&lt;String, Long&gt; <span class="title">reduce</span><span class="params">(Tuple2&lt;String, Long&gt; v1, Tuple2&lt;String, Long&gt; v2)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(v1.f0, v1.f1 + v2.f1);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure>
+<p>上面的例子是对窗口内元组的第二个属性求和。</p>
+<p><strong>AggregateFunction</strong></p>
+<p>ReduceFunction 是 AggregateFunction 的特殊情况。 AggregateFunction 接收三个类型：输入数据的类型(IN)、累加器的类型（ACC）和输出数据的类型（OUT）。 输入数据的类型是输入流的元素类型，AggregateFunction 接口有如下几个方法： 把每一条元素加进累加器、创建初始累加器、合并两个累加器、从累加器中提取输出（OUT 类型）。</p>
+<p>与 ReduceFunction 相同，Flink 会在输入数据到达窗口时直接进行增量聚合。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * The accumulator is used to keep a running sum and a count. The &#123;<span class="doctag">@code</span> getResult&#125; method</span></span><br><span class="line"><span class="comment"> * computes the average.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">AverageAggregate</span></span></span><br><span class="line"><span class="class">    <span class="keyword">implements</span> <span class="title">AggregateFunction</span>&lt;<span class="title">Tuple2</span>&lt;<span class="title">String</span>, <span class="title">Long</span>&gt;, <span class="title">Tuple2</span>&lt;<span class="title">Long</span>, <span class="title">Long</span>&gt;, <span class="title">Double</span>&gt; </span>&#123;</span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">createAccumulator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(<span class="number">0L</span>, <span class="number">0L</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">add</span><span class="params">(Tuple2&lt;String, Long&gt; value, Tuple2&lt;Long, Long&gt; accumulator)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(accumulator.f0 + value.f1, accumulator.f1 + <span class="number">1L</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Double <span class="title">getResult</span><span class="params">(Tuple2&lt;Long, Long&gt; accumulator)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ((<span class="keyword">double</span>) accumulator.f0) / accumulator.f1;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">merge</span><span class="params">(Tuple2&lt;Long, Long&gt; a, Tuple2&lt;Long, Long&gt; b)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(a.f0 + b.f0, a.f1 + b.f1);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">DataStream&lt;Tuple2&lt;String, Long&gt;&gt; input = ...;</span><br><span class="line"></span><br><span class="line">input</span><br><span class="line">    .keyBy(&lt;key selector&gt;)</span><br><span class="line">    .window(&lt;window assigner&gt;)</span><br><span class="line">    .aggregate(<span class="keyword">new</span> AverageAggregate());</span><br></pre></td></tr></table></figure>
+<p>上例计算了窗口内所有元素第二个属性的平均值。</p>
+<p><strong>ProcessWindowFunction</strong></p>
+<p>ProcessWindowFunction 有能获取包含窗口内所有元素的 Iterable， 以及用来获取时间和状态信息的 Context 对象，比其他窗口函数更加灵活。 ProcessWindowFunction 的灵活性是以性能和资源消耗为代价的， 因为窗口中的数据无法被增量聚合，而需要在窗口触发前缓存所有数据。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">ataStream&lt;Tuple2&lt;String, Long&gt;&gt; input = ...;</span><br><span class="line"></span><br><span class="line">input</span><br><span class="line">  .keyBy(t -&gt; t.f0)</span><br><span class="line">  .window(TumblingEventTimeWindows.of(Time.minutes(<span class="number">5</span>)))</span><br><span class="line">  .process(<span class="keyword">new</span> MyProcessWindowFunction());</span><br><span class="line"></span><br><span class="line"><span class="comment">/* ... */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyProcessWindowFunction</span> </span></span><br><span class="line"><span class="class">    <span class="keyword">extends</span> <span class="title">ProcessWindowFunction</span>&lt;<span class="title">Tuple2</span>&lt;<span class="title">String</span>, <span class="title">Long</span>&gt;, <span class="title">String</span>, <span class="title">String</span>, <span class="title">TimeWindow</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(String key, Context context, Iterable&lt;Tuple2&lt;String, Long&gt;&gt; input, Collector&lt;String&gt; out)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">long</span> count = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (Tuple2&lt;String, Long&gt; in: input) &#123;</span><br><span class="line">      count++;</span><br><span class="line">    &#125;</span><br><span class="line">    out.collect(<span class="string">"Window: "</span> + context.window() + <span class="string">"count: "</span> + count);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上例使用 ProcessWindowFunction 对窗口中的元素计数，并且将窗口本身的信息一同输出。</p>
+<p><strong>增量聚合的 ProcessWindowFunction</strong></p>
+<p>ProcessWindowFunction 可以与 ReduceFunction 或 AggregateFunction 搭配使用， 使其能够在数据到达窗口的时候进行增量聚合。当窗口关闭时，ProcessWindowFunction 将会得到聚合的结果。 这样它就可以增量聚合窗口的元素并且从 ProcessWindowFunction` 中获得窗口的元数据。</p>
+<ol>
+<li>使用 ReduceFunction 增量聚合</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">DataStream&lt;SensorReading&gt; input = ...;</span><br><span class="line"></span><br><span class="line">input</span><br><span class="line">  .keyBy(&lt;key selector&gt;)</span><br><span class="line">  .window(&lt;window assigner&gt;)</span><br><span class="line">  .reduce(<span class="keyword">new</span> MyReduceFunction(), <span class="keyword">new</span> MyProcessWindowFunction());</span><br><span class="line"></span><br><span class="line"><span class="comment">// Function definitions</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">MyReduceFunction</span> <span class="keyword">implements</span> <span class="title">ReduceFunction</span>&lt;<span class="title">SensorReading</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> SensorReading <span class="title">reduce</span><span class="params">(SensorReading r1, SensorReading r2)</span> </span>&#123;</span><br><span class="line">      <span class="keyword">return</span> r1.value() &gt; r2.value() ? r2 : r1;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">MyProcessWindowFunction</span></span></span><br><span class="line"><span class="class">    <span class="keyword">extends</span> <span class="title">ProcessWindowFunction</span>&lt;<span class="title">SensorReading</span>, <span class="title">Tuple2</span>&lt;<span class="title">Long</span>, <span class="title">SensorReading</span>&gt;, <span class="title">String</span>, <span class="title">TimeWindow</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(String key,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Context context,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Iterable&lt;SensorReading&gt; minReadings,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Collector&lt;Tuple2&lt;Long, SensorReading&gt;&gt; out)</span> </span>&#123;</span><br><span class="line">      SensorReading min = minReadings.iterator().next();</span><br><span class="line">      out.collect(<span class="keyword">new</span> Tuple2&lt;Long, SensorReading&gt;(context.window().getStart(), min));</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上例组合 ReduceFunction 与 ProcessWindowFunction，返回窗口中的最小元素和窗口的开始时间</p>
+<ol start="2">
+<li>使用 AggregateFunction 增量聚合</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">DataStream&lt;Tuple2&lt;String, Long&gt;&gt; input = ...;</span><br><span class="line"></span><br><span class="line">input</span><br><span class="line">  .keyBy(&lt;key selector&gt;)</span><br><span class="line">  .window(&lt;window assigner&gt;)</span><br><span class="line">  .aggregate(<span class="keyword">new</span> AverageAggregate(), <span class="keyword">new</span> MyProcessWindowFunction());</span><br><span class="line"></span><br><span class="line"><span class="comment">// Function definitions</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * The accumulator is used to keep a running sum and a count. The &#123;<span class="doctag">@code</span> getResult&#125; method</span></span><br><span class="line"><span class="comment"> * computes the average.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">AverageAggregate</span></span></span><br><span class="line"><span class="class">    <span class="keyword">implements</span> <span class="title">AggregateFunction</span>&lt;<span class="title">Tuple2</span>&lt;<span class="title">String</span>, <span class="title">Long</span>&gt;, <span class="title">Tuple2</span>&lt;<span class="title">Long</span>, <span class="title">Long</span>&gt;, <span class="title">Double</span>&gt; </span>&#123;</span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">createAccumulator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(<span class="number">0L</span>, <span class="number">0L</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">add</span><span class="params">(Tuple2&lt;String, Long&gt; value, Tuple2&lt;Long, Long&gt; accumulator)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(accumulator.f0 + value.f1, accumulator.f1 + <span class="number">1L</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Double <span class="title">getResult</span><span class="params">(Tuple2&lt;Long, Long&gt; accumulator)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ((<span class="keyword">double</span>) accumulator.f0) / accumulator.f1;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Tuple2&lt;Long, Long&gt; <span class="title">merge</span><span class="params">(Tuple2&lt;Long, Long&gt; a, Tuple2&lt;Long, Long&gt; b)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Tuple2&lt;&gt;(a.f0 + b.f0, a.f1 + b.f1);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">MyProcessWindowFunction</span></span></span><br><span class="line"><span class="class">    <span class="keyword">extends</span> <span class="title">ProcessWindowFunction</span>&lt;<span class="title">Double</span>, <span class="title">Tuple2</span>&lt;<span class="title">String</span>, <span class="title">Double</span>&gt;, <span class="title">String</span>, <span class="title">TimeWindow</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(String key,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Context context,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Iterable&lt;Double&gt; averages,</span></span></span><br><span class="line"><span class="function"><span class="params">                    Collector&lt;Tuple2&lt;String, Double&gt;&gt; out)</span> </span>&#123;</span><br><span class="line">      Double average = averages.iterator().next();</span><br><span class="line">      out.collect(<span class="keyword">new</span> Tuple2&lt;&gt;(key, average));</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上例组合 AggregateFunction 与 ProcessWindowFunction，计算平均值并与窗口对应的 key 一同输出。</p>
+<h3 id="Triggers"><a href="#Triggers" class="headerlink" title="Triggers"></a>Triggers</h3><p>Trigger 决定了一个窗口（由 window assigner 定义）何时可以被 window function 处理。 每个 WindowAssigner 都有一个默认的 Trigger。 如果默认 trigger 无法满足需求，可以在 trigger(…) 调用中指定自定义的 trigger。</p>
+<p>Trigger 接口提供了五个方法来响应不同的事件：</p>
+<ul>
+<li>onElement(): 该方法在每个元素被加入窗口时调用；</li>
+<li>onEventTime(): 该方法在注册的 event-time timer 触发时调用；</li>
+<li>onProcessingTime(): 该方法在注册的 processing-time timer 触发时调用；</li>
+<li>onMerge(): 该方法与有状态的 trigger 相关。该方法会在两个窗口合并时， 将窗口对应 trigger 的状态进行合并，比如使用会话窗口时；</li>
+<li>clear()：该方法处理在对应窗口被移除时所需的逻辑。</li>
+</ul>
+<h3 id="Evictors"><a href="#Evictors" class="headerlink" title="Evictors"></a>Evictors</h3><p>Flink 的窗口模型允许在 WindowAssigner 和 Trigger 之外指定可选的 Evictor。 通过 evictor(…) 方法传入 Evictor。 Evictor 可以在 trigger 触发后、调用窗口函数之前或之后从窗口中删除元素。 </p>
+<h3 id="Allowed-Lateness"><a href="#Allowed-Lateness" class="headerlink" title="Allowed Lateness"></a>Allowed Lateness</h3><p>在使用 event-time 窗口时，数据可能会迟到，即 Flink 用来追踪 event-time 进展的 watermark 已经越过了窗口结束的 timestamp 后，数据才到达。默认情况下，watermark 一旦越过窗口结束的 timestamp，迟到的数据就会被直接丢弃。 但是 Flink 允许指定窗口算子最大的 allowed lateness。 Allowed lateness 定义了一个元素可以在迟到多长时间的情况下不被丢弃，这个参数默认是 0。 在 watermark 超过窗口末端、到达窗口末端加上 allowed lateness 之前的这段时间内到达的元素， 依旧会被加入窗口。取决于窗口的 trigger，一个迟到但没有被丢弃的元素可能会再次触发窗口，比如 EventTimeTrigger。</p>
+<p>为了实现这个功能，Flink 会将窗口状态保存到 allowed lateness 超时才会将窗口及其状态删除。默认情况下，allowed lateness 被设为 0。即 watermark 之后到达的元素会被丢弃。</p>
+<p>使用 GlobalWindows 时，没有数据会被视作迟到，因为全局窗口的结束 timestamp 是 Long.MAX_VALUE。</p>
+<h2 id="代码实例"><a href="#代码实例" class="headerlink" title="代码实例"></a>代码实例</h2><h3 id="数据源"><a href="#数据源" class="headerlink" title="数据源"></a>数据源</h3><p>自定义一个数据源，每秒为 10 个传感器生成随机数据。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MySensorSource</span> <span class="keyword">implements</span> <span class="title">SourceFunction</span>&lt;<span class="title">SensorReading</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 定义一个标识位，用来控制数据的产生</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> running = <span class="keyword">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置10个传感器的初始温度</span></span><br><span class="line">    <span class="keyword">private</span> HashMap&lt;String, Double&gt; sensorTempMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">MySensorSource</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 定义一个随机数发生器</span></span><br><span class="line">        Random random = <span class="keyword">new</span> Random();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">            sensorTempMap.put(<span class="string">"sensor_"</span> + (i + <span class="number">1</span>), <span class="number">60</span> + random.nextGaussian() * <span class="number">20</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">(SourceContext&lt;SensorReading&gt; sourceContext)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line"></span><br><span class="line">        Random random = <span class="keyword">new</span> Random();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (running) &#123;</span><br><span class="line"></span><br><span class="line">            sensorTempMap.entrySet().stream().forEach(entry -&gt; &#123;</span><br><span class="line">                String sensorId = entry.getKey();</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 在当前温度基础上随机波动</span></span><br><span class="line">                Double newTemp = entry.getValue() + random.nextGaussian();</span><br><span class="line">                sensorTempMap.put(sensorId, newTemp);</span><br><span class="line"></span><br><span class="line">                sourceContext.collect(<span class="keyword">new</span> SensorReading(sensorId, System.currentTimeMillis(),newTemp));</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">            &#125;);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 睡眠 1S</span></span><br><span class="line">            TimeUnit.SECONDS.sleep(<span class="number">1</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">cancel</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        running = <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="程序骨架"><a href="#程序骨架" class="headerlink" title="程序骨架"></a>程序骨架</h3><p>程序的处理流程如下：</p>
+<ol>
+<li>设置流处理执行环境；</li>
+<li>设置事件时间语义，将 Watermark 间隔时间设置为 200 MS;</li>
+<li>设置定定义 Source；</li>
+<li>定义 WatermarkStrategy, Watermark 设置为单调自增模式，没有乱序，且设置 Timestamp 的提取方式；</li>
+<li>定义分组且设置窗口为滚动事件窗口，窗口大小为 5S;</li>
+<li>使用 ReduceFunction 求最小值，输出格式为：<code>SensorReading</code>;</li>
+<li>使用 ReduceFunction + ProcessWindowFunction 求最小值，输出格式为：<code>&lt;Key,WindowEnd,SensorReading&gt;</code>；</li>
+<li>输出执行结果。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FlinkWindowTrainingJob</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="comment">// 设置流处理执行环境</span></span><br><span class="line">        <span class="keyword">final</span> StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 设置事件时间语义</span></span><br><span class="line">        env.getConfig().setAutoWatermarkInterval(<span class="number">200L</span>);</span><br><span class="line">        env.setParallelism(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 1. 设置 Source</span></span><br><span class="line">        DataStream&lt;SensorReading&gt; dataStream = env.addSource(<span class="keyword">new</span> MySensorSource());</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2. 定义 WatermarkStrategy</span></span><br><span class="line">        WatermarkStrategy&lt;SensorReading&gt; watermarkStrategy = WatermarkStrategy.&lt;SensorReading&gt;forMonotonousTimestamps()</span><br><span class="line">                .withTimestampAssigner((event, timestamp) -&gt; event.getTimestamp());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> SingleOutputStreamOperator&lt;SensorReading&gt; eventDataStream = dataStream.assignTimestampsAndWatermarks(watermarkStrategy);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 3. 使用滚动事件窗口，窗口大小为 5S</span></span><br><span class="line">        WindowedStream&lt;SensorReading, String, TimeWindow&gt; windowStream = eventDataStream.keyBy(sensorReading -&gt; sensorReading.getId())</span><br><span class="line">                .window(TumblingEventTimeWindows.of(Time.seconds(<span class="number">5</span>)));</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 4. 使用 ReduceFunction 求最小值</span></span><br><span class="line">        <span class="keyword">final</span> SingleOutputStreamOperator&lt;SensorReading&gt; minTempStream = windowStream</span><br><span class="line">                .reduce(<span class="keyword">new</span> ReduceFunction&lt;SensorReading&gt;() &#123;</span><br><span class="line">                    <span class="meta">@Override</span></span><br><span class="line">                    <span class="function"><span class="keyword">public</span> SensorReading <span class="title">reduce</span><span class="params">(SensorReading v1, SensorReading v2)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">                        <span class="keyword">final</span> SensorReading sensorReading = v1.getTemperature().compareTo(v2.getTemperature()) &gt; <span class="number">0</span> ? v2 : v1;</span><br><span class="line">                        <span class="keyword">return</span> sensorReading;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 5. 输出 ReduceFunction 最小值</span></span><br><span class="line">        minTempStream.print(<span class="string">"minTemp-reduce"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 6. 使用 ReduceFunction + ProcessWindowFunction 求最小值</span></span><br><span class="line">        SingleOutputStreamOperator&lt;Tuple3&lt;String, Long, SensorReading&gt;&gt; reduceProcessWindow = windowStream.reduce(<span class="keyword">new</span> ReduceFunction&lt;SensorReading&gt;() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> SensorReading <span class="title">reduce</span><span class="params">(SensorReading v1, SensorReading v2)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">                <span class="keyword">final</span> SensorReading sensorReading = v1.getTemperature().compareTo(v2.getTemperature()) &gt; <span class="number">0</span> ? v2 : v1;</span><br><span class="line">                <span class="keyword">return</span> sensorReading;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, <span class="keyword">new</span> MyProcessWindowFunction());</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 7. 输出 ReduceFunction + ProcessWindowFunction 最小值，输出格式为&lt;key,timestamp,minValue&gt;</span></span><br><span class="line">        reduceProcessWindow.print(<span class="string">"minTemp-reduce-process"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 8. 执行程序</span></span><br><span class="line">        env.execute(<span class="string">"Flink Window Training"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">MyProcessWindowFunction</span></span></span><br><span class="line"><span class="class">            <span class="keyword">extends</span> <span class="title">ProcessWindowFunction</span>&lt;<span class="title">SensorReading</span>, <span class="title">Tuple3</span>&lt;<span class="title">String</span>, <span class="title">Long</span>, <span class="title">SensorReading</span>&gt;, <span class="title">String</span>, <span class="title">TimeWindow</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(String key,</span></span></span><br><span class="line"><span class="function"><span class="params">                            Context context,</span></span></span><br><span class="line"><span class="function"><span class="params">                            Iterable&lt;SensorReading&gt; minReadings,</span></span></span><br><span class="line"><span class="function"><span class="params">                            Collector&lt;Tuple3&lt;String, Long, SensorReading&gt;&gt; out)</span> </span>&#123;</span><br><span class="line">            SensorReading min = minReadings.iterator().next();</span><br><span class="line">            out.collect(<span class="keyword">new</span> Tuple3&lt;String, Long, SensorReading&gt;(key, context.window().getStart(), min));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="窗口的起始值"><a href="#窗口的起始值" class="headerlink" title="窗口的起始值"></a>窗口的起始值</h2><p>窗口是一个左闭右开的区间范围 <code>[windonStart, windowStart + size)</code>, 它的取值包括 <code>windonStart</code>, 但不包括 <code>windowEnd(windowStart + size)</code>. 只要确定了 <code>windonStart</code>, 便可确定窗口时间范围。</p>
+<p>以 <code>TumblingEventTimeWindows</code> 为例，<code>windonStart</code> 计算公式如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@PublicEvolving</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TumblingEventTimeWindows</span> <span class="keyword">extends</span> <span class="title">WindowAssigner</span>&lt;<span class="title">Object</span>, <span class="title">TimeWindow</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">1L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> size;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> globalOffset;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Long staggerOffset = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> WindowStagger windowStagger;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="title">TumblingEventTimeWindows</span><span class="params">(<span class="keyword">long</span> size, <span class="keyword">long</span> offset, WindowStagger windowStagger)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (Math.abs(offset) &gt;= size) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(</span><br><span class="line">                    <span class="string">"TumblingEventTimeWindows parameters must satisfy abs(offset) &lt; size"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">this</span>.size = size;</span><br><span class="line">        <span class="keyword">this</span>.globalOffset = offset;</span><br><span class="line">        <span class="keyword">this</span>.windowStagger = windowStagger;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Collection&lt;TimeWindow&gt; <span class="title">assignWindows</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            Object element, <span class="keyword">long</span> timestamp, WindowAssignerContext context)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (timestamp &gt; Long.MIN_VALUE) &#123;</span><br><span class="line">            <span class="keyword">if</span> (staggerOffset == <span class="keyword">null</span>) &#123;</span><br><span class="line">                staggerOffset =</span><br><span class="line">                        windowStagger.getStaggerOffset(context.getCurrentProcessingTime(), size);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// Long.MIN_VALUE is currently assigned when no timestamp is present</span></span><br><span class="line">            <span class="keyword">long</span> start =</span><br><span class="line">                    TimeWindow.getWindowStartWithOffset(</span><br><span class="line">                            timestamp, (globalOffset + staggerOffset) % size, size);</span><br><span class="line">            <span class="keyword">return</span> Collections.singletonList(<span class="keyword">new</span> TimeWindow(start, start + size));</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(</span><br><span class="line">                    <span class="string">"Record has Long.MIN_VALUE timestamp (= no timestamp marker). "</span></span><br><span class="line">                            + <span class="string">"Is the time characteristic set to 'ProcessingTime', or did you forget to call "</span></span><br><span class="line">                            + <span class="string">"'DataStream.assignTimestampsAndWatermarks(...)'?"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a new &#123;<span class="doctag">@code</span> TumblingEventTimeWindows&#125; &#123;<span class="doctag">@link</span> WindowAssigner&#125; that assigns elements</span></span><br><span class="line"><span class="comment">     * to time windows based on the element timestamp.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> size The size of the generated windows.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> The time policy.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> TumblingEventTimeWindows <span class="title">of</span><span class="params">(Time size)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> TumblingEventTimeWindows(size.toMilliseconds(), <span class="number">0</span>, WindowStagger.ALIGNED);</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>关键的计算逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// TumblingEventTimeWindows</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Collection&lt;TimeWindow&gt; <span class="title">assignWindows</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        Object element, <span class="keyword">long</span> timestamp, WindowAssignerContext context)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (timestamp &gt; Long.MIN_VALUE) &#123;</span><br><span class="line">        <span class="keyword">if</span> (staggerOffset == <span class="keyword">null</span>) &#123;</span><br><span class="line">            staggerOffset =</span><br><span class="line">                    windowStagger.getStaggerOffset(context.getCurrentProcessingTime(), size);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// Long.MIN_VALUE is currently assigned when no timestamp is present</span></span><br><span class="line">        <span class="keyword">long</span> start =</span><br><span class="line">                TimeWindow.getWindowStartWithOffset(</span><br><span class="line">                        timestamp, (globalOffset + staggerOffset) % size, size);</span><br><span class="line">        <span class="keyword">return</span> Collections.singletonList(<span class="keyword">new</span> TimeWindow(start, start + size));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(</span><br><span class="line">                <span class="string">"Record has Long.MIN_VALUE timestamp (= no timestamp marker). "</span></span><br><span class="line">                        + <span class="string">"Is the time characteristic set to 'ProcessingTime', or did you forget to call "</span></span><br><span class="line">                        + <span class="string">"'DataStream.assignTimestampsAndWatermarks(...)'?"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// TimeWindow</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">long</span> <span class="title">getWindowStartWithOffset</span><span class="params">(<span class="keyword">long</span> timestamp, <span class="keyword">long</span> offset, <span class="keyword">long</span> windowSize)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> remainder = (timestamp - offset) % windowSize;</span><br><span class="line">    <span class="comment">// handle both positive and negative cases</span></span><br><span class="line">    <span class="keyword">if</span> (remainder &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> timestamp - (remainder + windowSize);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> timestamp - remainder;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>一句话总结 <code>windonStart</code>: 最靠近小于 <code>timestamp</code> 且为 windowSize 整数倍的数值。计算逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 当前时间戳减去余数，保证可以得到 windowSize 整数倍；</span></span><br><span class="line">windonStart = timestamp - remainder; </span><br><span class="line"><span class="comment">// 1.1 余数为负时，需要加上窗口大小，保证 windonStart 要小于当前 timestamp;</span></span><br><span class="line">windonStart = timestamp - (remainder + windowSize);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. 余数的计算公式, 使用 timestamp 对 windowSize 取余。</span></span><br><span class="line"><span class="comment">// offset 可以调整偏移的位置</span></span><br><span class="line">remainder = (timestamp - offset) % windowSize;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. offset 的计算公式，它由两个参数决定：globalOffset, staggerOffset; </span></span><br><span class="line"><span class="comment">// 3.1 globalOffset 等同于用户传入的 offset 参数；</span></span><br><span class="line"><span class="comment">// 3.2 staggerOffset 由 WindowStagger 类型决定，默认类型为 WindowStagger.ALIGNED, staggerOffset 值为 0; </span></span><br><span class="line">offset = (globalOffset + staggerOffset) % size;</span><br></pre></td></tr></table></figure>
+<p>以 <code>TumblingEventTimeWindows.of(Time.seconds(5))</code> 为例：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">globalOffset = <span class="number">0</span>; </span><br><span class="line">staggerOffset = <span class="number">0</span>; </span><br><span class="line">windowSize = <span class="number">5</span>;</span><br><span class="line"></span><br><span class="line">windonStart = timestamp - (timestamp % <span class="number">5</span>)</span><br></pre></td></tr></table></figure>
+<p>即 <code>windonStart</code> 为最靠近小于 <code>timestamp</code> 且为 5 整数倍的数值。</p>
+<p><strong><a href="https://github.com/noahsarkzhang-ts/flink-lab/tree/main/flink-window-training" target="_blank" rel="noopener">工程代码:https://github.com/noahsarkzhang-ts/flink-lab/tree/main/flink-window-training)</a></strong></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://nightlies.apache.org/flink/flink-docs-release-1.15/zh/docs/dev/datastream/operators/windows/" target="_blank" rel="noopener">1. Flink 窗口</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/window/" rel="tag"># window</a>
+          
+            <a href="/tags/分桶/" rel="tag"># 分桶</a>
+          
+            <a href="/tags/ReduceFunction/" rel="tag"># ReduceFunction</a>
+          
+            <a href="/tags/AggregateFunction/" rel="tag"># AggregateFunction</a>
+          
+            <a href="/tags/增量聚合/" rel="tag"># 增量聚合</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/08/first-flink-example/" rel="next" title="Flink 系列： Hello World">
+                <i class="fa fa-chevron-left"></i> Flink 系列： Hello World
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/17/flink-out-of-orderness/" rel="prev" title="Flink 系列：乱序处理">
+                Flink 系列：乱序处理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#窗口-API"><span class="nav-number">2.</span> <span class="nav-text">窗口 API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本结构"><span class="nav-number">2.1.</span> <span class="nav-text">基本结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#窗口生命周期"><span class="nav-number">2.2.</span> <span class="nav-text">窗口生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#keyBy"><span class="nav-number">2.3.</span> <span class="nav-text">keyBy</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Window-assigner"><span class="nav-number">2.4.</span> <span class="nav-text">Window assigner</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#窗口函数（Window-Functions）"><span class="nav-number">2.5.</span> <span class="nav-text">窗口函数（Window Functions）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Triggers"><span class="nav-number">2.6.</span> <span class="nav-text">Triggers</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Evictors"><span class="nav-number">2.7.</span> <span class="nav-text">Evictors</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Allowed-Lateness"><span class="nav-number">2.8.</span> <span class="nav-text">Allowed Lateness</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#代码实例"><span class="nav-number">3.</span> <span class="nav-text">代码实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#数据源"><span class="nav-number">3.1.</span> <span class="nav-text">数据源</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#程序骨架"><span class="nav-number">3.2.</span> <span class="nav-text">程序骨架</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#窗口的起始值"><span class="nav-number">4.</span> <span class="nav-text">窗口的起始值</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

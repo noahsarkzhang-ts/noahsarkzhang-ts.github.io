@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Spring Cloud Gateway 是 Spring Cloud 生态中作为网关的组件，它基于 WebFlux 框架实现，使用的是 Reactor 的编程模式，底层则使用了高性能的通信框架 Netty。本文主要讲述 Spring Cloud Gateway 的使用，如路由、统一认证、限流等功能。">
+<meta name="keywords" content="网关,springcloud,gateway,oatuh2,sentinel">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Springboot 序列：Spring Cloud Gateway">
+<meta property="og:url" content="http://yoursite.com/2022/05/02/spring-cloud-gateway/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="Spring Cloud Gateway 是 Spring Cloud 生态中作为网关的组件，它基于 WebFlux 框架实现，使用的是 Reactor 的编程模式，底层则使用了高性能的通信框架 Netty。本文主要讲述 Spring Cloud Gateway 的使用，如路由、统一认证、限流等功能。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/spring_cloud_gateway_diagram.png">
+<meta property="og:image" content="http://yoursite.com/images/spring-cloud/springcloud-gateway-predicate.gif">
+<meta property="og:updated_time" content="2022-05-15T08:17:48.565Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Springboot 序列：Spring Cloud Gateway">
+<meta name="twitter:description" content="Spring Cloud Gateway 是 Spring Cloud 生态中作为网关的组件，它基于 WebFlux 框架实现，使用的是 Reactor 的编程模式，底层则使用了高性能的通信框架 Netty。本文主要讲述 Spring Cloud Gateway 的使用，如路由、统一认证、限流等功能。">
+<meta name="twitter:image" content="http://yoursite.com/images/spring-cloud/spring_cloud_gateway_diagram.png">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/05/02/spring-cloud-gateway/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Springboot 序列：Spring Cloud Gateway | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/05/02/spring-cloud-gateway/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Springboot 序列：Spring Cloud Gateway
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-05-02 22:52:39" itemprop="dateCreated datePublished" datetime="2022-05-02T22:52:39+08:00">2022-05-02</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-05-15 16:17:48" itemprop="dateModified" datetime="2022-05-15T16:17:48+08:00">2022-05-15</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Springboot/" itemprop="url" rel="index"><span itemprop="name">Springboot</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">52k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">47 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><code>Spring Cloud Gateway</code> 是 Spring Cloud 生态中作为网关的组件，它基于 WebFlux 框架实现，使用的是 Reactor 的编程模式，底层则使用了高性能的通信框架 Netty。本文主要讲述 <code>Spring Cloud Gateway</code> 的使用，如路由、统一认证、限流等功能。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h3 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h3><p><strong>Route（路由）：</strong><br>网关配置的基本组成模块，一个 Route 模块由一个 ID，一个目标 URI，一组断言和一组过滤器组成。如果断言为真，则路由匹配，目标 URI 会被访问。</p>
+<p><strong>Predicate（断言）：</strong><br>这是一个 Java 8 的 <code>Predicate</code>，可以使用它来匹配来自 HTTP 请求的任何内容，例如 headers 或参数。断言的输入类型是一个 <code>ServerWebExchange</code>。</p>
+<p><strong>Filter（过滤器）</strong><br>它们 <code>Spring Framework GatewayFilter</code> 的实例类，可以在向下游发送请求之前或之后修改请求和响应数据。</p>
+<h3 id="工作流程"><a href="#工作流程" class="headerlink" title="工作流程"></a>工作流程</h3><p>下图展示了 <code>Spring Cloud Gateway</code> 的工作流程：</p>
+<p><img src="/images/spring-cloud/spring_cloud_gateway_diagram.png" alt="spring_cloud_gateway_diagram" title="spring_cloud_gateway_diagram"></p>
+<ul>
+<li>客户端向 <code>Spring Cloud Gateway</code> 发送请求；</li>
+<li>如果 <code>Gateway Handler Mapping</code> 判定请求匹配到一个 <code>Route</code>, 则把请求发送到 <code>Gateway Web Handler</code>;</li>
+<li><code>Gateway Web Handler</code> 执行一个过滤器链来处理请求，过滤器可以在发送请求之前执行，也可以在之后执行；</li>
+<li>所有的 <code>pre</code> 过滤器在发送请求前执行，所有的 <code>post</code> 过滤器将在发送请求收到响应之后执行；</li>
+<li>过滤器可以修改请求和响应的数据。</li>
+</ul>
+<h2 id="前置条件"><a href="#前置条件" class="headerlink" title="前置条件"></a>前置条件</h2><p>提前约定，本文涉及到版本如下：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- 依赖包版本管理 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">properties</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!-- spring-boot version --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">spring-boot.version</span>&gt;</span>2.2.5.RELEASE<span class="tag">&lt;/<span class="name">spring-boot.version</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- spring-cloud version --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">spring-cloud.version</span>&gt;</span>Hoxton.SR3<span class="tag">&lt;/<span class="name">spring-cloud.version</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- spring-cloud-alibaba version --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">spring-cloud-alibaba.version</span>&gt;</span>2.2.1.RELEASE<span class="tag">&lt;/<span class="name">spring-cloud-alibaba.version</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">properties</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h2 id="路由"><a href="#路由" class="headerlink" title="路由"></a>路由</h2><p>路由分为两类：1）基本路由，指定路由的目的地址; 2) 服务路由，从服务注册中心选取路由的地址。其配置如下所示：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">api-gateway</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">gateway:</span></span><br><span class="line">      <span class="attr">routes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">id:</span> <span class="string">url-config</span>    <span class="comment">#1.基本路由</span></span><br><span class="line">          <span class="attr">uri:</span> <span class="string">http://localhost:9091</span> <span class="comment"># 路由到 9091 服务</span></span><br><span class="line">          <span class="attr">predicates:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">Path=/configs/**</span> <span class="comment"># 匹配 /configs 下所有请求</span></span><br><span class="line">          <span class="attr">filters:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">StripPrefix=1</span> <span class="comment"># /configs/cache --&gt; /cache,移除第一个前缀</span></span><br><span class="line"></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">id:</span> <span class="string">services-config</span>  <span class="comment">#1.服务路由</span></span><br><span class="line">          <span class="attr">uri:</span> <span class="string">lb://service-provider</span> <span class="comment"># 通过 nacos 注册中心路由服务</span></span><br><span class="line">          <span class="attr">predicates:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">Path=/services/**</span></span><br></pre></td></tr></table></figure>
+<p>一个 Route 包含如下的内容：</p>
+<ul>
+<li>id: 唯一标识这个 Route;</li>
+<li>uri: 路由的目的地址，可以指定一个地址，如 <code>http://ip:port</code>，也可以指定服务名称，如 <code>lb://serviceName</code>;</li>
+<li>predicates: 断言，路由的判定条件；</li>
+<li>filters: 过滤器，可以修改请求或响应的内容。</li>
+</ul>
+<h3 id="Predicate"><a href="#Predicate" class="headerlink" title="Predicate"></a>Predicate</h3><p>Predicate 来源于 Java 8，是 Java 8 中引入的一个函数，Predicate 接受一个输入参数，返回一个布尔值结果。该接口包含多种默认方法来将 Predicate 组合成其他复杂的逻辑（比如：与，或，非）。可以用于接口请求参数校验、判断新老数据是否有变化需要进行更新操作。</p>
+<p>在 Spring Cloud Gateway 中 Spring 利用 Predicate 的特性实现了各种路由匹配规则，有通过 Header、请求参数等不同的条件来进行作为条件匹配到对应的路由，如下图所示：</p>
+<p><img src="/images/spring-cloud/springcloud-gateway-predicate.gif" alt="springcloud-gateway-predicate" title="springcloud-gateway-predicate"></p>
+<h3 id="Filter"><a href="#Filter" class="headerlink" title="Filter"></a>Filter</h3><p>Filter 可以对请求或响应进行修改，常用的过滤器有：</p>
+<table>
+<thead>
+<tr>
+<th>过滤规则</th>
+<th>实例</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>StripPrefix</td>
+<td>- StripPrefix=1</td>
+<td>从请求路径中移除一个前缀，如 /configs/cache –&gt; /cache</td>
+</tr>
+<tr>
+<td>PrefixPath</td>
+<td>- PrefixPath=/app</td>
+<td>在请求路径前加上 app</td>
+</tr>
+<tr>
+<td>RewritePath</td>
+<td>- RewritePath=/test,/app/test</td>
+<td>访问 localhost:9022/test, 请求会转发到 localhost:8001/app/test</td>
+</tr>
+<tr>
+<td>SetPath</td>
+<td>SetPath=/app/{path}</td>
+<td>通过模板设置路径，转发的规则时会在路径前增加 app，{path} 表示原请求路径</td>
+</tr>
+<tr>
+<td>RemoveRequestHeader</td>
+<td>- RemoveResponseHeader=X-Response-Foo</td>
+<td>返回给客户端前去掉某个请求头信息</td>
+</tr>
+<tr>
+<td>AddRequestHeader</td>
+<td>- AddRequestHeader=X-Request-red, blue</td>
+<td>向下游请求前加上某个请求头信息</td>
+</tr>
+</tbody>
+</table>
+<p>更多 Filter 可以参考官网：<a href="https://cloud.spring.io/spring-cloud-gateway/reference/html/#gatewayfilter-factories" target="_blank" rel="noopener">Filter 配置</a> </p>
+<h3 id="集成服务注册中心"><a href="#集成服务注册中心" class="headerlink" title="集成服务注册中心"></a>集成服务注册中心</h3><p>在 <code>Spring Cloud Gateway</code> 中可以集成服务注册中心，网关也可以作为服务消费方注册上去，在这里，以 <code>Nacos</code> 为例。</p>
+<p><strong>配置</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">api-gateway</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">nacos:</span></span><br><span class="line">      <span class="attr">discovery:</span></span><br><span class="line">        <span class="attr">server-addr:</span> <span class="string">localhost:8848</span></span><br></pre></td></tr></table></figure>
+<p><strong>开启服务发现</strong></p>
+<p>在启动类加上 <code>@EnableDiscoveryClient</code> annotation.</p>
+<p><code>Nacos</code> 的安装使用可以参考本系列的相关文章。</p>
+<h3 id="Maven-依赖"><a href="#Maven-依赖" class="headerlink" title="Maven 依赖"></a>Maven 依赖</h3><p>需要引入 <code>Nacos</code> 及 <code>Spring Cloud Gateway</code> 相关的包：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.cloud<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-cloud-starter-gateway<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.alibaba.cloud<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-cloud-starter-alibaba-nacos-discovery<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h2 id="统一认证"><a href="#统一认证" class="headerlink" title="统一认证"></a>统一认证</h2><p>假定已经有认证服务器且使用 <code>JWT Token</code>, <code>Spring Cloud Gateway</code> 在认证体系中主要是作为资源服务器的角色，从请求中获取 <code>JWT Token</code>, 并验证其合法性。整体上来说，分为两个步骤：</p>
+<ol>
+<li>实例化 <code>SecurityWebFilterChain</code> 对象，设置安全相关的参数；</li>
+<li>开启资源服务器功能。</li>
+</ol>
+<h3 id="开启资源服务器功能"><a href="#开启资源服务器功能" class="headerlink" title="开启资源服务器功能"></a>开启资源服务器功能</h3><p>第二步相对比较简单，在资源服务器的配置类上加入 <code>@EnableWebFluxSecurity</code> annotation 即可，如下图所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@EnableWebFluxSecurity</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ResourceServerConfig</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="实例化-SecurityWebFilterChain-对象"><a href="#实例化-SecurityWebFilterChain-对象" class="headerlink" title="实例化 SecurityWebFilterChain 对象"></a>实例化 <code>SecurityWebFilterChain</code> 对象</h3><p><code>SecurityWebFilterChain</code> 对象是 <code>SpringSecurity</code> 体系中比较重要的类，它代表了一个请求处理链，定义的形式如下： </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> SecurityWebFilterChain <span class="title">securityWebFilterChain</span><span class="params">(ServerHttpSecurity http)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//1. 自定义 JWT 权限转换器，获取权限信息 </span></span><br><span class="line">    http.oauth2ResourceServer().jwt().jwtAuthenticationConverter(jwtAuthenticationConverter());</span><br><span class="line"></span><br><span class="line">    <span class="comment">//2. 自定义 token 无效或者已过期处理逻辑</span></span><br><span class="line">    http.oauth2ResourceServer().authenticationEntryPoint(authenticationEntryPoint());</span><br><span class="line"></span><br><span class="line">    <span class="comment">//3. 添加自定义 Filter,指定顺序对请求做修改，在这里，主要是移除白名单 URL 中 Authorization Header.</span></span><br><span class="line">    http.addFilterBefore(ignoreUrlsRemoveJwtFilter, SecurityWebFiltersOrder.AUTHENTICATION);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//4. 进行安全设置</span></span><br><span class="line">    http.authorizeExchange()</span><br><span class="line">            <span class="comment">//5. 放行白名单 URL, 不作认证</span></span><br><span class="line">            .pathMatchers(Convert.toStrArray(ignoreUrlsConfig.getUrls())).permitAll()</span><br><span class="line">            <span class="comment">//6. 非白名单 URL，需要认证，认证逻辑在 AuthorizationManager 中定义</span></span><br><span class="line">            .anyExchange().access(authorizationManager)</span><br><span class="line">            .and()</span><br><span class="line">            <span class="comment">//7. 自定义异常处理逻辑</span></span><br><span class="line">            .exceptionHandling()</span><br><span class="line">            <span class="comment">//8. 自定义 "访问禁止" 的异常处理逻辑</span></span><br><span class="line">            .accessDeniedHandler(accessDeniedHandler())</span><br><span class="line">            <span class="comment">//9. 自定义 token 无效或者已过期处理逻辑</span></span><br><span class="line">            .authenticationEntryPoint(authenticationEntryPoint())</span><br><span class="line">            .and().csrf().disable();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> http.build();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>自定义 JWT 权限转换器</strong></p>
+<p>由于 Gateway 没有将 JWT  Claim 中 authorities 值加入到 Authentication 权限里面，所以需要自定义一个 <code>JwtGrantedAuthoritiesConverter</code> 对象，提取 <code>JWT Claim</code> 中的 authorities 权限值。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> Converter&lt;Jwt, ? extends Mono&lt;? extends AbstractAuthenticationToken&gt;&gt; jwtAuthenticationConverter() &#123;</span><br><span class="line">    JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = <span class="keyword">new</span> JwtGrantedAuthoritiesConverter();</span><br><span class="line">    jwtGrantedAuthoritiesConverter.setAuthorityPrefix(AuthConstant.AUTHORITY_PREFIX);</span><br><span class="line">    jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName(AuthConstant.JWT_AUTHORITIES_KEY);</span><br><span class="line"></span><br><span class="line">    JwtAuthenticationConverter jwtAuthenticationConverter = <span class="keyword">new</span> JwtAuthenticationConverter();</span><br><span class="line">    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>另外，Gateway 作为资源服务器，需要访问认证服务器获取解密的密钥，所以在配置文件中配置认证服务器获取密钥的 URL.</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">security:</span></span><br><span class="line">    <span class="attr">oauth2:</span></span><br><span class="line">      <span class="attr">resourceserver:</span></span><br><span class="line">        <span class="attr">jwt:</span></span><br><span class="line">          <span class="attr">jwk-set-uri:</span> <span class="string">http://localhost:8080/oauth/public-key</span> <span class="comment"># 配置认证中心的公钥访问地址</span></span><br></pre></td></tr></table></figure>
+<p><strong>自定义 token 无效或者已过期处理逻辑</strong></p>
+<p>当 token 无效或已过期，自定义一个返回结果，并指定一个错误码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function">ServerAuthenticationEntryPoint <span class="title">authenticationEntryPoint</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (exchange, e) -&gt; &#123;</span><br><span class="line">        Mono&lt;Void&gt; mono = Mono.defer(() -&gt; Mono.just(exchange.getResponse()))</span><br><span class="line">                .flatMap(response -&gt; ResponseUtils.writeErrorInfo(response, ResultCode.TOKEN_INVALID_OR_EXPIRED));</span><br><span class="line">        <span class="keyword">return</span> mono;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>自定义 “访问禁止” 的异常处理逻辑</strong></p>
+<p>与 token 无效或已过期一样，统一定义一个错误码返回即可。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function">ServerAccessDeniedHandler <span class="title">accessDeniedHandler</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (exchange, denied) -&gt; &#123;</span><br><span class="line">        Mono&lt;Void&gt; mono = Mono.defer(() -&gt; Mono.just(exchange.getResponse()))</span><br><span class="line">                .flatMap(response -&gt; ResponseUtils.writeErrorInfo(response, ResultCode.ACCESS_UNAUTHORIZED));</span><br><span class="line">        <span class="keyword">return</span> mono;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>自定义 Filter</strong></p>
+<p>可以根据需求，在 FilterChain 中加入自定义的 Filter, 处理特定的业务，在这里，我们加入一个 Filter, 用于清除请求头 <code>Authorization</code> 中的内容。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">IgnoreUrlsRemoveJwtFilter</span> <span class="keyword">implements</span> <span class="title">WebFilter</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> IgnoreUrlsConfig ignoreUrlsConfig;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Mono&lt;Void&gt; <span class="title">filter</span><span class="params">(ServerWebExchange exchange, WebFilterChain chain)</span> </span>&#123;</span><br><span class="line">        ServerHttpRequest request = exchange.getRequest();</span><br><span class="line">        URI uri = request.getURI();</span><br><span class="line">        PathMatcher pathMatcher = <span class="keyword">new</span> AntPathMatcher();</span><br><span class="line">        <span class="comment">// 白名单路径移除 JWT 请求头</span></span><br><span class="line">        List&lt;String&gt; ignoreUrls = ignoreUrlsConfig.getUrls();</span><br><span class="line">        <span class="keyword">for</span> (String ignoreUrl : ignoreUrls) &#123;</span><br><span class="line">            <span class="keyword">if</span> (pathMatcher.match(ignoreUrl, uri.getPath())) &#123;</span><br><span class="line">                request = exchange.getRequest().mutate().header(<span class="string">"Authorization"</span>, <span class="string">""</span>).build();</span><br><span class="line">                exchange = exchange.mutate().request(request).build();</span><br><span class="line">                <span class="keyword">return</span> chain.filter(exchange);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> chain.filter(exchange);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>自定义 AuthorizationManager</strong></p>
+<p>除了白名单中的 URL,其它 URL 都需要进行权限判断。在这里，需要自定义一个 <code>ReactiveAuthorizationManager</code> 管理器，封装访问权限逻辑。其形式如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">AuthorizationManager</span> <span class="keyword">implements</span> <span class="title">ReactiveAuthorizationManager</span>&lt;<span class="title">AuthorizationContext</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(AuthorizationManager<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> RedisTemplate redisTemplate;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Mono&lt;AuthorizationDecision&gt; <span class="title">check</span><span class="params">(Mono&lt;Authentication&gt; mono, AuthorizationContext authorizationContext)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 1. 获取 ServerHttpRequest 对象</span></span><br><span class="line">        ServerHttpRequest request = authorizationContext.getExchange().getRequest();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2. 放行特定的请求，如 options method 的请求</span></span><br><span class="line">        <span class="keyword">if</span> (request.getMethod() == HttpMethod.OPTIONS) &#123;</span><br><span class="line">            <span class="keyword">return</span> Mono.just(<span class="keyword">new</span> AuthorizationDecision(<span class="keyword">true</span>));</span><br><span class="line">        &#125;</span><br><span class="line">		</span><br><span class="line">        <span class="comment">// 2. 获取请求 URL 及 请求方法		</span></span><br><span class="line">        PathMatcher pathMatcher = <span class="keyword">new</span> AntPathMatcher();</span><br><span class="line">        String method = request.getMethodValue();</span><br><span class="line">        String path = request.getURI().getPath();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 3. 拼接成请求 URL</span></span><br><span class="line">        String restfulPath = method + <span class="string">":"</span> + path;</span><br><span class="line">        LOGGER.info(<span class="string">"restfulPath: &#123;&#125;"</span>, restfulPath);</span><br><span class="line"></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * 鉴权开始</span></span><br><span class="line"><span class="comment">         *</span></span><br><span class="line"><span class="comment">         * 缓存取 [URL权限-角色集合] 规则数据</span></span><br><span class="line"><span class="comment">         * urlPermRolesRules = [&#123;'key':'GET:/api/v1/users/*','value':['ADMIN','TEST']&#125;,...]</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="comment">// 4. 获取 URL 权限集合		 </span></span><br><span class="line">        Map&lt;String, Object&gt; urlPermRolesRules = redisTemplate.opsForHash().entries(CacheConstants.RESOURCE_ROLES_MAP);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 5. 根据请求路径获取有该路径访问权限的角色列表</span></span><br><span class="line">        List&lt;String&gt; authorizedRoles = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, Object&gt; permRoles : urlPermRolesRules.entrySet()) &#123;</span><br><span class="line">            String perm = permRoles.getKey();</span><br><span class="line">            <span class="keyword">if</span> (pathMatcher.match(perm, restfulPath)) &#123;</span><br><span class="line">                List&lt;String&gt; roles = Convert.toList(String<span class="class">.<span class="keyword">class</span>, <span class="title">permRoles</span>.<span class="title">getValue</span>())</span>;</span><br><span class="line">                authorizedRoles.addAll(Convert.toList(String<span class="class">.<span class="keyword">class</span>, <span class="title">roles</span>))</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        LOGGER.info(<span class="string">"authorizedRoles: &#123;&#125;"</span>, authorizedRoles);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 6. 判断 JWT中 携带的用户角色是否包含在角色列表中</span></span><br><span class="line">        Mono&lt;AuthorizationDecision&gt; authorizationDecisionMono = mono</span><br><span class="line">                .filter(Authentication::isAuthenticated)</span><br><span class="line">                .flatMapIterable(Authentication::getAuthorities)</span><br><span class="line">                .map(GrantedAuthority::getAuthority)</span><br><span class="line">                .any(authority -&gt; &#123;</span><br><span class="line">                    String roleCode = authority.substring(AuthConstant.AUTHORITY_PREFIX.length()); <span class="comment">// 用户的角色</span></span><br><span class="line">                    <span class="keyword">boolean</span> hasAuthorized = CollectionUtil.isNotEmpty(authorizedRoles) &amp;&amp; authorizedRoles.contains(roleCode);</span><br><span class="line">                    <span class="keyword">return</span> hasAuthorized;</span><br><span class="line">                &#125;)</span><br><span class="line">                .map(AuthorizationDecision::<span class="keyword">new</span>)</span><br><span class="line">                .defaultIfEmpty(<span class="keyword">new</span> AuthorizationDecision(<span class="keyword">false</span>));</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> authorizationDecisionMono;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>访问权限的判定可以用一句话来描述：获取有权限访问该请求 URL 的角色列表，然后判断 JWT 中携带的用户角色是否包含在角色列表中，如果包含，则通过，反之则不通过。</p>
+<h3 id="Maven-依赖-1"><a href="#Maven-依赖-1" class="headerlink" title="Maven 依赖"></a>Maven 依赖</h3><p>需要引入 <code>SpringSecurity</code>, <code>Oauth2</code> 相关的包：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.cloud<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-cloud-starter-oauth2<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.security<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-security-oauth2-resource-server<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.security<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-security-oauth2-jose<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.security<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-security-config<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.nimbusds<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>nimbus-jose-jwt<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>8.16<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h2 id="限流"><a href="#限流" class="headerlink" title="限流"></a>限流</h2><p>从 1.6.0 版本开始，Sentinel 提供了 Spring Cloud Gateway 的适配模块，可以提供两种资源维度的限流：</p>
+<ul>
+<li>route 维度：即在 Spring 配置文件中配置的路由条目，资源名为对应的 routeId;</li>
+<li>自定义 API 维度：用户可以利用 Sentinel 提供的 API 来自定义一些 API 分组。</li>
+</ul>
+<h3 id="引入-Sentinel"><a href="#引入-Sentinel" class="headerlink" title="引入 Sentinel"></a>引入 Sentinel</h3><p>引入 <code>Sentinel</code> 包含如下步骤：</p>
+<ul>
+<li>加入 Sentinel 配置文件；</li>
+<li>加入自定义业务逻辑。</li>
+</ul>
+<p><strong>加入 Sentinel 配置文件</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">sentinel:</span></span><br><span class="line">      <span class="attr">filter:</span></span><br><span class="line">        <span class="attr">enabled:</span> <span class="literal">false</span></span><br><span class="line">      <span class="comment"># 是否饥饿加载。默认为 false 关闭</span></span><br><span class="line">      <span class="attr">eager:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">transport:</span></span><br><span class="line">        <span class="comment">## 指定控制台的地址，默认端口8090</span></span><br><span class="line">        <span class="attr">dashboard:</span> <span class="string">localhost:8090</span></span><br></pre></td></tr></table></figure>
+<p><strong>加入自定义业务逻辑</strong></p>
+<p>整体的结构如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GatewayConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(GatewayConfiguration<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@PostConstruct</span>	</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doInit</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 1. 自定义被限流之后处理器	</span></span><br><span class="line">        initBlockHandlers();</span><br><span class="line">        <span class="comment">// 2. 自定义 api 组		</span></span><br><span class="line">        initCustomizedApis();</span><br><span class="line">        <span class="comment">// 3. 自定义网关 Rules	</span></span><br><span class="line">        initGatewayRules();</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">   </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>自定义业务逻辑包括：</p>
+<ul>
+<li>自定义限流处理器：可以自定义返回的业务信息，否则返回默认的信息，如：Blocked by Sentinel: FlowException; </li>
+<li>自定义 api 组：可以将分散的 URL 加入到一个分组，使用统一的限流逻辑；</li>
+<li>自定义网关 Rules：可以根据 Roule ID, api 分组进行限流配置；</li>
+</ul>
+<p><strong>自定义限流处理器</strong></p>
+<p>可以将限流的异常转译为业务上错误码返回。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initBlockHandlers</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    BlockRequestHandler blockHandler = (serverWebExchange, throwable) -&gt; &#123;</span><br><span class="line"></span><br><span class="line">        LOGGER.info(<span class="string">"Sentinel Block request!!"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS)</span><br><span class="line">                .contentType(MediaType.APPLICATION_JSON)</span><br><span class="line">                .bodyValue(JSONUtil.toJsonStr(Result.failed(ResultCode.FLOW_LIMITING)));</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    GatewayCallbackManager.setBlockHandler(blockHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>自定义 api 组</strong></p>
+<p>将 <code>/configs/**</code>,<code>/services/**</code> 归到一个 api 分组，并命名为 <code>some_customized_api</code>, 用于后续的限流配置。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">initCustomizedApis</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Set&lt;ApiDefinition&gt; definitions = <span class="keyword">new</span> HashSet&lt;&gt;();</span><br><span class="line">    ApiDefinition api1 = <span class="keyword">new</span> ApiDefinition(<span class="string">"some_customized_api"</span>)</span><br><span class="line">            .setPredicateItems(<span class="keyword">new</span> HashSet&lt;ApiPredicateItem&gt;() &#123;&#123;</span><br><span class="line">                add(<span class="keyword">new</span> ApiPathPredicateItem().setPattern(<span class="string">"/configs/**"</span>));</span><br><span class="line">                add(<span class="keyword">new</span> ApiPathPredicateItem().setPattern(<span class="string">"/services/**"</span>)</span><br><span class="line">                        .setMatchStrategy(SentinelGatewayConstants.URL_MATCH_STRATEGY_PREFIX));</span><br><span class="line">            &#125;&#125;);</span><br><span class="line"></span><br><span class="line">    definitions.add(api1);</span><br><span class="line">    GatewayApiDefinitionManager.loadApiDefinitions(definitions);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>自定义网关 Rules</strong></p>
+<p>为 <code>koala-oauth</code>,<code>koala-oauth2-api</code> Route ID 设置不同的限流参数，同时也可以为 <code>some_customized_api</code> 配置限流参数。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">initGatewayRules</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Set&lt;GatewayFlowRule&gt; rules = <span class="keyword">new</span> HashSet&lt;&gt;();</span><br><span class="line">    rules.add(<span class="keyword">new</span> GatewayFlowRule(<span class="string">"koala-oauth"</span>)</span><br><span class="line">            .setCount(<span class="number">10</span>)</span><br><span class="line">            .setIntervalSec(<span class="number">1</span>)</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    rules.add(<span class="keyword">new</span> GatewayFlowRule(<span class="string">"koala-oauth2-api"</span>)</span><br><span class="line">            .setCount(<span class="number">2</span>)</span><br><span class="line">            .setIntervalSec(<span class="number">2</span>)</span><br><span class="line">            .setBurst(<span class="number">2</span>)</span><br><span class="line">            .setParamItem(<span class="keyword">new</span> GatewayParamFlowItem()</span><br><span class="line">                    .setParseStrategy(SentinelGatewayConstants.PARAM_PARSE_STRATEGY_CLIENT_IP)</span><br><span class="line">            )</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    rules.add(<span class="keyword">new</span> GatewayFlowRule(<span class="string">"some_customized_api"</span>)</span><br><span class="line">            .setResourceMode(SentinelGatewayConstants.RESOURCE_MODE_CUSTOM_API_NAME)</span><br><span class="line">            .setCount(<span class="number">5</span>)</span><br><span class="line">            .setIntervalSec(<span class="number">1</span>)</span><br><span class="line">            .setParamItem(<span class="keyword">new</span> GatewayParamFlowItem()</span><br><span class="line">                    .setParseStrategy(SentinelGatewayConstants.PARAM_PARSE_STRATEGY_URL_PARAM)</span><br><span class="line">                    .setFieldName(<span class="string">"pn"</span>)</span><br><span class="line">            )</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    GatewayRuleManager.loadRules(rules);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="启动控制台"><a href="#启动控制台" class="headerlink" title="启动控制台"></a>启动控制台</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -Dserver.port=8080 -Dcsp.sentinel.dashboard.server=localhost:8080 -Dproject.name=sentinel-dashboard -Dcsp.sentinel.app.type=1 -jar sentinel-dashboard.jar</span><br></pre></td></tr></table></figure>
+<p>其中 -Dserver.port=8080 用于指定 Sentinel 控制台端口为 8080, -Dcsp.sentinel.app.type 用于指定网关类型。</p>
+<p>从 Sentinel 1.6.0 起，Sentinel 控制台引入基本的登录功能，默认用户名和密码都是 sentinel。</p>
+<h3 id="Maven-依赖-2"><a href="#Maven-依赖-2" class="headerlink" title="Maven 依赖"></a>Maven 依赖</h3><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- Sentinel流量控制、熔断降级 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.alibaba.cloud<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-cloud-alibaba-sentinel-gateway<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.alibaba.cloud<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-cloud-starter-alibaba-sentinel<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><a href="https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-koala" target="_blank" rel="noopener">工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-koala</a></p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://cloud.spring.io/spring-cloud-gateway/reference/html/" target="_blank" rel="noopener">1. Spring Cloud Gateway 官网</a></p>
+<p><a href="https://github.com/alibaba/Sentinel/wiki/%E7%BD%91%E5%85%B3%E9%99%90%E6%B5%81" target="_blank" rel="noopener">2. 网关限流</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/网关/" rel="tag"># 网关</a>
+          
+            <a href="/tags/springcloud/" rel="tag"># springcloud</a>
+          
+            <a href="/tags/gateway/" rel="tag"># gateway</a>
+          
+            <a href="/tags/oatuh2/" rel="tag"># oatuh2</a>
+          
+            <a href="/tags/sentinel/" rel="tag"># sentinel</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/02/hystrix-and-sentinal/" rel="next" title="Springboot 序列：Hystrix & Sentinal">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：Hystrix & Sentinal
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/08/sso/" rel="prev" title="Springboot 序列：使用 Oauth2 实现单点登陆">
+                Springboot 序列：使用 Oauth2 实现单点登陆 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本概念"><span class="nav-number">1.1.</span> <span class="nav-text">基本概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#工作流程"><span class="nav-number">1.2.</span> <span class="nav-text">工作流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#前置条件"><span class="nav-number">2.</span> <span class="nav-text">前置条件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#路由"><span class="nav-number">3.</span> <span class="nav-text">路由</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Predicate"><span class="nav-number">3.1.</span> <span class="nav-text">Predicate</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Filter"><span class="nav-number">3.2.</span> <span class="nav-text">Filter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集成服务注册中心"><span class="nav-number">3.3.</span> <span class="nav-text">集成服务注册中心</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Maven-依赖"><span class="nav-number">3.4.</span> <span class="nav-text">Maven 依赖</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#统一认证"><span class="nav-number">4.</span> <span class="nav-text">统一认证</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#开启资源服务器功能"><span class="nav-number">4.1.</span> <span class="nav-text">开启资源服务器功能</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实例化-SecurityWebFilterChain-对象"><span class="nav-number">4.2.</span> <span class="nav-text">实例化 SecurityWebFilterChain 对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Maven-依赖-1"><span class="nav-number">4.3.</span> <span class="nav-text">Maven 依赖</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#限流"><span class="nav-number">5.</span> <span class="nav-text">限流</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#引入-Sentinel"><span class="nav-number">5.1.</span> <span class="nav-text">引入 Sentinel</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#启动控制台"><span class="nav-number">5.2.</span> <span class="nav-text">启动控制台</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Maven-依赖-2"><span class="nav-number">5.3.</span> <span class="nav-text">Maven 依赖</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这篇文章包含两部分内容：1）Springboot 项目集成 ELK; 2）分析 log 数据的存储模型。">
+<meta name="keywords" content="ELK,logstash">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ELK">
+<meta property="og:url" content="http://yoursite.com/2022/06/05/elk-and-index-model/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="这篇文章包含两部分内容：1）Springboot 项目集成 ELK; 2）分析 log 数据的存储模型。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/es/elk-logstash-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/kibana-index-pattern.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/kibana-search-log.jpg">
+<meta property="og:image" content="http://yoursite.com/images/es/kibana-index-mapping.jpg">
+<meta property="og:updated_time" content="2022-06-11T09:51:21.995Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ELK">
+<meta name="twitter:description" content="这篇文章包含两部分内容：1）Springboot 项目集成 ELK; 2）分析 log 数据的存储模型。">
+<meta name="twitter:image" content="http://yoursite.com/images/es/elk-logstash-flow.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/06/05/elk-and-index-model/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>ELK | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/06/05/elk-and-index-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">ELK
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-06-05 12:44:28" itemprop="dateCreated datePublished" datetime="2022-06-05T12:44:28+08:00">2022-06-05</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-06-11 17:51:21" itemprop="dateModified" datetime="2022-06-11T17:51:21+08:00">2022-06-11</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Elasticsearch/" itemprop="url" rel="index"><span itemprop="name">Elasticsearch</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">40k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">36 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这篇文章包含两部分内容：1）Springboot 项目集成 ELK; 2）分析 log 数据的存储模型。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p><img src="/images/es/elk-logstash-flow.jpg" alt="elk-logstash-flow" title="elk-logstash-flow"></p>
+<p>ELK 是 Elasticsearch, Logstash, Kibana 三个组件的首字母，对应三个处理步骤：</p>
+<ul>
+<li>Logstash: 采集模块，读取日志文件写入到 Elasticsearch, 可以使用拉/推两种方式：1）直接读取日志文件；2）开放端口，将数据推送上来；</li>
+<li>Elasticsearch: 存储模块，存储日志文件；</li>
+<li>Kibana: 从 Elasticsearch 搜索查询日志文件。</li>
+</ul>
+<p>在本文中，日志采集使用推的方式，Springboot 项目将日志推送到 Logstash 的指定端口上。另外，在本文中，我们只安装 Logstash, Elasticsearch 及 Kibana 安装部署参考之前的文章：<a href="https://zhangxt.top/2022/01/29/es-deployment-in-docker/" target="_blank" rel="noopener">Docker 下安装 ES, Kibana</a></p>
+<p><strong>约定：</strong><br>ELK 三个组件的版本为：V7.14.2.</p>
+<h2 id="安装-Logstash"><a href="#安装-Logstash" class="headerlink" title="安装 Logstash"></a>安装 Logstash</h2><h3 id="下载及部署-Logstash"><a href="#下载及部署-Logstash" class="headerlink" title="下载及部署 Logstash"></a>下载及部署 Logstash</h3><p>从官方网址下载指定的版本：<a href="https://www.elastic.co/cn/downloads/past-releases/logstash-7-14-2" target="_blank" rel="noopener">Logstash 下载地址</a> </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载 Logstash</span></span><br><span class="line">$ wget https://artifacts.elastic.co/downloads/logstash/logstash-7.14.2-linux-x86_64.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 解压缩</span></span><br><span class="line">$ tar -xzvf logstash-7.14.2-linux-x86_64.tar.gz</span><br></pre></td></tr></table></figure>
+<h3 id="添加配置文件"><a href="#添加配置文件" class="headerlink" title="添加配置文件"></a>添加配置文件</h3><p>在 <code>config</code> 目录下新建一个配置文件 <code>logstash-logback.conf</code> 文件，内容如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">input &#123;</span><br><span class="line">        tcp &#123;</span><br><span class="line">        host =&gt; &quot;0.0.0.0&quot;</span><br><span class="line">        port =&gt; 9999</span><br><span class="line">        mode =&gt; &quot;server&quot;</span><br><span class="line">        codec =&gt; json_lines</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">filter&#123;</span><br><span class="line">    date&#123;</span><br><span class="line">        match =&gt; [&quot;timestamp&quot;,&quot;dd-MMM-yyyy:HH:mm:ss Z&quot;]</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">output &#123;</span><br><span class="line">        stdout &#123; codec =&gt; rubydebug &#125;</span><br><span class="line">        elasticsearch &#123; </span><br><span class="line">                hosts =&gt; &quot;192.168.1.100:9200&quot;</span><br><span class="line">                index =&gt; &quot;logstash-%&#123;+YYYY.MM.dd&#125;&quot;</span><br><span class="line">                user =&gt; &quot;elastic&quot;</span><br><span class="line">                password =&gt; &quot;yourpassword&quot;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有三个部分的内容：</p>
+<ul>
+<li>input: 开启 tcp 9999 端口，接收日志；</li>
+<li>filter: 定义 timestamp 格式；</li>
+<li>output：定义两个输出，一个是控制台，方便定位问题，一个写入 Elasticsearch, 按天生成索引；</li>
+</ul>
+<h3 id="启动-Logstash"><a href="#启动-Logstash" class="headerlink" title="启动 Logstash"></a>启动 Logstash</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 切换到 logstash 安装目录</span></span><br><span class="line">$ <span class="built_in">cd</span> logstash 安装目录</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动 logstash</span></span><br><span class="line">$ nohup ./bin/logstash -f config/logstash-logback.conf &amp;</span><br></pre></td></tr></table></figure>
+<h2 id="集成-Logstash"><a href="#集成-Logstash" class="headerlink" title="集成 Logstash"></a>集成 Logstash</h2><p>假定在 Springboot 中使用 Logback 日志框架，需要引入 <code>logstash-logback-encoder</code> 相关 jar 包。</p>
+<h3 id="相关依赖"><a href="#相关依赖" class="headerlink" title="相关依赖"></a>相关依赖</h3><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">properties</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!-- spring boot --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">spring-boot.version</span>&gt;</span>2.2.5.RELEASE<span class="tag">&lt;/<span class="name">spring-boot.version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">properties</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!--logStash--&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>net.logstash.logback<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>logstash-logback-encoder<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>7.2<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>slf4j-api<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.7.26<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h3 id="修改-Logback-配置文件"><a href="#修改-Logback-配置文件" class="headerlink" title="修改 Logback 配置文件"></a>修改 Logback 配置文件</h3><p>添加 Logstash Appender, 指定 Logstash 的地址及日志级别便可将日志推送上去。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">configuration</span> <span class="attr">debug</span>=<span class="string">"false"</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!-- 读取配置文件中的 appname --&gt;</span>   </span><br><span class="line">    <span class="tag">&lt;<span class="name">springProperty</span> <span class="attr">scope</span>=<span class="string">"context"</span> <span class="attr">name</span>=<span class="string">"appName"</span> <span class="attr">source</span>=<span class="string">"spring.application.name"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- 其它配置 --&gt;</span> </span><br><span class="line"></span><br><span class="line">   <span class="comment">&lt;!-- 添加 Logstash Appender --&gt;</span> </span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">"LOGSTASH"</span> <span class="attr">class</span>=<span class="string">"net.logstash.logback.appender.LogstashTcpSocketAppender"</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- 指定 logstash 的地址 --&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">destination</span>&gt;</span>192.168.1.100:9999<span class="tag">&lt;/<span class="name">destination</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">param</span> <span class="attr">name</span>=<span class="string">"Encoding"</span> <span class="attr">value</span>=<span class="string">"UTF-8"</span>/&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- 指定编码格式 --&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">charset</span>=<span class="string">"UTF-8"</span> <span class="attr">class</span>=<span class="string">"net.logstash.logback.encoder.LogstashEncoder"</span> &gt;</span></span><br><span class="line">            <span class="comment">&lt;!-- 添加自定义字段，如 appName --&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">customFields</span>&gt;</span>&#123;"appName":"$&#123;appName&#125;"&#125;<span class="tag">&lt;/<span class="name">customFields</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- 日志输出级别 --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">root</span> <span class="attr">level</span>=<span class="string">"INFO"</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">"LOGSTASH"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">root</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h3 id="修改应用配置项"><a href="#修改应用配置项" class="headerlink" title="修改应用配置项"></a>修改应用配置项</h3><p>如果 logback 配置文件需要通过 <code>springProperty</code> 读取配置项的内容，由于加载顺序的原因，使用 <code>logback.xml</code> 不能加载 <code>${appName}</code> 变量的内容。必须新建一个 logback 配置文件，如 logback-spring.xml, 并在 <code>application.yaml</code> 文件中指定其路径。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">logging:</span></span><br><span class="line">  <span class="attr">config:</span> <span class="string">classpath:logback-spring.xml</span></span><br><span class="line">  <span class="attr">file:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">logs/logstash</span></span><br></pre></td></tr></table></figure>
+<h3 id="写日志"><a href="#写日志" class="headerlink" title="写日志"></a>写日志</h3><p>启动项目之后，与常规的写日志方式一样便可将日志推送到 Logstash 中。其格式如下所示： </p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    "thread_name" =&gt; "scheduling-1",</span><br><span class="line">          "level" =&gt; "INFO",</span><br><span class="line">           "host" =&gt; "192.168.1.100",</span><br><span class="line">        "message" =&gt; "logstash test!",</span><br><span class="line">    "level_value" =&gt; 20000,</span><br><span class="line">           "port" =&gt; 55360,</span><br><span class="line">       "@version" =&gt; "1",</span><br><span class="line">     "@timestamp" =&gt; 2022-05-31T02:59:30.001Z,</span><br><span class="line">    "logger_name" =&gt; "org.noahsark.monitor.MonitorLogstashApplication",</span><br><span class="line">        "appName" =&gt; "moniotr-logstash"</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="查询日志"><a href="#查询日志" class="headerlink" title="查询日志"></a>查询日志</h2><p>要在 Kibana 中查询日志，需要先定义一个 index pattern, 然后通过 Discover 查询日志。</p>
+<h3 id="定义-Index-Pattern"><a href="#定义-Index-Pattern" class="headerlink" title="定义 Index Pattern"></a>定义 Index Pattern</h3><p>按照以下的路径创建 Index Pattern: Management –&gt; Stack Management –&gt; Index patterns –&gt; Create index pattern.</p>
+<p><img src="/images/es/kibana-index-pattern.jpg" alt="kibana-index-pattern" title="kibana-index-pattern"></p>
+<h3 id="查询日志-1"><a href="#查询日志-1" class="headerlink" title="查询日志"></a>查询日志</h3><p>创建 Index Pattern 之后，便可通过 Discover 功能查询日志，如下图所示：</p>
+<p><img src="/images/es/kibana-search-log.jpg" alt="kibana-search-log" title="kibana-search-log"></p>
+<h2 id="存储模型"><a href="#存储模型" class="headerlink" title="存储模型"></a>存储模型</h2><h3 id="Index-Mapping"><a href="#Index-Mapping" class="headerlink" title="Index Mapping"></a>Index Mapping</h3><p>可以通过 <code>Index Management</code> 查看 index 的信息。</p>
+<p><img src="/images/es/kibana-index-mapping.jpg" alt="kibana-index-mapping" title="kibana-index-mapping"></p>
+<p>Log 日志的 Index Mapping 定义如下所示：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"mappings"</span>: &#123;</span><br><span class="line">    <span class="attr">"_doc"</span>: &#123;</span><br><span class="line">      <span class="attr">"dynamic_templates"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"message_field"</span>: &#123;</span><br><span class="line">            <span class="attr">"path_match"</span>: <span class="string">"message"</span>,</span><br><span class="line">            <span class="attr">"match_mapping_type"</span>: <span class="string">"string"</span>,</span><br><span class="line">            <span class="attr">"mapping"</span>: &#123;</span><br><span class="line">              <span class="attr">"norms"</span>: <span class="literal">false</span>,</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"text"</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"string_fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"match"</span>: <span class="string">"*"</span>,</span><br><span class="line">            <span class="attr">"match_mapping_type"</span>: <span class="string">"string"</span>,</span><br><span class="line">            <span class="attr">"mapping"</span>: &#123;</span><br><span class="line">              <span class="attr">"fields"</span>: &#123;</span><br><span class="line">                <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">                  <span class="attr">"ignore_above"</span>: <span class="number">256</span>,</span><br><span class="line">                  <span class="attr">"type"</span>: <span class="string">"keyword"</span></span><br><span class="line">                &#125;</span><br><span class="line">              &#125;,</span><br><span class="line">              <span class="attr">"norms"</span>: <span class="literal">false</span>,</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"text"</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">"properties"</span>: &#123;</span><br><span class="line">        <span class="attr">"@timestamp"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"date"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"@version"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"appName"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">              <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"geoip"</span>: &#123;</span><br><span class="line">          <span class="attr">"dynamic"</span>: <span class="string">"true"</span>,</span><br><span class="line">          <span class="attr">"properties"</span>: &#123;</span><br><span class="line">            <span class="attr">"ip"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"ip"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"latitude"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"half_float"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"location"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"geo_point"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"longitude"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"half_float"</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"host"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">              <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"level"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">              <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"level_value"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"logger_name"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">              <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"message"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"port"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"long"</span></span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">"thread_name"</span>: &#123;</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"text"</span>,</span><br><span class="line">          <span class="attr">"fields"</span>: &#123;</span><br><span class="line">            <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"keyword"</span>,</span><br><span class="line">              <span class="attr">"ignore_above"</span>: <span class="number">256</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">"norms"</span>: <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Field-分析"><a href="#Field-分析" class="headerlink" title="Field 分析"></a>Field 分析</h3><p><strong>1. Dynamic templates</strong><br>在 Elasticsearch 中，可以通过设置 <code>dynamic</code> 参数为 <code>true</code> 或 <code>runtime</code> 来动态识别字段，这些识别的规则是内置的。另外，也可以通过 <code>Dynamic templates</code> 来自定义识别规则，格式如下所示：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">"dynamic_templates":</span> <span class="string">[</span></span><br><span class="line">    <span class="string">&#123;</span></span><br><span class="line">      <span class="attr">"my_template_name":</span> <span class="string">&#123;</span> <span class="string">//</span> <span class="number">1</span></span><br><span class="line">        <span class="string">...</span> <span class="string">match</span> <span class="string">conditions</span> <span class="string">...</span> <span class="string">//</span> <span class="number">2</span></span><br><span class="line">        <span class="attr">"mapping":</span> <span class="string">&#123;</span> <span class="string">...</span> <span class="string">&#125;</span>  <span class="string">//</span> <span class="number">3</span></span><br><span class="line">      <span class="string">&#125;</span></span><br><span class="line">    <span class="string">&#125;,</span></span><br><span class="line">    <span class="string">...</span></span><br><span class="line">  <span class="string">]</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>1 为模板的名称；</li>
+<li>2 为匹配的表达式，包括：match_mapping_type, match, match_pattern, unmatch, path_match, path_unmatch;</li>
+<li>3 为转换之后的映射。</li>
+</ul>
+<p><strong>匹配表达式的含义：</strong></p>
+<ul>
+<li>match_mapping_type: Elasticsearch 自动识别出的类型；</li>
+<li>match and unmatch：用于匹配字段名称；</li>
+<li>path_match and path_unmatch: 用于匹配字段的路径及字段。</li>
+</ul>
+<p><strong>实例 1：</strong><br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"message_field"</span>: &#123;</span><br><span class="line">    <span class="attr">"path_match"</span>: <span class="string">"message"</span>,</span><br><span class="line">    <span class="attr">"match_mapping_type"</span>: <span class="string">"string"</span>,</span><br><span class="line">    <span class="attr">"mapping"</span>: &#123;</span><br><span class="line">      <span class="attr">"norms"</span>: <span class="literal">false</span>,</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这个 <code>Dynamic templates</code> 的含义为将字段名为 <code>message</code> 且类型为 <code>string</code> 的字段映射为 <code>text</code> 类型,且 <code>norms</code> 为 <code>fasle</code>.</p>
+<p><strong>实例 2：</strong><br><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"string_fields"</span>: &#123;</span><br><span class="line">    <span class="attr">"match"</span>: <span class="string">"*"</span>,</span><br><span class="line">    <span class="attr">"match_mapping_type"</span>: <span class="string">"string"</span>,</span><br><span class="line">    <span class="attr">"mapping"</span>: &#123;</span><br><span class="line">      <span class="attr">"fields"</span>: &#123;</span><br><span class="line">        <span class="attr">"keyword"</span>: &#123;</span><br><span class="line">          <span class="attr">"ignore_above"</span>: <span class="number">256</span>,</span><br><span class="line">          <span class="attr">"type"</span>: <span class="string">"keyword"</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="attr">"norms"</span>: <span class="literal">false</span>,</span><br><span class="line">      <span class="attr">"type"</span>: <span class="string">"text"</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这个 <code>Dynamic templates</code> 的含义为任意类型为 <code>string</code> 的字段映射为多字段类型：一个字段为 <code>text</code> 类型,且 <code>norms</code> 为 <code>fasle</code>, 另外一个 <code>keyword</code> 类型，且只索引前 256 个字符。</p>
+<blockquote>
+<p>Norms ：Norms are index-time scoring factors. If you do not care about scoring, which would be the case for instance if you never sort documents by score, you could disable the storage of these scoring factors in the index and save some space. </p>
+</blockquote>
+<p>如果一个字段匹配多个 <code>Dynamic templates</code>, 如何选择呢？ Elasticsearch 按照顺序选择匹配的第一个。</p>
+<blockquote>
+<p>Templates are processed in order — the first matching template wins. </p>
+</blockquote>
+<p><strong>2. Multi-field</strong><br>可以对一个 <code>field</code> 定义多个类型，或设置多种分词格式，如下所示：<br><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">"appName": &#123;</span><br><span class="line">  "fields": &#123;</span><br><span class="line">    "keyword": &#123;</span><br><span class="line">      "type": "keyword",</span><br><span class="line">      "ignore_above": 256</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  "type": "text",</span><br><span class="line">  "norms": false</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>appName</code> 设置为 <code>text</code> 和 <code>keyword</code> 类型，<code>text</code> 可以对字段进行分词，而 <code>keyword</code> 不分词，只索引。</p>
+<p><strong>3. 时间戳</strong></p>
+<p>在 <code>log</code> index 里，设置了类型为 <code>date</code> 的 <code>@timestamp</code> 字段用来表示日志发生的时间。</p>
+<p><strong>4. Object 类型</strong></p>
+<p>Elasticsearch 是一个文档型数据库，它存储的数据为 json 类型，字段类型可以是基本类型，如 string, int, long, double 等等，也可以是 Ojbect 类型，如下所示：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">"properties": &#123;</span><br><span class="line"></span><br><span class="line">  "geoip": &#123;</span><br><span class="line">    "dynamic": "true",</span><br><span class="line">    "properties": &#123;</span><br><span class="line">      "ip": &#123;</span><br><span class="line">        "type": "ip"</span><br><span class="line">      &#125;,</span><br><span class="line">      "latitude": &#123;</span><br><span class="line">        "type": "half_float"</span><br><span class="line">      &#125;,</span><br><span class="line">      "location": &#123;</span><br><span class="line">        "type": "geo_point"</span><br><span class="line">      &#125;,</span><br><span class="line">      "longitude": &#123;</span><br><span class="line">        "type": "half_float"</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>geoip</code> 是一个 <code>Object</code> 类型，包括：ip, latitude, location, longitude 等等。</p>
+<p><a href="https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springboot-monitor" target="_blank" rel="noopener">工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springboot-monitor</a></p>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/dynamic-templates.html" target="_blank" rel="noopener">1. Elasticsearch: Dynamic templates </a><br><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-fields.html" target="_blank" rel="noopener">2. Elasticsearch: fields</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ELK/" rel="tag"># ELK</a>
+          
+            <a href="/tags/logstash/" rel="tag"># logstash</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/29/actuator-prometheus/" rel="next" title="Springboot 序列：Actuator + Prometheus">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：Actuator + Prometheus
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/05/es-metricbeat-and-index-model/" rel="prev" title="Metricbeat">
+                Metricbeat <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#安装-Logstash"><span class="nav-number">2.</span> <span class="nav-text">安装 Logstash</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#下载及部署-Logstash"><span class="nav-number">2.1.</span> <span class="nav-text">下载及部署 Logstash</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#添加配置文件"><span class="nav-number">2.2.</span> <span class="nav-text">添加配置文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#启动-Logstash"><span class="nav-number">2.3.</span> <span class="nav-text">启动 Logstash</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#集成-Logstash"><span class="nav-number">3.</span> <span class="nav-text">集成 Logstash</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#相关依赖"><span class="nav-number">3.1.</span> <span class="nav-text">相关依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改-Logback-配置文件"><span class="nav-number">3.2.</span> <span class="nav-text">修改 Logback 配置文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改应用配置项"><span class="nav-number">3.3.</span> <span class="nav-text">修改应用配置项</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#写日志"><span class="nav-number">3.4.</span> <span class="nav-text">写日志</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询日志"><span class="nav-number">4.</span> <span class="nav-text">查询日志</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#定义-Index-Pattern"><span class="nav-number">4.1.</span> <span class="nav-text">定义 Index Pattern</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查询日志-1"><span class="nav-number">4.2.</span> <span class="nav-text">查询日志</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#存储模型"><span class="nav-number">5.</span> <span class="nav-text">存储模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Index-Mapping"><span class="nav-number">5.1.</span> <span class="nav-text">Index Mapping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Field-分析"><span class="nav-number">5.2.</span> <span class="nav-text">Field 分析</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="网络通信引擎（Internet Communications Engine, Ice）是由 ZeroC 的分布式系统开发专家实现的一种高性能、面向对象的中间件平台。它提供了以下这些特性：跨平台、跨语言、分布式、安全、服务透明及负载均衡。在项目中，我们把它当作一个跨语言的 Rpc 框架来使用，实现 C++ 与 Java 两种语言的互调用，它隐藏了底层的通信细节，上层只需要关注业务即可。本文主要介绍">
+<meta name="keywords" content="ice,adpater,slice,IceGrid,icegridnode">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RPC：ICE">
+<meta property="og:url" content="http://yoursite.com/2022/04/03/ice-rpc/index.html">
+<meta property="og:site_name" content="以太格">
+<meta property="og:description" content="网络通信引擎（Internet Communications Engine, Ice）是由 ZeroC 的分布式系统开发专家实现的一种高性能、面向对象的中间件平台。它提供了以下这些特性：跨平台、跨语言、分布式、安全、服务透明及负载均衡。在项目中，我们把它当作一个跨语言的 Rpc 框架来使用，实现 C++ 与 Java 两种语言的互调用，它隐藏了底层的通信细节，上层只需要关注业务即可。本文主要介绍">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://yoursite.com/images/rpc/Ice_Client_and_Server_Structure.gif">
+<meta property="og:image" content="http://yoursite.com/images/rpc/ice-direct.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rpc/ice-registry.jpg">
+<meta property="og:image" content="http://yoursite.com/images/rpc/ice-registry-node.jpg">
+<meta property="og:updated_time" content="2022-04-04T05:39:25.099Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RPC：ICE">
+<meta name="twitter:description" content="网络通信引擎（Internet Communications Engine, Ice）是由 ZeroC 的分布式系统开发专家实现的一种高性能、面向对象的中间件平台。它提供了以下这些特性：跨平台、跨语言、分布式、安全、服务透明及负载均衡。在项目中，我们把它当作一个跨语言的 Rpc 框架来使用，实现 C++ 与 Java 两种语言的互调用，它隐藏了底层的通信细节，上层只需要关注业务即可。本文主要介绍">
+<meta name="twitter:image" content="http://yoursite.com/images/rpc/Ice_Client_and_Server_Structure.gif">
+
+
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2022/04/03/ice-rpc/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>RPC：ICE | 以太格</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">以太格</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-commonweal">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/404/" rel="section"><i class="menu-item-icon fa fa-fw fa-heartbeat"></i> <br>公益 404</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于我</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2022/04/03/ice-rpc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Noahsark">
+      <meta itemprop="description" content="不畏将来，不念过往">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="以太格">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">RPC：ICE
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2022-04-03 13:35:24" itemprop="dateCreated datePublished" datetime="2022-04-03T13:35:24+08:00">2022-04-03</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2022-04-04 13:39:25" itemprop="dateModified" datetime="2022-04-04T13:39:25+08:00">2022-04-04</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/RPC/" itemprop="url" rel="index"><span itemprop="name">RPC</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">52k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">47 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>网络通信引擎（Internet Communications Engine, Ice）是由 ZeroC 的分布式系统开发专家实现的一种高性能、面向对象的中间件平台。它提供了以下这些特性：跨平台、跨语言、分布式、安全、服务透明及负载均衡。在项目中，我们把它当作一个跨语言的 Rpc 框架来使用，实现 C++ 与 Java 两种语言的互调用，它隐藏了底层的通信细节，上层只需要关注业务即可。本文主要介绍 Ice 使用的方式，如直连模式、Registry 注册模式及 Registry Node 模式。</p>
+<a id="more"></a>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>Ice 客户端与服务器整体结构如下所示：</p>
+<p><img src="/images/rpc/Ice_Client_and_Server_Structure.gif" alt="Ice_Client_and_Server_Structure" title="Ice_Client_and_Server_Structure"></p>
+<p><strong>关键概念:</strong><br><strong>客户端和服务器</strong><br>客户端是主动的实体，向服务器端发出服务请求；服务器端是被动的实体，他们提供服务，响应客户端的请求。这两个角色并不是应用系统的组成部分的严格指称，而是表示在某个请求从发生到结束期间，应用系统某些部分所承担的角色。通常这样的角色界定是不固定的，甚至会经常性的发生反转行为。所以，许多客户/服务器常可以被准确的描述为对等系统（peer-to-peer），客户端和服务器角色只有在执行某个特定操作、在特定的时间能才有绝对意义</p>
+<p><strong>Ice 核心</strong><br>Ice 核心包含大量的链接库，是处于核心地位的对象总线，为客户端和服务器的远程通信提供支持。它主要关心的是网络通信、线程、字节序、其它一些网络细节及相关事务等，并将应用程序与这些底层事务隔离开。</p>
+<p><strong>Ice API</strong><br>Ice 应用程序接口（API），提供对 Ice 核心的通用部分（与 Slice 中定义的特定类型无关的部分）的访问，程序开发人员可以使用 Ice API 做一些 Ice 的管理事务，例如 Ice 运行时的初始化和结束。客户端和服务器所使用的 Ice API 是一样的，在服务器使用的可能会多一些。</p>
+<p><strong>对象适配器</strong><br>对象适配器是专用于服务器端的 Ice API 的一部分：只有服务器才使用对象适配器。对象服务器有若干功能，如下所示：</p>
+<ol>
+<li>对象适配器把来自客户端的请求映射到服务器端特定对象的特定方法上；</li>
+<li>对象适配器会跟踪在内存中的伺服对象，记录其对象标识，从而实现适配请求的功能；</li>
+<li>对象适配器可以与一个或多个传输端点关联在一起。如果与某个适配器关联的传输端点不止一个，就可以通过多种传输机制到达在该适配器中的伺服对象。为了提供不同的服务质量和性能，一个适配器可以同时关联一个 TCP/IP|端点和一个 UDP 端点；</li>
+<li>对象适配器负责创建传给客户端的 Ice 代理。对象适配器知道每个对象的类型、标识以及传输机制的详细信息。当服务器端应用程序要求创建代理时，对象适配器会在其中嵌入正确的信息。</li>
+</ol>
+<p><strong>Ice 代理</strong><br>代理代码是由用户定义的 Slice 文件经过编译后生成的。一个客户端要想与一个 Ice 对象建立联系，必须持有该 Ice 对象的代理。代理是存在于客户端地址空间的 Ice 对象的代表。代理主要有两个功能：</p>
+<ol>
+<li>为客户提供了一个向下（down-call）调用的接口。如果客户端调用代理中的某个操作，就会有一个 RPC 消息被发送到服务器，从而调用目标对象上的某个对应的操作。以代理为中介，客户端发起的调用最终会调用到服务器目标对象上相应的操作；</li>
+<li>提供编码（marshaling）和解码（unmarshaling）。编码是将复杂的数据结构串行化，使其便于网络传输的过程。编码把数据转化为适合于传送的标准形式，这种形式不依赖于本地机器的字节序和填充规则。解码是编码的逆过程，将通过网络得到的串化数据重新构造成具有类型的结构化数据。解码之后得到的是与所使用的编程语言相适应的类型表示的数据。</li>
+</ol>
+<p><strong>Ice 骨架（skeleton）</strong><br>骨架代码也是由用户定义的 Slice 文件经过编译后生成的，其中的内容与 Slice 中定义的对象和数据的类型是对应的。骨架代码是客户端的代理代码在服务器端的等价物。它提供了向上调用（up-call）的接口，允许 Ice 把控制线程转交给服务器端的应用程序代码。骨架也负责编码和解码，所以服务器可以接收客户端发送的参数，并把返回值和异常传回客户。</p>
+<h3 id="Slice-文件"><a href="#Slice-文件" class="headerlink" title="Slice 文件"></a>Slice 文件</h3><p>在典型的客户/服务器模式的应用中，开发者使用自己的描述语言或一种公认的标准来定义设备之间需要使用的协议。协议的定义依赖于具体实现时所用的语言、网络传输的情况和许多其它的因素。在 Ice 中，协议是通过使用Slice 语言描述相关应用程序接口来定义的，这是一种十分简单且和编程语言无关的描述语言。<br>Slice 是一种定义客户和服务器之间规范的基础性机制。每个 Ice 对象都有一个接口，该接口具有某些操作。接口、操作、客户与服务器间交换的数据类型，都是用 Slice 语言定义的。Slice 允许开发人员以一种独立于特定编程语言（比如 c++或 java）的方式定义客户端和服务器端的合约。Slice 定义有特定编译器编译成特定语言的 API，也就是说，与你所定义的接口和数据类型相对应的那部分 API，会有生成的代码组成。</p>
+<p>介绍了 Ice 的基本概念，我们使用官方的例子来验证客户端与服务器之间的通信模式：</p>
+<ol>
+<li>直连模式：客户端与服务器直连，客户端需要明确服务器的地址及端口；</li>
+<li>Registry 注册模式：服务器将 Adpater 注册到 Registry，客户端通过 Registry 来获取服务器信息；</li>
+<li>Registry Node 模式：在 Registry 注册模式基础上，引入一个 Node, 来管理服务生命周期，如服务器的启动关闭，监视服务的状态，若服务关闭，则自动启动起来。</li>
+</ol>
+<p><strong>前置条件：</strong></p>
+<ol>
+<li>Ice 版本：Ice 3.5.1</li>
+<li>操作系统：Win 10 专业版</li>
+<li>假设：Ice 已经安装，具体版本可以在 ZeroC 官网下载。</li>
+</ol>
+<h2 id="编写代码"><a href="#编写代码" class="headerlink" title="编写代码"></a>编写代码</h2><h3 id="编写-Slice-文件"><a href="#编写-Slice-文件" class="headerlink" title="编写 Slice 文件"></a>编写 Slice 文件</h3><p>使用 Slice 编写一个接口，该接口比较简单，接收一个输入参数，然后打印输出，如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">module org</span><br><span class="line">&#123;</span><br><span class="line">	module noahsark</span><br><span class="line">	&#123;</span><br><span class="line">		module server</span><br><span class="line">		&#123;</span><br><span class="line">			module rpc</span><br><span class="line">			&#123;</span><br><span class="line">				interface Printer</span><br><span class="line">				&#123;</span><br><span class="line">					void printString(string s);</span><br><span class="line">				&#125;;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;;</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>接下来使用 <code>slice2java</code> 命令生成客户端及服务器代码，两者都是一份代码，如果要生成其它语言的代码，找到相应的命令即可 <code>slice2XXXX</code>。在这里我们使用的命令如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">slice2java Printer.ice --output-dir ../src/main/java</span><br></pre></td></tr></table></figure>
+<p>可以根据需要，使用 <code>--output-dir</code> 指定输出的目录。</p>
+<h3 id="编写服务端代码"><a href="#编写服务端代码" class="headerlink" title="编写服务端代码"></a>编写服务端代码</h3><p>IceEntry 类继承自 _PrinterDisp, 而 _PrinterDisp 是框架自动生成的类，我们只要继承它编写业务代码即可。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">IceEntry</span> <span class="keyword">extends</span> <span class="title">_PrinterDisp</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(IceEntry<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">printString</span><span class="params">(String s, Current __current)</span> </span>&#123;</span><br><span class="line">        LOGGER.info(<span class="string">"receive a request: &#123;&#125;"</span>, s);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>定义应用，生成 Adapter 对象，并激活该对象，在这里，adpater 设置为 <code>PrinterAdapter</code>, endpoint 设置为 <code>tcp</code>, 没有指定端口，系统使用随机端口。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PrinterServer</span> <span class="keyword">extends</span> <span class="title">Ice</span>.<span class="title">Application</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(PrinterCommandLineRunner<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> IceConfig config;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> IceEntry iceEntry;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">run</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (args.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            LOGGER.error(appName() + <span class="string">": too many arguments"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ObjectImpl iceEntryImpl = iceEntry;</span><br><span class="line"></span><br><span class="line">        String endpoints = <span class="string">"tcp"</span>;</span><br><span class="line">        Ice.ObjectAdapter adapter = communicator().createObjectAdapterWithEndpoints(<span class="string">"PrinterAdapter"</span>, endpoints);</span><br><span class="line"></span><br><span class="line">        adapter.add(iceEntryImpl, communicator().stringToIdentity(<span class="string">"printerService"</span>));</span><br><span class="line"></span><br><span class="line">        adapter.activate();</span><br><span class="line">        communicator().waitForShutdown();</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>启动代码，加入必要的参数。这里，有两个比较重要的参数：<code>PrinterAdapter.AdapterId</code> 及 <code>PrinterAdapter.Endpoints</code>, 要注意的是 <code>XXX.AdapterId</code> 参数中 XXX 要替换为自己的 adpater, 在这里使用的是PrinterAdapter. </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PrinterCommandLineRunner</span> <span class="keyword">implements</span> <span class="title">CommandLineRunner</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(PrinterCommandLineRunner<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> PrinterServer server;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">(String... args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        LOGGER.info(<span class="string">"PrinterServer is starting......"</span>);</span><br><span class="line"></span><br><span class="line">        InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">        localInitializationData.properties = Util.createProperties();</span><br><span class="line">        localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.AdapterId"</span>, <span class="string">"PrinterAdapter"</span>);</span><br><span class="line">        localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.Endpoints"</span>, <span class="string">"tcp"</span>);</span><br><span class="line"></span><br><span class="line">        server.main(<span class="string">"PrinterServer"</span>, args, localInitializationData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="编写客户端代码"><a href="#编写客户端代码" class="headerlink" title="编写客户端代码"></a>编写客户端代码</h3><p>客户端的调用逻辑如下，它会查询服务的信息。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PrinterClient</span>  </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(PrinterClient<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Communicator ic = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">        localInitializationData.properties = Util.createProperties();</span><br><span class="line">        localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Network"</span>,<span class="string">"2"</span>);</span><br><span class="line">        localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Protocol"</span>,<span class="string">"1"</span>);</span><br><span class="line">        localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Locator"</span>,<span class="string">"2"</span>);</span><br><span class="line"></span><br><span class="line">        ic = Util.initialize(localInitializationData);</span><br><span class="line"></span><br><span class="line">        Ice.ObjectPrx base = ic.stringToProxy(<span class="string">"printerService:tcp -h 127.0.0.1 -p 30000"</span>);</span><br><span class="line"></span><br><span class="line">        PrinterPrx printer = PrinterPrxHelper.checkedCast(base);</span><br><span class="line">        <span class="keyword">if</span> (printer == <span class="keyword">null</span>) &#123;</span><br><span class="line">            LOGGER.info(<span class="string">"printer is null"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        String parameter;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line"></span><br><span class="line">            parameter = <span class="string">"xxx"</span> + i;</span><br><span class="line">            LOGGER.info(<span class="string">"send request:&#123;&#125;"</span>,parameter);</span><br><span class="line"></span><br><span class="line">            printer.printString(<span class="string">"xxx"</span> + i);</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>调用客户端的代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PrinterCommandLineRunner</span> <span class="keyword">implements</span> <span class="title">CommandLineRunner</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger LOGGER = LoggerFactory.getLogger(PrinterCommandLineRunner<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> PrinterClient client;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">(String... args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        LOGGER.info(<span class="string">"PrinterClient is starting......"</span>);</span><br><span class="line"></span><br><span class="line">        client.run();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="直连模式"><a href="#直连模式" class="headerlink" title="直连模式"></a>直连模式</h2><p>在直连模式下，服务端需要明确指定端口，同时客户端根据指定的端口直接连接。</p>
+<p><img src="/images/rpc/ice-direct.jpg" alt="ice-direct" title="ice-direct"></p>
+<h3 id="服务端代码"><a href="#服务端代码" class="headerlink" title="服务端代码"></a>服务端代码</h3><p>指定服务器的端口为 30000.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// PrinterServer 类</span></span><br><span class="line">String endpoints = <span class="string">"tcp -p 30000"</span>;</span><br><span class="line">Ice.ObjectAdapter adapter = communicator().createObjectAdapterWithEndpoints(<span class="string">"PrinterAdapter"</span>, endpoints);</span><br></pre></td></tr></table></figure>
+<h3 id="客户端代码"><a href="#客户端代码" class="headerlink" title="客户端代码"></a>客户端代码</h3><p>在代码中指定连接的端口</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// PrinterClient 类</span></span><br><span class="line"><span class="comment">// 直连模式：servcie:服务器 ip 端口</span></span><br><span class="line">Ice.ObjectPrx base = ic.stringToProxy(<span class="string">"printerService:tcp -h 127.0.0.1 -p 30000"</span>);</span><br></pre></td></tr></table></figure>
+<h2 id="Registry-注册模式"><a href="#Registry-注册模式" class="headerlink" title="Registry 注册模式"></a>Registry 注册模式</h2><p>在直连模式下，需要明确知道服务端的代码，显然在分布式环境这种模式是不合适的。这就引入了 Registry 中心。服务端可以将地址注册到 Registry 中，客户端再去 Registry 查询服务，这样可以动态获取服务器地址。</p>
+<p><img src="/images/rpc/ice-registry.jpg" alt="ice-registry" title="ice-registry"></p>
+<h3 id="服务端代码-1"><a href="#服务端代码-1" class="headerlink" title="服务端代码"></a>服务端代码</h3><p>正常情况下，服务端可以不用指定端口，在部署情况比较复杂的情况下，需要开通网络策略的时候，也可以指定端口。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// PrinterServer 类</span></span><br><span class="line">String endpoints = <span class="string">"tcp"</span>;</span><br><span class="line">Ice.ObjectAdapter adapter = communicator().createObjectAdapterWithEndpoints(<span class="string">"PrinterAdapter"</span>, endpoints);</span><br></pre></td></tr></table></figure>
+<p>同时需要三个参数，如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">localInitializationData.properties = Util.createProperties();</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Default.Locator"</span>, <span class="string">"IceGrid/Locator:tcp -h 127.0.0.1 -p 4061"</span>);</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.AdapterId"</span>, <span class="string">"PrinterAdapter"</span>);</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.Endpoints"</span>, <span class="string">"tcp"</span>);</span><br></pre></td></tr></table></figure>
+<p>参数说明：</p>
+<ul>
+<li>PrinterAdapter.AdapterId: 指定 Adapter 对象的唯一标识符，以便供客户端定位，如 <code>printerService@PrinterAdapter</code>, 接口对象标识符@Adapter对象标识符；</li>
+<li>PrinterAdapter.Endpoints: 指定 Adapter 对象的 endpoint, 在这里没有指定端口，它使用系统分配的随机端口；</li>
+<li>Ice.Default.Locator: 注册中心地址，用于注册 Adpater 对象。</li>
+</ul>
+<h3 id="客户端代码-1"><a href="#客户端代码-1" class="headerlink" title="客户端代码"></a>客户端代码</h3><p>在客户端中指定查询的格式：<code>printerService@PrinterAdapter</code>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 注册中心非 Node 模式 service@Adapter</span></span><br><span class="line">Ice.ObjectPrx base = ic.stringToProxy(<span class="string">"printerService@PrinterAdapter"</span>);</span><br></pre></td></tr></table></figure>
+<p>加入配置参数：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">String endpoint = <span class="string">"IceGrid/Locator:tcp -h 127.0.0.1 -p 4061"</span>;</span><br><span class="line"></span><br><span class="line">InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">localInitializationData.properties = Util.createProperties();</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Default.Locator"</span>, endpoint);</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>Ice.Default.Locator: 注册中心地址，用于查询 Adapter 信息。</li>
+</ul>
+<h3 id="Registry-配置"><a href="#Registry-配置" class="headerlink" title="Registry 配置"></a>Registry 配置</h3><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.InstanceName</span>=<span class="string">IceGrid  </span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGrid.Registry.Client.Endpoints</span>=<span class="string">tcp -h 127.0.0.1 -p 4061</span></span><br><span class="line"><span class="meta">IceGrid.Registry.Server.Endpoints</span>=<span class="string">tcp</span></span><br><span class="line"><span class="meta">IceGrid.Registry.Internal.Endpoints</span>=<span class="string">tcp</span></span><br><span class="line"><span class="meta">IceGrid.Registry.PermissionsVerifier</span>=<span class="string">IceGrid/NullPermissionsVerifier</span></span><br><span class="line"><span class="meta">IceGrid.Registry.AdminPermissionsVerifier</span>=<span class="string">IceGrid/NullPermissionsVerifier</span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGrid.Registry.Data</span>=<span class="string">E:\bell-lab\ice\deploy-1\master\db</span></span><br><span class="line"><span class="meta">IceGrid.Registry.DynamicRegistration</span>=<span class="string">1</span></span><br><span class="line"><span class="meta">IceGrid.Registry.ReplicaName</span>=<span class="string">Master</span></span><br><span class="line"></span><br><span class="line"><span class="meta">Ice.Admin.InstanceName</span>=<span class="string">AdminInstance</span></span><br><span class="line"><span class="meta">Ice.Admin.ServerId</span>=<span class="string">Admin</span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGridAdmin.Username</span>=<span class="string">foo</span></span><br><span class="line"><span class="meta">IceGridAdmin.Password</span>=<span class="string">bar</span></span><br></pre></td></tr></table></figure>
+<p>参数说明：</p>
+<ul>
+<li>IceGrid.InstanceName: icegrid 实例的名称，在后续配置中可以使用，如 IceGrid.Registry.PermissionsVerifier;</li>
+<li>IceGrid.Registry.Client.Endpoints: <font color="red">重要</font>, 指明 Registry 的地址和端口，该地址用来配置该参数  <code>Ice.Default.Locator</code>;</li>
+<li>IceGrid.Registry.Server.Endpoints: 用于服务端对象适配器的注册 endpoint, 一般情况下不用指定端口，不过为了线上环境的安全，配置防火墙策略，可以设置端口；</li>
+<li>IceGrid.Registry.Internal.Endpoints: 用于和 IceGrid node, Registry replica 之间通信的 endpoint 。即使没有配置 node 或 Registry replica，这个参数也必须定义；</li>
+<li>IceGrid.Registry.AdminPermissionsVerifier, IceGrid.Registry.PermissionsVerifier: 这两个属性控制访问 Registry 的管理权限，<code>NullPermissionsVerifier</code>表示不用安全校验；</li>
+<li>IceGrid.Registry.Data: <font color="red">重要</font>, 这个属性指定Registry的数据库目录，用于存放注册器的一些状态信息，可以任意指定；</li>
+<li>IceGrid.Registry.DynamicRegistration: <font color="red">重要</font>, 该参数是实现该模式的关键，通过将此属性设置为一个非零值，允许服务器直接注册对象适配器，而不是通过 IceGrid Node;</li>
+<li>IceGrid.Registry.ReplicaName: 指明 Registry 的身份，默认为 Master, 表明为 master Registry, 如果是 Registry replica 必须指定名称，如 Replica1/2/3; </li>
+<li>IceGridAdmin.Username, IceGridAdmin.Password: 指明登陆 Registry 的用户名/密码。</li>
+</ul>
+<p>启动 Registry 中心</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">icegridregistry --Ice.Config=registry.cfg</span><br></pre></td></tr></table></figure>
+<p>登陆 Registy, 使用下面的命令：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">icegridadmin --Ice.Config=config.cfg</span><br></pre></td></tr></table></figure></p>
+<p><code>config.cfg</code> 内容如下：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">Ice.Default.Locator</span>=<span class="string">IceGrid/Locator:tcp -h 127.0.0.1 -p 4061</span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGridAdmin.Username</span>=<span class="string">foo</span></span><br><span class="line"><span class="meta">IceGridAdmin.Password</span>=<span class="string">bar</span></span><br></pre></td></tr></table></figure></p>
+<p>依次启动 Registry, 服务端及客户端，即完成配置。</p>
+<h2 id="Registry-Node-模式"><a href="#Registry-Node-模式" class="headerlink" title="Registry Node 模式"></a>Registry Node 模式</h2><p>在 Registry 注册模式基础上，引入一个 Node, 来管理服务生命周期，如服务器的启动关闭，监视服务的状态，若服务关闭，则自动启动起来。</p>
+<p><img src="/images/rpc/ice-registry-node.jpg" alt="ice-registry-node" title="ice-registry-node"></p>
+<h3 id="服务端代码-2"><a href="#服务端代码-2" class="headerlink" title="服务端代码"></a>服务端代码</h3><p>与 Registry 模式相同，正常情况下，不用明确指定端口。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">String endpoints = <span class="string">"tcp"</span>;</span><br><span class="line">Ice.ObjectAdapter adapter = communicator().createObjectAdapterWithEndpoints(<span class="string">"PrinterAdapter"</span>, endpoints);</span><br></pre></td></tr></table></figure>
+<p>加入参数：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">localInitializationData.properties = Util.createProperties();</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.AdapterId"</span>, <span class="string">"PrinterAdapter"</span>);</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"PrinterAdapter.Endpoints"</span>, <span class="string">"tcp"</span>);</span><br></pre></td></tr></table></figure></p>
+<p><font color="red">注意：</font>不能指定参数 <code>Ice.Default.Locator</code>, 在这种模式下，Adpater 是通过 Node 注册的，无须知道 Registry 的 Endpoint.</p>
+<h3 id="客户端代码-2"><a href="#客户端代码-2" class="headerlink" title="客户端代码"></a>客户端代码</h3><p>直接指明 <code>SimplePrinter</code> 即可。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Ice.ObjectPrx base = communicator().stringToProxy(<span class="string">"SimplePrinter"</span>);</span><br></pre></td></tr></table></figure></p>
+<p>加入配置参数：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">String endpoint = <span class="string">"IceGrid/Locator:tcp -h 127.0.0.1 -p 4061"</span>;</span><br><span class="line"></span><br><span class="line">InitializationData localInitializationData = <span class="keyword">new</span> InitializationData();</span><br><span class="line">localInitializationData.properties = Util.createProperties();</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Default.Locator"</span>, endpoint);</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>Ice.Default.Locator: 注册中心地址，用于查询 Adapter 信息。</li>
+</ul>
+<h3 id="Registry-配置-1"><a href="#Registry-配置-1" class="headerlink" title="Registry 配置"></a>Registry 配置</h3><p>与 “Registry 注册模式”  配置一致。</p>
+<h3 id="Node-配置"><a href="#Node-配置" class="headerlink" title="Node 配置"></a>Node 配置</h3><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">Ice.Default.Locator</span>=<span class="string">IceGrid/Locator:tcp -h 127.0.01 -p 4061</span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGrid.Node.Name</span>=<span class="string">node1</span></span><br><span class="line"><span class="meta">IceGrid.Node.Endpoints</span>=<span class="string">tcp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">IceGrid.Node.Data</span>=<span class="string">E:\bell-lab\ice\deploy-1\node1\db</span></span><br><span class="line"><span class="meta">IceGrid.Node.Output</span>=<span class="string">E:\bell-lab\ice\deploy-1\node1\db</span></span><br><span class="line"><span class="meta">IceGrid.Node.CollocateRegistry</span>=<span class="string">0</span></span><br></pre></td></tr></table></figure>
+<p>参数说明：</p>
+<ul>
+<li>Ice.Default.Locator: 配置 Registry endpoint ;</li>
+<li>IceGrid.Node.Name: <font color="red">重要</font>, node 的名称，必须唯一，在后续应用的部署配置中会用到;</li>
+<li>IceGrid.Node.Endpoints: 配置 node 的 endpoint, 不需要指定固定的端口；</li>
+<li>IceGrid.Node.Output: 配置该 node 的应用日志输出目录；</li>
+<li>IceGrid.Node.Data: <font color="red">重要</font>, 指定该 node 的数据目录，用于存储该节点的状态信息，可以任意指定；</li>
+<li>IceGrid.Node.CollocateRegistry: <font color="red">重要</font>, 该参数表明该 node 是否与 registry 一个进程部署，0 为 分开部署，非 0 为一起部署;</li>
+</ul>
+<p>启动 Node 的命令：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">icegridnode --Ice.Config=node1.cfg</span><br></pre></td></tr></table></figure></p>
+<h3 id="部署应用"><a href="#部署应用" class="headerlink" title="部署应用"></a>部署应用</h3><p><strong>配置部署文件</strong></p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">icegrid</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">application</span> <span class="attr">name</span>=<span class="string">"PrinterApplication"</span>&gt;</span></span><br><span class="line">        </span><br><span class="line">		<span class="tag">&lt;<span class="name">server-template</span> <span class="attr">id</span>=<span class="string">"PrinterServerTemplate"</span>&gt;</span></span><br><span class="line">			<span class="tag">&lt;<span class="name">parameter</span> <span class="attr">name</span>=<span class="string">"index"</span>/&gt;</span></span><br><span class="line">			<span class="tag">&lt;<span class="name">server</span> <span class="attr">id</span>=<span class="string">"PrinterServer-$&#123;index&#125;"</span> <span class="attr">exe</span>=<span class="string">"java"</span> <span class="attr">activation</span>=<span class="string">"always"</span>&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">option</span>&gt;</span>-jar<span class="tag">&lt;/<span class="name">option</span>&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">option</span>&gt;</span>E:\bell-lab\ice\deploy-1\app\ice-lab.jar<span class="tag">&lt;/<span class="name">option</span>&gt;</span></span><br><span class="line">				</span><br><span class="line">				<span class="tag">&lt;<span class="name">adapter</span> <span class="attr">name</span>=<span class="string">"PrinterAdapter"</span> <span class="attr">replica-group</span>=<span class="string">"ReplicatedPrinterAdapter"</span>/&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"printerServiceIdentity"</span> <span class="attr">value</span>=<span class="string">"printerService"</span>/&gt;</span></span><br><span class="line">							</span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"IceMX.Metrics.Debug.GroupBy"</span> <span class="attr">value</span>=<span class="string">"id"</span>/&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"IceMX.Metrics.Debug.Disabled"</span> <span class="attr">value</span>=<span class="string">"1"</span>/&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"IceMX.Metrics.ByParent.GroupBy"</span> <span class="attr">value</span>=<span class="string">"parent"</span>/&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"IceMX.Metrics.ByParent.Disabled"</span> <span class="attr">value</span>=<span class="string">"1"</span>/&gt;</span></span><br><span class="line">				</span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"Ice.ThreadPool.Server.SizeMax"</span> <span class="attr">value</span>=<span class="string">"20"</span>/&gt;</span></span><br><span class="line">				<span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"Ice.Trace.Network"</span> <span class="attr">value</span>=<span class="string">"2"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line">			<span class="tag">&lt;/<span class="name">server</span>&gt;</span></span><br><span class="line">		<span class="tag">&lt;/<span class="name">server-template</span>&gt;</span></span><br><span class="line">		</span><br><span class="line">		<span class="tag">&lt;<span class="name">replica-group</span> <span class="attr">id</span>=<span class="string">"ReplicatedPrinterAdapter"</span>&gt;</span></span><br><span class="line">			<span class="tag">&lt;<span class="name">load-balancing</span> <span class="attr">type</span>=<span class="string">"round-robin"</span>/&gt;</span></span><br><span class="line">			<span class="tag">&lt;<span class="name">object</span> <span class="attr">identity</span>=<span class="string">"printerService"</span> <span class="attr">type</span>=<span class="string">"::org::noahsark::server::entry::IceEntry"</span> /&gt;</span></span><br><span class="line">	 </span><br><span class="line">		<span class="tag">&lt;/<span class="name">replica-group</span>&gt;</span></span><br><span class="line"></span><br><span class="line">		<span class="tag">&lt;<span class="name">node</span> <span class="attr">name</span>=<span class="string">"node1"</span>&gt;</span></span><br><span class="line">			<span class="tag">&lt;<span class="name">server-instance</span> <span class="attr">template</span>=<span class="string">"PrinterServerTemplate"</span> <span class="attr">index</span>=<span class="string">"1"</span>/&gt;</span></span><br><span class="line">		<span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">		<span class="comment">&lt;!--</span></span><br><span class="line"><span class="comment">		&lt;node name="node2"&gt;</span></span><br><span class="line"><span class="comment">			&lt;server-instance template="PrinterServerTemplate" index="2"/&gt;</span></span><br><span class="line"><span class="comment">		&lt;/node&gt;</span></span><br><span class="line"><span class="comment">		--&gt;</span></span><br><span class="line">				</span><br><span class="line">    <span class="tag">&lt;/<span class="name">application</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">icegrid</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><strong>配置说明：</strong></p>
+<ul>
+<li>application: 应用标签，name 属性定义名字；</li>
+<li>server-template：server 模板，定义了启动程序、apdater 及相关的配置参数，可以复用；</li>
+<li>server: 逻辑上的服务器，是指能够通过 exe 命令的启动的一个服务程序。exe 就是启动这个服务的命令，这个命令不能是 exe 或者 .sh 执行文件。activation 属性，是设置服务的启动方式，on-demand 是按需启动option 标签是 exe 执行命令命令行的参数。这样的配置就相当与使用 <code>java -jar E:\bell-lab\ice\deploy-1\app\ice-lab.jar</code> 启动，<code>ice-lab.jar</code> 是打包成可执行的服务端 jar 包；</li>
+<li>node: 节点标签，代表了一个物理上的节点，节点必须有唯一的名字；</li>
+<li>adapter: 适配器的定义，名字必须唯一，用于服务的注册及查询；</li>
+<li>replica-group：复制分组，代表一组远程可以访问的对象。</li>
+</ul>
+<h3 id="将应用部署到-Node-中"><a href="#将应用部署到-Node-中" class="headerlink" title="将应用部署到 Node 中"></a>将应用部署到 Node 中</h3><p>启动 Registry, Node, 然后启动 <code>icegridadmin</code>:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cegridadmin --Ice.Config=config.cfg</span><br><span class="line">&gt;&gt;&gt; application add <span class="string">"app.xml"</span></span><br></pre></td></tr></table></figure>
+<p>或直接在启动 master registry 时部署应用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">icegridnode --Ice.IPv6=0 --daemon --nochdir --Ice.Config=registry.cfg --deploy app.xml</span><br></pre></td></tr></table></figure></p>
+<p>此时，只是将部署文件加载到 Registry Node 有可能没有启动，待 Node 启动之后再将部署信息分发下去。</p>
+<h2 id="关键配置信息"><a href="#关键配置信息" class="headerlink" title="关键配置信息"></a>关键配置信息</h2><h3 id="Endponts"><a href="#Endponts" class="headerlink" title="Endponts"></a>Endponts</h3><p>在上文中，除了 <code>IceGrid.Registry.Client.Endpoints</code>, 我们指定了固定的端口，其它 Endpoint 并没有指定端口，在一些场景下，我们可能需要知道明确的端口方便做网络策略，这时候便需要设置固定端口。</p>
+<p><strong>Registry Endpoints</strong><br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.Registry.Client.Endpoints</span>=<span class="string">tcp -h 127.0.0.1 -p 4061</span></span><br><span class="line"><span class="meta">IceGrid.Registry.Server.Endpoints</span>=<span class="string">tcp -p 300001</span></span><br><span class="line"><span class="meta">IceGrid.Registry.Internal.Endpoints</span>=<span class="string">tcp -p 30002</span></span><br></pre></td></tr></table></figure></p>
+<p><strong>Node Endpoints</strong></p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.Node.Endpoints</span>=<span class="string">tcp -p 30003</span></span><br></pre></td></tr></table></figure>
+<p><strong>Adapter Endpoints</strong></p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">PrinterAdapter.Endpoints</span>=<span class="string">tcp -p 30000</span></span><br></pre></td></tr></table></figure>
+<p>设置 Adapter Eendpoints 也可以在代码中或部署文件中定义：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">String endpoints = <span class="string">"tcp -p 30000"</span>;</span><br><span class="line">Ice.ObjectAdapter adapter = communicator().createObjectAdapterWithEndpoints(<span class="string">"PrinterAdapter"</span>, endpoints);</span><br></pre></td></tr></table></figure>
+<p>部署文件：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">adapter</span> <span class="attr">name</span>=<span class="string">"FMServerAdapter"</span> <span class="attr">endpoints</span>=<span class="string">"tcp 30000"</span> <span class="attr">replica-group</span>=<span class="string">"ReplicatedHelloAdapter"</span>/&gt;</span></span><br></pre></td></tr></table></figure>
+<h3 id="日志"><a href="#日志" class="headerlink" title="日志"></a>日志</h3><p>引入 Ice 之后，系统会变得复杂，为了方便问题定位，我们需要获取更多的运行时信息，输出运行时的日志就比较关键。我们可以对不同的服务进行日志的输出配置。</p>
+<p><strong>Registry, Node, Apdater 通用</strong></p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">Ice.LogFile</span>=<span class="string">E:\bell-lab\ice\deploy-1\master\logfile.log</span></span><br><span class="line"><span class="meta">Ice.StdErr</span>=<span class="string">E:\bell-lab\ice\deploy-1\master\error.log</span></span><br><span class="line"><span class="meta">Ice.StdOut</span>=<span class="string">E:\bell-lab\ice\deploy-1\master\out.log</span></span><br></pre></td></tr></table></figure>
+<p>参数说明：</p>
+<ul>
+<li>Ice.LogFile: 配置日志文件；</li>
+<li>Ice.StdErr: 标准错误 IO 输出文件；</li>
+<li>ce.StdOut: 标准控制台输出文件；</li>
+</ul>
+<p><strong>Node 日志</strong><br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.Node.Output</span>=<span class="string">E:\bell-lab\ice\deploy-1\node1\db</span></span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>IceGrid.Node.Output：Node 日志输出目录，它会将运行在该结点下的 Apater 日志输出到该目录；</li>
+</ul>
+<p><strong>Adapter 日志</strong><br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Network"</span>,<span class="string">"2"</span>);</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Protocol"</span>,<span class="string">"1"</span>);</span><br><span class="line">localInitializationData.properties.setProperty(<span class="string">"Ice.Trace.Locator"</span>,<span class="string">"2"</span>);</span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>Ice.Trace.Network: 控制网络连接日志的输出级别；</li>
+<li>Ice.Trace.Protocol: 控制输出 Ice Message;</li>
+<li>Ice.Trace.Locator: 控制 Adpater 注册及查询信息的输出级别；</li>
+</ul>
+<p>具体详情可以见官网。</p>
+<h3 id="Registry-与-Node-同一进程部署"><a href="#Registry-与-Node-同一进程部署" class="headerlink" title="Registry 与 Node 同一进程部署"></a>Registry 与 Node 同一进程部署</h3><p>Registry 与 Node 可以有多种部署方式，可以独立部署，也可以部署到同一个进程中。如何部署可以通过参数进行配置：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.Node.CollocateRegistry</span>=<span class="string">0</span></span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>IceGrid.Node.CollocateRegistry: 0 表示分开部署，1 表示同一个进程部署。</li>
+</ul>
+<h3 id="Registry-主从配置"><a href="#Registry-主从配置" class="headerlink" title="Registry 主从配置"></a>Registry 主从配置</h3><p>为了实现高可用，Registry 可以主从部署，可以通过下面的参数指定主从身份：<br><figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">IceGrid.Registry.ReplicaName</span>=<span class="string">Master/Replic1/Replica2</span></span><br></pre></td></tr></table></figure></p>
+<p>参数说明：</p>
+<ul>
+<li>IceGrid.Registry.ReplicaName: Master Registry 默认为 Master, 可以不配置，Repica Registry 根据需要配置为 ReplicaN，或其它名字。</li>
+</ul>
+<p><br></p>
+<p><strong>参考：</strong></p>
+<hr>
+<p><a href="https://doc.zeroc.com/display/Ice35/Ice+Overview" target="_blank" rel="noopener">1. Ice Overview</a></p>
+<p><a href="https://doc.zeroc.com/display/Ice35/Ice+Trace+Properties" target="_blank" rel="noopener">2. Ice Trace Properties</a></p>
+<p><a href="https://doc.zeroc.com/display/Ice35/Ice+Object+Adapter+Properties" target="_blank" rel="noopener">3. Ice Object Adapter Properties</a></p>
+<p><a href="https://blog.csdn.net/pdw2009/article/details/50597339" target="_blank" rel="noopener">4. IceGrid 最佳入门例了</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ice/" rel="tag"># ice</a>
+          
+            <a href="/tags/adpater/" rel="tag"># adpater</a>
+          
+            <a href="/tags/slice/" rel="tag"># slice</a>
+          
+            <a href="/tags/IceGrid/" rel="tag"># IceGrid</a>
+          
+            <a href="/tags/icegridnode/" rel="tag"># icegridnode</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/03/26/springsecurit-filters/" rel="next" title="Springboot 序列：SpringSecurity 整体架构">
+                <i class="fa fa-chevron-left"></i> Springboot 序列：SpringSecurity 整体架构
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/04/springsecurity-authentication/" rel="prev" title="Springboot 序列：SpringSecurity 认证">
+                Springboot 序列：SpringSecurity 认证 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Noahsark</p>
+              <p class="site-description motion-element" itemprop="description">不畏将来，不念过往</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">93</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">27</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">299</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#概述"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#整体架构"><span class="nav-number">1.1.</span> <span class="nav-text">整体架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Slice-文件"><span class="nav-number">1.2.</span> <span class="nav-text">Slice 文件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#编写代码"><span class="nav-number">2.</span> <span class="nav-text">编写代码</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#编写-Slice-文件"><span class="nav-number">2.1.</span> <span class="nav-text">编写 Slice 文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#编写服务端代码"><span class="nav-number">2.2.</span> <span class="nav-text">编写服务端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#编写客户端代码"><span class="nav-number">2.3.</span> <span class="nav-text">编写客户端代码</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#直连模式"><span class="nav-number">3.</span> <span class="nav-text">直连模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#服务端代码"><span class="nav-number">3.1.</span> <span class="nav-text">服务端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#客户端代码"><span class="nav-number">3.2.</span> <span class="nav-text">客户端代码</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Registry-注册模式"><span class="nav-number">4.</span> <span class="nav-text">Registry 注册模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#服务端代码-1"><span class="nav-number">4.1.</span> <span class="nav-text">服务端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#客户端代码-1"><span class="nav-number">4.2.</span> <span class="nav-text">客户端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Registry-配置"><span class="nav-number">4.3.</span> <span class="nav-text">Registry 配置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Registry-Node-模式"><span class="nav-number">5.</span> <span class="nav-text">Registry Node 模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#服务端代码-2"><span class="nav-number">5.1.</span> <span class="nav-text">服务端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#客户端代码-2"><span class="nav-number">5.2.</span> <span class="nav-text">客户端代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Registry-配置-1"><span class="nav-number">5.3.</span> <span class="nav-text">Registry 配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Node-配置"><span class="nav-number">5.4.</span> <span class="nav-text">Node 配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#部署应用"><span class="nav-number">5.5.</span> <span class="nav-text">部署应用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#将应用部署到-Node-中"><span class="nav-number">5.6.</span> <span class="nav-text">将应用部署到 Node 中</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#关键配置信息"><span class="nav-number">6.</span> <span class="nav-text">关键配置信息</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Endponts"><span class="nav-number">6.1.</span> <span class="nav-text">Endponts</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#日志"><span class="nav-number">6.2.</span> <span class="nav-text">日志</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Registry-与-Node-同一进程部署"><span class="nav-number">6.3.</span> <span class="nav-text">Registry 与 Node 同一进程部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Registry-主从配置"><span class="nav-number">6.4.</span> <span class="nav-text">Registry 主从配置</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Noahsark</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">301k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">4:34</span>
+  
+</div>
+
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/" rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">粤公网安备 44030702004132号</a>
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.9.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v6.5.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
